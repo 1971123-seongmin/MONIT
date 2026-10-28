@@ -1,7 +1,13 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 language: ko-KR
 reviews:
-  profile: chill
+  profile: quiet
+  high_level_summary: false
+  review_status: false
+  review_info: false
+  changed_files_summary: false
+  sequence_diagrams: false
+  in_progress_fortune: false
   request_changes_workflow: false
   auto_review:
     enabled: true
@@ -12,6 +18,8 @@ reviews:
         Follow AGENTS.md. Review Kotlin/Compose, UDF, module boundaries,
         financial precision, user data isolation and synchronization conflicts.
         Do not recommend speculative features or unnecessary abstractions.
+        Focus on actionable defects with concrete impact. Avoid style-only,
+        nitpick, and speculative comments. Write reviews and replies in Korean.
         Never expose credentials or real financial data in review comments.
 chat:
-  auto_reply: true
+  auto_reply: false
