@@ -4,6 +4,8 @@
 
 기존 `.agents/skills`의 commit-create·pr-create·stability-analysis·write-tests를 유지한다. 역할은 업무 책임이고 스킬은 반복 작업 절차이므로 역할마다 동일한 스킬 사본을 만들지 않는다. 새 스킬은 반복되는 작업과 실패 패턴이 확인될 때만 추가한다.
 
+사용자가 요청한 날짜별 학습 기록에는 [learning-log](../../.agents/skills/learning-log/SKILL.md)를 사용한다. 관련 증거를 수집해 기존 날짜 기록을 갱신하는 절차이며 예약 실행·무인 외부 쓰기 설정이 아니다.
+
 기존 Android CI는 assembleDebug·testDebugUnitTest·lintDebug를 수행한다. CodeRabbit 설정은 기존 변경과 PR의 범위를 유지하며 이번 조직 구축을 위해 덮어쓰지 않는다. 과거 PR의 성공 결과는 현재 미커밋 변경의 검증 결과가 아니다.
 
 ## 검증 선택

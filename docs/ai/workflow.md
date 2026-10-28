@@ -75,3 +75,4 @@ Collaboration Log는 한 주제에 한 레코드를 사용한다. `Title`, `Task
 - [공통 지침](../../AGENTS.md), [공통 DoD](definition-of-done.md), [PM](roles/pm.md)
 - [자동화 운영](automation.md)
 - [Figma와 Compose 연동 규칙](design-system.md)
+- [개발 학습 기록 운영](learning-log.md): 날짜별 실습·학습은 Dev Learning Log에 정리하고 협업 요청·결정 로그와 구분한다.

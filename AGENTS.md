@@ -45,6 +45,7 @@ MONIT은 개인 금융 루틴 관리 Android 앱이다. 반복 납입 일정과 
   - [pr-create](.agents/skills/pr-create/SKILL.md): 검증된 변경과 기존 템플릿으로 PR 작성. 원격 생성·수정은 해당 작업 승인 필요. 병합 제외.
   - [stability-analysis](.agents/skills/stability-analysis/SKILL.md): 지정한 대상의 읽기 전용 안정성 분석. 일반 수정마다 적용하지 않는다.
   - [write-tests](.agents/skills/write-tests/SKILL.md): 요청된 테스트 구현·회귀 테스트·테스트 문서화. Kotlin 테스트 작성·수정 전에 스킬과 연결된 문서화 지침을 읽는다.
+  - [learning-log](.agents/skills/learning-log/SKILL.md): 요청된 날짜의 실습·학습을 MONIT Dev Learning Log에 근거 기반으로 기록한다. PM은 [운영 기준](docs/ai/learning-log.md)을 관리한다.
 - Git Hooks와 Codex Hooks를 구분하고 실제 지원·설정·신뢰 상태를 확인한다. 변경 범위에 맞는 검사부터 적용한다.
 
 ## Git과 품질
