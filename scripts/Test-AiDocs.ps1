@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 param()
 
 $ErrorActionPreference = 'Stop'
@@ -16,6 +17,7 @@ if ($monitErrors.Count) { throw ($monitErrors -join [Environment]::NewLine) }
 
 $monitFiles = @((Get-Item -LiteralPath (Join-Path $monitRoot 'AGENTS.md'))) + @(
     Get-ChildItem -LiteralPath (Join-Path $monitRoot 'docs/ai') -Recurse -File -Filter '*.md'
+    Get-ChildItem -LiteralPath (Join-Path $monitRoot '.agents/skills') -Recurse -File -Filter '*.md'
 )
 $monitExpectedHeadings = @(
     '## 1. 역할과 책임', '## 2. 작업 범위', '## 3. 산출물',
@@ -28,6 +30,11 @@ foreach ($monitFile in $monitFiles) {
     }
     if ($monitContent -match '(?m)[\t ]+\r?$') {
         $monitErrors.Add("Trailing whitespace: $($monitFile.FullName)")
+    }
+    # This small checker supports inline links only. Reject reference definitions
+    # and full/collapsed reference uses rather than silently skipping their targets.
+    if ($monitContent -match '(?m)^ {0,3}\[[^\]\r\n]+\]:|\[[^\]\r\n]+\]\[[^\]\r\n]*\]') {
+        $monitErrors.Add("Unsupported reference link in $($monitFile.Name): use an inline Markdown link.")
     }
     foreach ($monitLink in [regex]::Matches($monitContent, '\]\(([^)]+)\)')) {
         $monitTarget = $monitLink.Groups[1].Value.Trim('<', '>')

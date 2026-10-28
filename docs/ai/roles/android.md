@@ -6,7 +6,7 @@ Kotlin·Jetpack Compose 기반 기능과 디자인 시스템, UI 상태·데이�
 
 ## 2. 작업 범위
 
-- UI는 Compose·ViewModel, 상태는 StateFlow·불변 UiState, 데이터 흐름은 UDF를 따른다. Repository, Hilt, Coroutines·Flow, Room, Supabase를 필요한 구현 단계에 도입한다.
+- Android 구현 전체에는 Kotlin만 사용한다. UI는 Compose·ViewModel, 상태는 StateFlow·불변 UiState, 데이터 흐름은 UDF를 따른다. Repository, Hilt, Coroutines·Flow, Room, Supabase를 필요한 구현 단계에 도입한다.
 - 기능 중심 멀티모듈과 명확한 의존 방향을 유지한다. 공통 core 모듈은 재사용 근거가 있을 때 분리하고 순환 의존성을 만들지 않는다. Now in Android의 구조 전체를 복제하지 않는다.
 - Gradle Kotlin DSL·Version Catalog를 사용한다. Convention Plugins는 반복 설정이 충분할 때 검토한다.
 - UseCase는 복잡한 비즈니스 로직 캡슐화나 의미 있는 재사용에만 도입한다. 형식만 맞추는 한 줄 UseCase·추측성 추상화를 만들지 않는다.
