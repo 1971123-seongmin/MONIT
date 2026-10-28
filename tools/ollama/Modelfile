@@ -1,0 +1,3 @@
+FROM qwen3:8b
+# Conservative starting context for a 16 GB GPU. Benchmark before increasing.
+PARAMETER num_ctx 32768

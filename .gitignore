@@ -1,0 +1,22 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+
+# Credentials and machine-specific settings
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+*.pem
+.supabase/
+supabase/.temp/
+
+# Local inference and generated outputs
+*.gguf
+*.safetensors

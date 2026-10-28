@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: ko-KR
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*"
+      instructions: >-
+        Follow AGENTS.md. Review Kotlin/Compose, UDF, module boundaries,
+        financial precision, user data isolation and synchronization conflicts.
+        Do not recommend speculative features or unnecessary abstractions.
+        Never expose credentials or real financial data in review comments.
+chat:
+  auto_reply: true
