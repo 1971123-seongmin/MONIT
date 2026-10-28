@@ -1,0 +1,4 @@
+interface:
+  display_name: "MONIT 안정성 분석"
+  short_description: "지정한 호출 경로의 동시성·취소·상태·수명을 근거로 분석합니다"
+  default_prompt: "$stability-analysis로 지정한 MONIT 호출 경로의 안정성을 코드 수정 없이 분석해 줘."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "MONIT 테스트 작성"
+  short_description: "MONIT 동작에 맞는 결정적 테스트와 정확한 테스트 문서를 작성합니다"
+  default_prompt: "$write-tests로 지정한 MONIT 동작을 검증하는 테스트를 작성해 줘."
