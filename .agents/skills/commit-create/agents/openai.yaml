@@ -1,0 +1,6 @@
+interface:
+  display_name: "MONIT 커밋 생성"
+  short_description: "MONIT 변경을 분석하고 한국어 메시지의 로컬 커밋을 생성합니다"
+  default_prompt: "$commit-create로 승인된 MONIT 변경만 논리적 단위로 커밋해 줘."
+policy:
+  allow_implicit_invocation: true

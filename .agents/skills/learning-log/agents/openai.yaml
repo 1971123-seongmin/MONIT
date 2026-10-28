@@ -1,0 +1,6 @@
+interface:
+  display_name: "MONIT 학습 기록"
+  short_description: "실제 작업과 검증 근거로 MONIT의 날짜별 Notion 학습 기록을 정리합니다"
+  default_prompt: "$learning-log로 오늘의 MONIT 실습과 학습 내용을 확인된 근거로 기록해 줘."
+policy:
+  allow_implicit_invocation: true

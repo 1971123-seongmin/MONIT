@@ -1,215 +1,69 @@
-# MONIT — Agent Instructions
-
-## 1. Role
-
-You are an AI software engineering agent responsible for developing MONIT, a personal finance routine management Android application.
-
-Follow these instructions for all project work.
-
-Always respond to the user in Korean, including explanations, progress updates, questions, and task completion reports. Established technical terms, code identifiers, commands, and original error messages may remain in English, with Korean explanations when needed.
-
-Prefer concise explanations and evidence-based recommendations.
-
-## 2. Development Principles
-
-- Follow Google's recommended Android app architecture.
-- Use Kotlin and Jetpack Compose exclusively for Android implementation.
-- Do not introduce Java or XML-based Android UI.
-- Use a multi-module Gradle project.
-- Follow separation of concerns and single source of truth principles.
-- Prefer simple, maintainable solutions over unnecessary abstractions.
-- Implement only requirements within the approved scope.
-- Avoid speculative future-proofing.
-- Never modify unrelated code without a justified reason.
-
-## 3. Architecture
-
-Primary references:
-
-- https://developer.android.com/topic/architecture
-- https://developer.android.com/topic/modularization
-- https://github.com/android/nowinandroid
-- https://github.com/android/architecture-samples
-
-Architecture guidelines:
-
-- UI Layer: Compose + ViewModel
-- State: StateFlow and immutable UiState
-- Data Flow: Unidirectional Data Flow
-- Data Layer: Repository
-- Dependency Injection: Hilt
-- Concurrency: Coroutines and Flow
-- Local Persistence: Room
-- Remote Backend: Supabase
-
-Use domain-layer UseCases when they provide meaningful reuse or encapsulate complex business logic.
-
-Do not create one-line UseCases merely to satisfy an architectural template.
-
-## 4. Modularization
-
-Prefer feature-oriented modularization.
-
-Separate reusable infrastructure and UI components into core modules only when justified.
-
-Modules must have clear responsibilities and dependency directions.
-
-Avoid circular dependencies.
-
-Do not copy the complete Now in Android module structure without evaluating project needs.
-
-Use Gradle Kotlin DSL and Version Catalog.
-
-Consider Convention Plugins when repeated build configuration becomes substantial.
-
-## 5. Kotlin and Compose
-
-- Prefer immutable state.
-- Use lifecycle-aware Flow collection.
-- Avoid unnecessary recomposition.
-- Use stable Lazy list keys where applicable.
-- Keep business logic outside Composables.
-- Use structured concurrency.
-- Propagate CancellationException correctly.
-- Avoid GlobalScope.
-- Do not suppress exceptions without justification.
-- Keep public APIs minimal.
-- Follow official Android recommendations.
-
-## 6. Data and Security
-
-- Never commit credentials, tokens, or secrets.
-- Never expose Supabase service-role or secret keys in Android.
-- Apply Row Level Security to user-owned tables.
-- Do not trust client-side authorization alone.
-- Avoid logging sensitive financial information.
-- Treat financial calculations as deterministic business logic.
-- Do not use LLM-generated values as authoritative financial records.
-- Define sync and conflict-resolution policies before implementation.
-- Never claim a scheduled transfer was completed without verified information or user confirmation.
-
-## 7. AI Development Workflow
-
-Use Codex CLI as the primary coding agent.
-
-Ollama may be used for local inference and coding experiments.
-
-Claude Code is excluded. (subject to change)
-
-Use AGENTS.md as the shared project instruction source.
-
-Create Skills only for reusable workflows.
-
-Use Hooks for appropriate automated checks.
-
-Use MCP tools with minimum necessary permissions.
-
-Do not assume that every MCP server or agent feature is available without verification.
-
-Subagents may perform independent research, testing, or review tasks.
-
-Avoid concurrent edits to the same files.
-
-Use Git Worktree when parallel tasks require isolated working directories.
-
-## 8. Git and GitHub
-
-Repository visibility: Public.
-
-Scope all GitHub-related work, repository settings, GitHub Actions, and CodeRabbit configuration to `1971123-seongmin/MONIT` only. Do not modify other repositories or organization-wide settings. Prefer repository-local Git settings and specify the repository explicitly in GitHub CLI commands.
-
-Follow an issue-driven development workflow when practical.
-
-Commit message format:
-
-<type>(<scope>): <subject>
-
-Allowed types:
-
-- feat
-- fix
-- mod
-- refactor
-- test
-- docs
-- style
-- perf
-- chore
-- ci
-
-Write commit messages in Korean.
-
-Use meaningful scopes following existing repository conventions.
-
-Keep commits focused and logically independent.
-
-Do not force-push shared branches without approval.
-
-Do not merge PRs or publish releases without user approval.
-
-## 9. Quality Assurance
-
-Before completing an implementation task:
-
-1. Review the changes.
-2. Verify relevant acceptance criteria.
-3. Run applicable tests.
-4. Run build and static checks when available.
-5. Check for unintended behavior changes.
-6. Report verification results.
-
-Use GitHub Actions for automated CI.
-
-Use CodeRabbit for independent PR review.
-
-Treat AI review comments as suggestions requiring validation.
-
-Do not automatically accept every review recommendation.
-
-## 10. Documentation
-
-Maintain relevant project documentation.
-
-Primary technical documentation belongs in the Git repository.
-
-Notion may be used for planning, learning records, and project management.
-
-Figma is the source of truth for approved visual design specifications.
-
-Keep documentation consistent with actual implementation.
-
-Record significant architectural decisions using ADRs when appropriate.
-
-Avoid unnecessary documentation duplication.
-
-## 11. Cost Constraints
-
-Use the user's existing Codex subscription plan as the primary means of AI-assisted development. Do not restrict development to free-tier tools when capabilities are already included in the user's current plan.
-
-Ollama and locally hosted models may be used when appropriate for project requirements or experiments.
-
-Do not purchase additional credits, upgrade subscriptions, enable separately billed APIs, or activate paid external services without explicit user approval.
-
-Before integrating a service, verify its usage limits and whether it incurs charges beyond the user's existing subscription. Do not assume that API usage or external services are included in the Codex subscription.
-
-## 12. Task Completion Report
-
-For implementation tasks, report:
-
-- Summary of changes
-- Files modified
-- Architectural considerations
-- Tests and validation performed
-- Remaining risks or limitations
-
-Distinguish confirmed facts from assumptions.
-
-If a command or test was not executed, state that explicitly.
-
-## 13. Approval Policy
-
-Before major architectural changes, destructive operations, deployment, external service modifications, or potentially billable actions, request user approval.
-
-For ordinary approved implementation tasks, proceed without unnecessary confirmation.
-
-Do not create large scaffolding structures before the initial architecture is approved.
+# MONIT — 공통 에이전트 지침
+
+## 프로젝트와 공통 원칙
+
+MONIT은 개인 금융 루틴 관리 Android 앱이다. 반복 납입 일정과 수동 완료 이력, 예산·알림·사용자 데이터 동기화를 다룬다. 카드 실적·혜택, 은행 연결, 자동 송금, 거래 자동 수집은 현재 MVP에서 제외한다.
+
+- 설명·질문·진행 및 완료 보고는 한국어로 작성한다. 기술 용어·코드·명령·원문 오류는 그대로 사용할 수 있다.
+- 승인된 범위만 구현하고 관련 없는 코드와 기존 사용자 변경을 보존한다. 단순하고 유지보수 가능한 설계를 우선한다.
+- Google 권장 Android 아키텍처, 관심사 분리, 단일 진실 공급원 원칙을 따른다. Android 구현 전체에는 Kotlin만 사용하고 UI는 Jetpack Compose로 구현한다. 기능 중심 Gradle 멀티모듈을 사용하며 Java 및 XML 기반 Android UI를 도입하지 않는다.
+- 목표 기술 스택은 ViewModel·StateFlow·불변 UiState·UDF, Repository, Hilt, Coroutines·Flow, Room, Supabase다. 목표와 현재 구현 상태를 구분하고 큰 구조는 승인 전에 생성하지 않는다.
+- 역할의 책임은 외부 변경 권한을 뜻하지 않는다. PM은 업무를 조율하며 사용자의 최종 승인 권한을 대신하지 않는다.
+
+## 역할 선택과 필요한 문서 읽기
+
+작업 시작 시 요청과 산출물에 맞는 역할을 정하고 아래 해당 문서와 [공통 DoD](docs/ai/definition-of-done.md)를 읽는다. 역할이 불분명하면 먼저 범위를 정리한다. 역할 문서는 자동 로딩된다고 가정하지 않으며, 다른 역할의 지침은 인수인계 등 필요한 부분만 읽는다. 채팅 운영·전달·원본 관리가 필요할 때 [협업 운영](docs/ai/workflow.md)을 참조한다.
+
+| 역할 | 지침 | 주요 책임 |
+|---|---|---|
+| 00 · PM | [pm.md](docs/ai/roles/pm.md) | 우선순위·의존성·의사결정·협업 기록 |
+| 01 · Planning | [planning.md](docs/ai/roles/planning.md) | 요구사항·정책·수용 기준 |
+| 02 · Design | [design.md](docs/ai/roles/design.md) | Figma·토큰·컴포넌트·화면 명세 |
+| 03 · Backend | [backend.md](docs/ai/roles/backend.md) | Supabase·Migration·RLS·데이터 계약 |
+| 04 · Android | [android.md](docs/ai/roles/android.md) | Compose·앱 아키텍처·기능 구현 |
+| 05 · QA / DevOps | [qa-devops.md](docs/ai/roles/qa-devops.md) | 테스트·CI·리뷰 검증·릴리스 품질 |
+
+- 전체 저장소·Notion·Figma 문서를 매번 읽지 않는다. 관련 파일·페이지·섹션만 조회하고 이미 확인한 결과를 재사용한다.
+- 채팅 간 맥락이 자동 공유된다고 가정하지 않는다. 산출물 링크, 핵심 결정, 필요한 후속 작업으로 인수인계한다. 실제로 전달하지 않은 요청을 전달했다고 보고하지 않는다.
+- 다른 역할의 책임 영역 변경은 PM과 조율한다. 같은 파일의 동시 수정을 피하고 병렬 수정에 격리가 필요할 때 Git Worktree를 사용한다.
+- 독립 조사·테스트 분석·리뷰에 필요한 경우만 서브에이전트를 사용한다. 중복 작업과 기록만을 위한 추가 AI 호출을 피하며, 토큰 절약을 이유로 보안 검증·테스트를 생략하지 않는다.
+
+## 보안과 금융 데이터
+
+- 저장소는 Public이다. 자격 증명·토큰·비밀키·서명키·실제 금융 데이터를 커밋하거나 로그·외부 문서·리뷰에 노출하지 않는다.
+- Supabase service-role·secret 키를 Android에 넣지 않는다. 사용자 소유 테이블에 RLS를 적용하고 클라이언트 권한 검사만 신뢰하지 않는다.
+- 금융 계산은 결정적 비즈니스 로직으로 구현한다. LLM 생성 값을 금융 기록의 근거로 사용하지 않는다.
+- 데이터 동기화·충돌 해결 정책을 구현 전에 확정한다. 검증된 정보나 사용자 확인 없이 납입·송금 완료를 주장하지 않는다.
+
+## 개발 도구와 비용
+
+- 기존 Codex 구독과 Codex CLI를 주 개발 수단으로 사용한다. 구독에 포함된 기능을 무료 도구만으로 제한하지 않는다. Ollama는 로컬 추론·보조 작업·실험에 활용하고 결과를 검증한다. Claude Code는 사용하지 않는다.
+- 신규 구독·크레딧 구매·별도 과금 API·유료 외부 서비스 활성화는 명시적 사용자 승인 없이 수행하지 않는다. 도입 전 실제 이용 권한·한도·추가 비용을 확인하고 미확인은 그대로 표시한다.
+- MCP는 최소 권한으로 사용한다. 도구 노출, 인증, 대상 접근 권한, 실제 동작 성공을 구분하며 앱 연결과 독립 CLI 인증을 동일시하지 않는다.
+- 반복 작업은 기존 스킬을 우선 재사용한다. 스킬 존재가 커밋·외부 변경·범위 확대를 승인하지 않는다.
+  - [commit-create](.agents/skills/commit-create/SKILL.md): 명시적으로 요청한 로컬 커밋. push·PR 생성 제외.
+  - [pr-create](.agents/skills/pr-create/SKILL.md): 검증된 변경과 기존 템플릿으로 PR 작성. 원격 생성·수정은 해당 작업 승인 필요. 병합 제외.
+  - [stability-analysis](.agents/skills/stability-analysis/SKILL.md): 지정한 대상의 읽기 전용 안정성 분석. 일반 수정마다 적용하지 않는다.
+  - [write-tests](.agents/skills/write-tests/SKILL.md): 요청된 테스트 구현·회귀 테스트·테스트 문서화. Kotlin 테스트 작성·수정 전에 스킬과 연결된 문서화 지침을 읽는다.
+  - [learning-log](.agents/skills/learning-log/SKILL.md): 요청된 날짜의 실습·학습을 MONIT Dev Learning Log에 근거 기반으로 기록한다. PM은 [운영 기준](docs/ai/learning-log.md)을 관리한다.
+- Git Hooks와 Codex Hooks를 구분하고 실제 지원·설정·신뢰 상태를 확인한다. 변경 범위에 맞는 검사부터 적용한다.
+
+## Git과 품질
+
+- GitHub 작업·저장소 설정·GitHub Actions·CodeRabbit은 `1971123-seongmin/MONIT`에만 한정한다. 다른 저장소·조직 설정을 변경하지 않는다. Git 설정은 저장소 로컬을 우선하며 GitHub CLI에는 저장소를 명시한다.
+- 가능한 경우 Issue 기반으로 작업하고 기능별 브랜치·논리적 단위 커밋·PR을 사용한다. 승인 없이 공유 브랜치 강제 push, PR 병합, 릴리스·배포를 하지 않는다.
+- 커밋은 한국어 `<type>(<scope>): <subject>` 형식으로 작성한다. type은 `feat`, `fix`, `mod`, `refactor`, `test`, `docs`, `style`, `perf`, `chore`, `ci` 중 선택하며 기존 관례에 맞는 scope를 사용한다.
+- PR 제목은 `[KEYWORD/#issue-number] 이슈명 또는 적절한 문장/단어` 형식이다. 대문자 키워드와 실제 관련 이슈 번호를 사용한다. 관련 이슈가 없으면 제목을 확인하고 번호를 만들지 않는다.
+- PR 제목과 커밋 형식을 혼동하지 않는다. 승인된 squash merge에서도 최종 커밋 메시지를 커밋 형식으로 검토·수정한다. 명명 규칙은 병합 권한을 부여하지 않는다.
+- 구현 완료 전 변경 검토, Acceptance Criteria 확인, 관련 테스트, 가능한 빌드·정적 검사, 의도하지 않은 동작 변경 확인을 수행한다. 결과는 공통 DoD에 따라 보고한다.
+- GitHub Actions를 CI에, CodeRabbit을 독립 PR 리뷰에 활용한다. AI 리뷰 제안은 근거와 영향으로 검증하며 자동 수용하지 않는다.
+- PR 병합 전에는 항상 PR의 최신 head 커밋의 CI 상태와 CodeRabbit 리뷰 내용을 확인한다. 지적을 실제 코드·규칙과 대조하고 필요한 수정은 반영·검증한 뒤 병합한다. 수정 후에는 새 커밋의 검사·리뷰 결과를 다시 확인하며, 보류한 지적은 근거와 후속 조치를 기록한다. 검사 성공 표시만으로 리뷰 확인을 대신하지 않는다.
+
+## 문서 원본과 승인
+
+- 기술 문서·아키텍처 ADR·Migration·데이터 계약·토큰 구현·테스트·개발 지침의 원본은 Git 저장소다.
+- 모든 MONIT 관련 Notion 조회·생성·수정·이동은 **MONIT 팀스페이스**를 대상으로 한다. 대상 팀스페이스와 상위 페이지를 확인하며, 미확인 시 개인 영역이나 다른 팀스페이스에 대신 생성하지 않고 사용자에게 확인한다.
+- Notion은 PRD·요구사항·로드맵·진행 현황·협업 및 학습 기록에 사용한다. 기술 결정은 Git ADR을 연결하며 같은 문서를 두 곳에서 독립 관리하지 않는다. 아직 외부 원본이 확정되지 않았다면 현재 원본과 예정 위치를 구분한다.
+- 승인된 시각 디자인·토큰 명세의 원본은 Figma다. MONIT Figma 작업은 선택된 팀의 Folders → MONIT 폴더에서 수행하고 실제 파일 위치를 확인한다. Compose 구현은 Git에서 관리하고 대응 관계를 검증한다. 문서는 실제 구현 상태와 일치시킨다.
+- 큰 아키텍처 변경, 공통·역할 지침 최초 적용, Notion 페이지·DB 생성·삭제·대규모 변경, Figma 파일·디자인 시스템·Variables 변경, Supabase 스키마·RLS 변경, GitHub 설정 등 외부 서비스 변경, 파괴적 작업, 배포·릴리스 및 잠재적 과금 작업은 사전에 사용자 승인을 받는다.
+- 이미 승인된 범위의 일반 구현은 불필요한 재승인 없이 진행한다. 범위 밖 변경이 필요하면 이유와 영향을 설명하고 확인한다.
