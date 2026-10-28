@@ -116,6 +116,8 @@ Use Git Worktree when parallel tasks require isolated working directories.
 
 Repository visibility: Public.
 
+Scope all GitHub-related work, repository settings, GitHub Actions, and CodeRabbit configuration to `1971123-seongmin/MONIT` only. Do not modify other repositories or organization-wide settings. Prefer repository-local Git settings and specify the repository explicitly in GitHub CLI commands.
+
 Follow an issue-driven development workflow when practical.
 
 Commit message format:
