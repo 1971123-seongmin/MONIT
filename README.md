@@ -4,6 +4,7 @@
 
 현재 앱은 Kotlin·Jetpack Compose 기반 실행 확인용 임시 화면입니다. Version Catalog와 Compose 최소 런처까지 적용했으며, 제품 디자인 시스템과 기능 화면은 이후 구현합니다.
 `core:model`에는 원화 금액과 날짜의 순수 Kotlin 검증·계산 및 단위 테스트를 추가했습니다. 실제 거래·잔액 저장은 아직 구현하지 않았습니다.
+앱은 Hilt Application과 Activity 진입점을 연결한 최소 DI 기반을 사용합니다. Room·Repository 바인딩과 제품 화면은 후속 단계입니다.
 
 현재는 서버 연결 없이 로컬 MVP의 기반을 구현하는 단계입니다. 아래 개발 범위에는 초기 장기 목표가 포함되어 있습니다.
 
