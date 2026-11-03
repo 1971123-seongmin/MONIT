@@ -25,4 +25,4 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
       - name: Build, unit tests and lint
-        run: bash ./gradlew assembleDebug testDebugUnitTest lintDebug --console=plain
+        run: bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug --console=plain

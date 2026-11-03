@@ -2,7 +2,10 @@
 
 매월 반복되는 개인 금융 일정을 관리하는 Android 앱입니다. AI 에이전트 기반 개발과 자동화를 함께 실습합니다.
 
-현재 앱은 실행 확인용 임시 화면입니다. Kotlin과 Jetpack Compose 기반 제품 화면은 이후 구현합니다.
+현재 앱은 Kotlin·Jetpack Compose 기반 실행 확인용 임시 화면입니다. Version Catalog와 Compose 최소 런처까지 적용했으며, 제품 디자인 시스템과 기능 화면은 이후 구현합니다.
+`core:model`에는 원화 금액과 날짜의 순수 Kotlin 검증·계산 및 단위 테스트를 추가했습니다. 실제 거래·잔액 저장은 아직 구현하지 않았습니다.
+
+현재는 서버 연결 없이 로컬 MVP의 기반을 구현하는 단계입니다. 아래 개발 범위에는 초기 장기 목표가 포함되어 있습니다.
 
 ## 개발 범위
 
@@ -16,7 +19,7 @@
 ## 프로젝트 구조
 
 - `app`: 앱 진입점과 의존성 조립
-- `core:model`: 공통 모델을 위한 초기 모듈
+- `core:model`: Android 비의존 Kotlin 금액·날짜 검증과 계산
 
 기능 모듈은 실제 구현에 맞춰 추가합니다. 공통 개발 규칙은 [AGENTS.md](AGENTS.md)를 따릅니다.
 
@@ -26,16 +29,16 @@ Android Studio의 JDK와 Android SDK를 준비합니다. 현재 빌드 설정은
 로컬 SDK 위치는 Git에서 제외되는 `local.properties`로 설정합니다.
 
 ```powershell
-.\gradlew.bat assembleDebug testDebugUnitTest lintDebug
+.\gradlew.bat :core:model:test assembleDebug testDebugUnitTest lintDebug
 ```
 
 Linux와 CI에서는 다음 명령을 사용합니다.
 
 ```sh
-bash ./gradlew assembleDebug testDebugUnitTest lintDebug
+bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug
 ```
 
-테스트 소스가 없는 초기 단계에서는 테스트 작업이 `NO-SOURCE`로 표시됩니다. 이는 동작 테스트 통과를 의미하지 않습니다.
+`core:model:test`는 금액·날짜 단위 테스트를 실행합니다. 앱 테스트 소스는 아직 없어 `testDebugUnitTest`의 `NO-SOURCE`를 앱 동작 테스트 통과로 해석하지 않습니다.
 
 ## 로컬 LLM
 
