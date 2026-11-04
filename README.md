@@ -2,9 +2,9 @@
 
 매월 반복되는 개인 금융 일정을 관리하는 Android 앱입니다. AI 에이전트 기반 개발과 자동화를 함께 실습합니다.
 
-현재 앱은 Kotlin·Jetpack Compose 기반 실행 확인용 임시 화면입니다. Version Catalog와 Compose 최소 런처까지 적용했으며, 제품 디자인 시스템과 기능 화면은 이후 구현합니다.
-`core:model`에는 원화 금액과 날짜의 순수 Kotlin 검증·계산 및 단위 테스트를 추가했습니다. 실제 거래·잔액 저장은 아직 구현하지 않았습니다.
-앱은 Hilt Application과 Activity 진입점을 연결한 최소 DI 기반을 사용합니다. Room·Repository 바인딩과 제품 화면은 후속 단계입니다.
+현재 앱은 Kotlin·Jetpack Compose 기반 실행 확인용 임시 화면입니다. Version Catalog·buildSrc 공통 설정과 Hilt 기반을 사용하며, 제품 디자인 시스템과 기능 화면은 이후 구현합니다.
+`core:model`에는 원화 금액·날짜 검증과 계산, 계좌·거래 값과 Repository 계약이 있습니다.
+`core:data`는 Room 기반 계좌·거래 신규 저장, 일관된 조회, 같은 요청의 재시도 복구를 구현하고 Hilt로 연결합니다. 앱 화면에서는 아직 이 저장 API를 호출하지 않습니다. [저장 범위와 사용 계약](core/data/README.md)을 참고합니다.
 
 현재는 서버 연결 없이 로컬 MVP의 기반을 구현하는 단계입니다. 아래 개발 범위에는 초기 장기 목표가 포함되어 있습니다.
 
@@ -20,7 +20,9 @@
 ## 프로젝트 구조
 
 - `app`: 앱 진입점과 의존성 조립
-- `core:model`: Android 비의존 Kotlin 금액·날짜 검증과 계산
+- `core:model`: Android 비의존 Kotlin 값·금액·날짜 계산과 Repository 계약
+- `core:data`: Room Entity·DAO·Repository 구현과 Hilt 바인딩, schema v1
+- `buildSrc`: 두 Android 모듈이 공유하는 SDK·JVM 목표 설정
 
 기능 모듈은 실제 구현에 맞춰 추가합니다. 공통 개발 규칙은 [AGENTS.md](AGENTS.md)를 따릅니다.
 
@@ -39,7 +41,8 @@ Linux와 CI에서는 다음 명령을 사용합니다.
 bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug
 ```
 
-`core:model:test`는 금액·날짜 단위 테스트를 실행합니다. 앱 테스트 소스는 아직 없어 `testDebugUnitTest`의 `NO-SOURCE`를 앱 동작 테스트 통과로 해석하지 않습니다.
+`core:model:test`는 금액·날짜·저장 값 계약의 단위 테스트를 실행합니다. `testDebugUnitTest`에는 `core:data`의 Robolectric 파일 SQLite 통합 테스트가 포함됩니다. 앱 자체 테스트 소스는 아직 없어 앱 작업의 `NO-SOURCE`를 앱 동작 테스트 통과로 해석하지 않습니다.
+기기/에뮬레이터에서의 실행과 전원 손실 내구성은 별도 검증 대상입니다.
 
 ## 로컬 LLM
 
@@ -65,7 +68,7 @@ Codex 앱 연결과 독립 CLI의 OAuth 인증 상태는 각각 확인합니다.
 등록된 CLI 서버는 `codex mcp list`로 확인하며, 재인증은 `codex mcp login figma` 또는 `codex mcp login notion`으로 진행합니다.
 
 Supabase 클라이언트 설정 키 이름은 `.env.example`을 참고합니다. 현재 Android 앱은 이 파일을 자동으로 읽거나 Supabase에 연결하지 않습니다.
-Room과 Supabase의 동기화·충돌 정책을 확정한 뒤 데이터 계층을 구현합니다.
+현재 Room은 로컬 저장만 담당합니다. Supabase 연동은 서버 명세와 동기화·충돌 정책을 확정한 뒤 구현합니다.
 
 ## 보안과 비용
 
