@@ -1,0 +1,14 @@
+<resources>
+    <string name="monit_loading">처리 중…</string>
+    <string name="monit_saving">저장 중</string>
+    <string name="monit_amount_label">거래 금액</string>
+    <string name="monit_currency_won">원</string>
+    <string name="monit_balance_unknown">잔액 미확인</string>
+    <string name="monit_balance_excluded">현재 잔액 합계에서 제외</string>
+    <string name="monit_no_accounts">등록된 계좌가 없어요.</string>
+    <string name="monit_add_account">계좌 추가</string>
+    <string name="monit_choose_account">계좌를 선택해주세요.</string>
+    <string name="monit_retry">다시 시도</string>
+    <string name="monit_today">오늘</string>
+    <string name="monit_selected">선택됨</string>
+</resources>
