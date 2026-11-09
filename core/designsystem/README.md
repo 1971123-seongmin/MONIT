@@ -42,7 +42,7 @@
 
 기존 CI의 루트 task selector가 새 Android 모듈도 검사한다. Compose/Robolectric 시험은 시스템 테마 전환·대비·잠금·문자열/IME·ID 선택·미확인/0원·통합 semantics·최소 터치/글자 확대·키보드 포커스를 검사한다. 새 기능 시험이므로 수정 전 실패를 일괄 요구하지 않는다.
 
-`MonitCatalogRenderTest`는 390dp/100%와 320dp/200%, Light/Dark 각각의 버튼·입력·계좌·행/날짜 16개 이미지를 만든다. 호스트 API 28의 PixelCopy 콜백 대기 문제를 피하기 위해 실제 View를 Native Canvas에 동기 렌더한다. PNG는 `build/reports/designsystem/screenshots`에 있으며 Figma와 직접 대조할 시각 검토 자료다. 자동 픽셀 기준 회귀 테스트·실기기 렌더 통과를 뜻하지 않는다.
+`MonitCatalogRenderTest`는 390dp/100%와 320dp/200%, Light/Dark 각각의 버튼·입력·계좌·행/날짜 16개 이미지를 만든다. 호스트 API 28의 PixelCopy 콜백 대기 문제를 피하기 위해 실제 View를 Native Canvas에 동기 렌더한다. PNG는 `build/reports/designsystem/screenshots/testDebugUnitTest`에 있으며 Gradle Test task의 출력으로 선언해 캐시 복원에도 포함한다. task별 폴더를 분리하고 JVM 속성에는 모듈 기준 상대 경로를 전달한다. 자동 픽셀 기준 회귀 테스트·실기기 렌더 통과를 뜻하지 않는다.
 
 Preview와 테스트 카탈로그는 합성 데이터만 사용한다. 실제 기기의 TalkBack 읽기 순서·키보드/IME·시스템 바/insets·강제 테마 전환은 별도 확인이 필요하다. 제품 화면의 오류 초점 이동·저장/복귀·7열 그리드는 후속 구현에서 검증한다.
 

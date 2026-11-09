@@ -44,7 +44,7 @@ bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug
 ```
 
 `core:model:test`는 금액·날짜·저장 값 계약의 단위 테스트를 실행합니다. `testDebugUnitTest`에는 `core:data`의 Robolectric 파일 SQLite 통합 테스트가 포함됩니다. 앱 자체 테스트 소스는 아직 없어 앱 작업의 `NO-SOURCE`를 앱 동작 테스트 통과로 해석하지 않습니다.
-`core:designsystem:testDebugUnitTest`는 Compose 상호작용·semantics·글자 확대와 호스트 렌더를 검증합니다. 렌더 산출물은 `core/designsystem/build/reports/designsystem/screenshots`에 생성하며 실기기 스크린샷과 구분합니다.
+`core:designsystem:testDebugUnitTest`는 Compose 상호작용·semantics·글자 확대와 호스트 렌더를 검증합니다. 렌더 산출물은 `core/designsystem/build/reports/designsystem/screenshots/testDebugUnitTest`에 생성하며 실기기 스크린샷과 구분합니다.
 기기/에뮬레이터에서의 실행과 전원 손실 내구성은 별도 검증 대상입니다.
 
 ## 로컬 LLM
