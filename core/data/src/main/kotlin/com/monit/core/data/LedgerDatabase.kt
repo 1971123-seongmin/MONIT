@@ -1,0 +1,151 @@
+package com.monit.core.data
+
+import android.content.Context
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Entity(tableName = "ledgers")
+internal data class LedgerEntity(
+    @androidx.room.PrimaryKey val id: String,
+    val storageGeneration: String,
+    val revision: Long,
+)
+
+@Entity(
+    tableName = "accounts", primaryKeys = ["ledgerId", "id"],
+    foreignKeys = [ForeignKey(entity = LedgerEntity::class, parentColumns = ["id"], childColumns = ["ledgerId"])],
+)
+internal data class AccountEntity(
+    val ledgerId: String, val id: String, val name: String, val nature: String,
+    val status: String, val revision: Long,
+)
+
+@Entity(
+    tableName = "anchors", primaryKeys = ["ledgerId", "id"],
+    indices = [Index(value = ["ledgerId", "accountId"], unique = true)],
+    foreignKeys = [ForeignKey(entity = AccountEntity::class, parentColumns = ["ledgerId", "id"],
+        childColumns = ["ledgerId", "accountId"])],
+)
+internal data class AnchorEntity(
+    val ledgerId: String, val id: String, val accountId: String, val date: String,
+    val amount: Long?, val confirmedAt: String?, val unknownReason: String?, val revision: Long,
+)
+
+@Entity(
+    tableName = "transactions", primaryKeys = ["ledgerId", "id"],
+    indices = [Index(value = ["ledgerId", "debitAccountId"]),
+        Index(value = ["ledgerId", "creditAccountId"]), Index(value = ["ledgerId", "date"])],
+    foreignKeys = [
+        ForeignKey(entity = LedgerEntity::class, parentColumns = ["id"], childColumns = ["ledgerId"]),
+        ForeignKey(entity = AccountEntity::class, parentColumns = ["ledgerId", "id"],
+            childColumns = ["ledgerId", "debitAccountId"]),
+        ForeignKey(entity = AccountEntity::class, parentColumns = ["ledgerId", "id"],
+            childColumns = ["ledgerId", "creditAccountId"]),
+    ],
+)
+internal data class TransactionEntity(
+    val ledgerId: String, val id: String, val kind: String, val date: String, val amount: Long,
+    val debitAccountId: String?, val creditAccountId: String?,
+    val debitNature: String?, val creditNature: String?, val memo: String,
+    val revision: Long, val financialRevision: Long,
+)
+
+@Entity(
+    tableName = "operations", primaryKeys = ["ledgerId", "operationId"],
+    foreignKeys = [ForeignKey(entity = LedgerEntity::class, parentColumns = ["id"], childColumns = ["ledgerId"])],
+)
+internal data class OperationEntity(
+    val ledgerId: String, val operationId: String, val storageGeneration: String, val kind: String,
+    val requestJson: String, val requestSha256: String, val committedAt: String,
+    val ledgerRevision: Long, val resultJson: String,
+)
+
+/** 제출 의도는 복구 자료이며 성공 원장 operations와 분리한다. */
+@Entity(
+    tableName = "submissions", primaryKeys = ["ledgerId", "operationId"],
+    foreignKeys = [ForeignKey(entity = LedgerEntity::class, parentColumns = ["id"], childColumns = ["ledgerId"])],
+)
+internal data class SubmissionEntity(
+    val ledgerId: String, val operationId: String, val requestJson: String, val requestSha256: String,
+)
+
+@Dao
+internal interface LedgerDao {
+    @Query("SELECT * FROM ledgers WHERE id = :id")
+    suspend fun ledger(id: String): LedgerEntity?
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertLedger(value: LedgerEntity)
+    @Query("UPDATE ledgers SET revision = revision + 1 WHERE id = :id AND revision = :expected AND revision < 9223372036854775807")
+    suspend fun advanceRevision(id: String, expected: Long): Int
+    @Query("SELECT * FROM accounts WHERE ledgerId = :ledger AND id = :id")
+    suspend fun account(ledger: String, id: String): AccountEntity?
+    @Query("SELECT * FROM accounts WHERE ledgerId = :ledger ORDER BY id")
+    suspend fun accounts(ledger: String): List<AccountEntity>
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAccount(value: AccountEntity)
+    @Query("SELECT * FROM anchors WHERE ledgerId = :ledger ORDER BY id")
+    suspend fun anchors(ledger: String): List<AnchorEntity>
+    @Query("SELECT * FROM anchors WHERE ledgerId = :ledger AND id = :id")
+    suspend fun anchor(ledger: String, id: String): AnchorEntity?
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAnchor(value: AnchorEntity)
+    @Query("SELECT * FROM transactions WHERE ledgerId = :ledger ORDER BY date, id")
+    suspend fun transactions(ledger: String): List<TransactionEntity>
+    @Query("SELECT * FROM transactions WHERE ledgerId = :ledger AND id = :id")
+    suspend fun transaction(ledger: String, id: String): TransactionEntity?
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertTransaction(value: TransactionEntity)
+    @Query("SELECT * FROM operations WHERE ledgerId = :ledger AND operationId = :operation")
+    suspend fun operation(ledger: String, operation: String): OperationEntity?
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertOperation(value: OperationEntity)
+    @Query("SELECT * FROM submissions WHERE ledgerId = :ledger AND operationId = :operation")
+    suspend fun submission(ledger: String, operation: String): SubmissionEntity?
+    @Query("SELECT * FROM submissions WHERE ledgerId = :ledger ORDER BY operationId")
+    suspend fun submissions(ledger: String): List<SubmissionEntity>
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertSubmission(value: SubmissionEntity)
+    @Query("DELETE FROM submissions WHERE ledgerId = :ledger AND operationId = :operation")
+    suspend fun deleteSubmission(ledger: String, operation: String): Int
+}
+
+@Database(
+    entities = [LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
+        TransactionEntity::class, OperationEntity::class, SubmissionEntity::class],
+    version = 1, exportSchema = true,
+)
+internal abstract class LedgerDatabase : RoomDatabase() {
+    abstract fun ledgerDao(): LedgerDao
+
+    /** 현재 트랜잭션의 writer 연결 설정을 읽어 내구성 설정이 유실되면 쓰기를 거부한다. */
+    fun requireDurableWriter() {
+        val connection = openHelper.writableDatabase
+        connection.query("PRAGMA synchronous").use {
+            check(it.moveToFirst() && it.getInt(0) == 2) { "FULL synchronous mode is required" }
+        }
+        connection.query("PRAGMA journal_mode").use {
+            check(it.moveToFirst() && it.getString(0).equals("wal", ignoreCase = true)) {
+                "WAL journal mode is required"
+            }
+        }
+    }
+}
+
+internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase =
+    Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
+        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+        .addCallback(object : RoomDatabase.Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                db.execSQL("PRAGMA synchronous=FULL")
+            }
+        })
+        .build()
