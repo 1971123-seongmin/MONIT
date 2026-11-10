@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import com.monit.core.designsystem.theme.MonitTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -29,7 +30,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MonitLauncher() {
-    MaterialTheme {
+    MonitTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier.safeDrawingPadding(),
@@ -37,7 +38,7 @@ private fun MonitLauncher() {
             ) {
                 Text(
                     text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineLarge,
+                    style = MaterialTheme.typography.titleLarge,
                 )
             }
         }
