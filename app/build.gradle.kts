@@ -25,6 +25,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":feature:accounts"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
