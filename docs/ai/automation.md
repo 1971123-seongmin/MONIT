@@ -91,7 +91,11 @@
 
 두 설치의 Git 작업 트리는 깨끗하고 전역 skills·프로젝트 `.agents/skills`에 중복 사본이 없다. 기존 설치를 재사용하여 재설치·업그레이드를 수행하지 않았다. 버전 문자열이 같아도 커밋은 다를 수 있으므로 함께 확인한다. 캐시·인증 정보·기기별 절대 경로를 저장소에 복사하지 않는다.
 
-다른 환경에서 설치가 없을 때만 아래 공식 CLI 경로를 사용한다. `--ref`는 위 확인 커밋을 선택하며 기존 설치가 있으면 먼저 사용자 수정과 중복을 확인한다. 실패하면 남은 명령을 실행하지 않도록 아래 블록 전체를 한 번에 실행하며, 오류 뒤의 줄만 따로 실행하지 않는다.
+다른 환경에서는 먼저 `codex plugin list --json`으로 각 플러그인의 설치 여부·활성화 상태를 확인하고, marketplace 등록 출처·ref도 별도로 대조한다. 조회가 실패하거나 상태가 불명확하면 설치하지 않는다. 이미 설치된 플러그인은 캐시·사용자 수정·활성화 상태를 보존하고 해당 설치 블록을 건너뛴다.
+
+아래는 해당 플러그인과 marketplace 등록이 모두 없는 환경의 예제다. `--ref`는 위 확인 커밋을 선택한다. 이미 등록된 marketplace는 출처·ref를 확인한 뒤 등록 단계를 제외한 별도 절차를 검토하며, 실패를 무시하거나 기존 등록을 임의로 교체하지 않는다. 필요한 플러그인의 블록만 전체 실행하고, 오류 뒤의 줄만 따로 실행하지 않는다.
+
+EGM 설치:
 
 ```powershell
 & {
@@ -99,14 +103,25 @@ codex plugin marketplace add google/elephant-goldfish-model --ref 6d2af49f635515
 if ($LASTEXITCODE -ne 0) { throw 'EGM marketplace registration failed; stop installation.' }
 codex plugin add egm@egm
 if ($LASTEXITCODE -ne 0) { throw 'EGM installation failed; stop installation.' }
+codex plugin list --json --marketplace egm
+if ($LASTEXITCODE -ne 0) { throw 'EGM verification failed; inspect installation state before retry.' }
+}
+```
+
+Paperthin 설치:
+
+```powershell
+& {
 codex plugin marketplace add LilMGenius/paperthin --ref 1306ea4a2c038b5dee508db23197b3a19ccfbdfc
 if ($LASTEXITCODE -ne 0) { throw 'Paperthin marketplace registration failed; stop installation.' }
 codex plugin add paperthin@paperthin
 if ($LASTEXITCODE -ne 0) { throw 'Paperthin installation failed; stop installation.' }
-codex plugin list --json --marketplace egm
 codex plugin list --json --marketplace paperthin
+if ($LASTEXITCODE -ne 0) { throw 'Paperthin verification failed; inspect installation state before retry.' }
 }
 ```
+
+한 플러그인의 설치·확인 실패가 다른 플러그인의 재설치를 뜻하지 않는다. 실패 후에는 해당 플러그인의 등록·설치·활성화 상태를 다시 확인하고 남은 단계만 별도 절차로 정한다. 이미 성공한 설치 블록을 반복하거나 확인 실패를 설치되지 않았다는 증거로 사용하지 않는다. 목록 조회 성공도 실제 스킬 실행 성공과는 구분한다.
 
 지원되는 `[plugins."egm@egm"]`·`[plugins."paperthin@paperthin"]`의 `enabled = true`는 기존 사용자 설정에 이미 있어 프로젝트에 중복 설정하지 않았다. 설치·활성화가 바뀌면 데스크톱 앱을 재시작하고 새 채팅의 스킬 선택기에서 확인한다. 이번에는 설치·설정 변경이 없어 재시작을 필수로 요구하지 않는다. 현재 제공된 스킬 목록에 EGM 7개와 아래 Paperthin 선택 항목이 보이지만, 모든 설치 항목의 선택기 표시·실행을 시험한 것은 아니다.
 
