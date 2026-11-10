@@ -49,6 +49,64 @@
 - 새 원인 발견이나 실패 범위 축소 등 실제 진전이 있으면 근거를 남기고 진행할 수 있다. 접근의 이름만 바꾼 반복을 새 전략으로 취급하지 않는다.
 - 중단 시 staged·unstaged·untracked를 포함한 현재 파일 상태, 마지막으로 확인된 결과, 이후 미검증 범위를 명시한다. 사용자 변경의 임의 삭제·롤백이나 검사·Hook 우회로 실패를 숨기지 않는다.
 
+## 출력 관리
+
+빌드·테스트·설치처럼 출력이 긴 명령은 전체 출력을 임시 로그에 저장하고, 실행 직후 실제 종료 코드를 별도로 보존한다. 필터·파이프라인의 성공을 원래 명령의 성공으로 취급하지 않는다. 대화에는 검사 범위·종료 코드·성공/실패 개수와 필요한 오류 주변 구간만 가져오고 추가 진단 때 해당 구간을 넓힌다. 로그에도 인증 정보·실제 금융 데이터를 남기지 않으며 임시 로그를 Git에 포함하지 않는다. 짧은 상태 조회까지 파일 저장을 강제하지 않는다.
+
+## Codex와 플러그인 운영
+
+2026-11-10 `monit-codex-kit` 적용 시 확인한 상태다. 전역에 지침 사본을 만들지 않고 MONIT의 기존 규칙·스킬·승인 경계를 유지한다.
+
+### 설정과 자동 압축
+
+- 확인한 CLI는 `0.167.0-alpha.3.2`다. 사용자 기본 모델은 `gpt-6.1-sol`이지만 현재 PM 채팅 메타데이터는 `gpt-6-astra`로, 기본값과 채팅 선택값을 구분한다. 이번 작업에서는 모델·추론 수준을 변경하지 않았다.
+- 공식 설정의 `model_auto_compact_token_limit`은 지원되며 미설정 시 모델 기본값을 사용한다. 사용자 설정과 프로젝트 상위 경로에서 명시적인 압축 한도·문맥 크기 재정의는 발견하지 않았다. 프로젝트 `.codex/config.toml`은 없으며 MONIT은 이미 신뢰 등록되어 있다.
+- 모델 캐시의 기본 `context_window`는 Astra 272,000, Sol 500,000이고 `effective_context_window_percent`는 95다. 별도 `max_context_window` 872,000은 현재 채팅에서 그 한도가 활성화됐다는 증거가 아니다. 실제 세션의 유효 압축 기준은 확인하지 못했다.
+- 따라서 **400,000 설정은 보류하고 기존 모델 기본값을 유지**한다. Astra의 기본 문맥 크기는 400K보다 작고, 다른 모델도 현재 유효 압축 기준이 400K보다 높다는 확인이 필요하다. 조건이 충족될 때만 프로젝트 `.codex/config.toml` 최상위에 시험값을 넣는다. 더 낮은 기존 기준을 올리거나 `model_context_window`를 부풀리지 않고 `compact_prompt`·권한·승인 설정도 바꾸지 않는다.
+- 설정은 CLI 인자·선택된 프로필·프로젝트·사용자·기본값 등 적용 계층을 함께 확인한다. 프로젝트 설정은 신뢰된 프로젝트에서만 로드되므로 파일 저장만으로 적용됐다고 보고하지 않는다. 변경 후 새 세션에서 확인하며 검증하려고 문맥을 일부러 채우지 않는다.
+
+### 설치 출처와 재현
+
+| 플러그인 | 확인한 기존 설치 | 범위·구성 |
+|---|---|---|
+| [EGM](https://github.com/google/elephant-goldfish-model) | `egm@egm` 0.1.1 · `6d2af49f635515a472ce0dbba375c62b73dace26` | 사용자 Codex 플러그인, 활성화. 스킬 7개·검토자 10개·문서 기준 등 리소스 포함 |
+| [Paperthin](https://github.com/LilMGenius/paperthin) | `paperthin@paperthin` 1.0.0 · `1306ea4a2c038b5dee508db23197b3a19ccfbdfc` | 사용자 Codex 플러그인, 활성화. 같은 설치 커밋의 공식 manifest에 스킬 45개 등록 |
+
+두 설치의 Git 작업 트리는 깨끗하고 전역 skills·프로젝트 `.agents/skills`에 중복 사본이 없다. 기존 설치를 재사용하여 재설치·업그레이드를 수행하지 않았다. 버전 문자열이 같아도 커밋은 다를 수 있으므로 함께 확인한다. 캐시·인증 정보·기기별 절대 경로를 저장소에 복사하지 않는다.
+
+다른 환경에서 설치가 없을 때만 아래 공식 CLI 경로를 사용한다. `--ref`는 위 확인 커밋을 선택하며 기존 설치가 있으면 먼저 사용자 수정과 중복을 확인한다.
+
+```powershell
+codex plugin marketplace add google/elephant-goldfish-model --ref 6d2af49f635515a472ce0dbba375c62b73dace26
+codex plugin add egm@egm
+codex plugin marketplace add LilMGenius/paperthin --ref 1306ea4a2c038b5dee508db23197b3a19ccfbdfc
+codex plugin add paperthin@paperthin
+codex plugin list --json --marketplace egm
+codex plugin list --json --marketplace paperthin
+```
+
+지원되는 `[plugins."egm@egm"]`·`[plugins."paperthin@paperthin"]`의 `enabled = true`는 기존 사용자 설정에 이미 있어 프로젝트에 중복 설정하지 않았다. 설치·활성화가 바뀌면 데스크톱 앱을 재시작하고 새 채팅의 스킬 선택기에서 확인한다. 이번에는 설치·설정 변경이 없어 재시작을 필수로 요구하지 않는다. 현재 제공된 스킬 목록에 EGM 7개와 아래 Paperthin 선택 항목이 보이지만, 모든 설치 항목의 선택기 표시·실행을 시험한 것은 아니다.
+
+### 선택할 이름과 호출 기준
+
+첨부 Claude용 표의 EGM 7개·Paperthin 45개 이름은 설치본의 이름과 일치한다. Claude의 `/egm:...` 문법을 옮기지 않고 Codex 스킬 선택기에서 실제 항목을 선택한다. 호스트가 플러그인 접두사를 표시하면 `egm:egm-review`, `paperthin:readback`처럼 소속도 확인한다.
+
+| 선택할 스킬 | 필요한 경우 |
+|---|---|
+| `egm-brainstorm` → `egm-draft` → `egm-review` | 사용자 요청에 따라 요구사항 구체화·설계 작성·독립 검토 중 필요한 단계만 선택 |
+| `egm-bootstrap`, `egm-drift-report`, `egm-resolve`, `egm-review-loop` | 각각 디렉터리 안내, 설계와 구현 차이, 지적 해결, 제한된 반복 검토가 필요할 때 선택 |
+| `readback` | 중요한 요청 해석이 모호할 때 확인; 명확한 작은 요청에는 추가 질문을 강제하지 않음 |
+| `shower` | 이전 설명 없이도 문서를 이해할 수 있는지 새 맥락에서 검토 |
+| `factchk` | 중요한 기술 주장·수치·인용의 근거 확인 |
+| `re0-memo` | 완료·실패에서 다음 작업에 필요한 교훈만 기존 기록에 반영 |
+| `re0-workflow` | 실제로 여러 스킬의 순서·의존성을 조율할 필요가 있을 때 선택 |
+
+EGM 7개는 모두 frontmatter의 `disable-model-invocation: true`를 유지한다. 이 설치의 `agents/openai.yaml`에는 `allow_implicit_invocation`이 없어 Codex가 제한을 어떻게 강제하는지는 별도로 확인해야 한다. MONIT에서는 기존 공통 지침에 따라 사용자 호출 전용으로 취급한다. Paperthin의 사용자 호출 전용 항목은 frontmatter와 `agents/openai.yaml`의 `allow_implicit_invocation: false`가 대응한다. 메타데이터를 완화하거나 사본으로 우회하지 않는다.
+
+자동 호출 가능은 실행 의무나 권한 부여가 아니다. 기존 MONIT의 커밋·PR·테스트·학습 스킬을 우선하며 작은 작업에 전체 플러그인 절차를 붙이지 않는다. `modelchk`는 조언이며 실제 모델 자동 전환기가 아니다. 새 맥락이 필요한 검토는 실제 격리된 검토 환경을 확인한다. `re0-work`·`re0-loop`·`re0-squash`는 대화 압축 명령이 아니고, `re0-squash`는 일반 PR squash merge도 아니다. 설치 확인용으로 재구축·다중 검토·회고·업그레이드·릴리스 절차를 실행하지 않는다. 자동 업데이트 예약, 다른 에이전트 설치, Spotify Portal·shunt는 추가하지 않는다.
+
+지원 근거: [Codex 설정 참조](https://learn.chatgpt.com/docs/config-file/config-reference), [설정 계층](https://learn.chatgpt.com/docs/config-file/config-basic), [플러그인 설치·활성화](https://developers.openai.com/plugins/build/plugins). 등록·필수 파일 확인과 실제 스킬 실행 성공은 구분한다.
+
 ## Hooks와 CI
 
 Git Hooks는 Git 명령 시점, Codex Hooks는 에이전트 생명주기에 동작한다. 둘을 같은 설정으로 취급하지 않는다. Hook은 지원 여부뿐 아니라 실제 설정·신뢰·실행 결과를 확인해야 활성화됐다고 보고한다.
