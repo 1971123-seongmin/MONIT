@@ -11,7 +11,7 @@ Google 권장 아키텍처의 `UI → ViewModel → Repository → 데이터 소
 
 이번 설계는 PR #15의 계좌 상태 계층과 필요한 DI 정리에 집중한다. 전체 모듈 이동, 거래·달력 구현, 실제 계좌 화면, 서버 동기화, 암호화 라이브러리 도입은 별도 작업이다. 일반 개발 계획의 `data:ledger` 재편을 이 PR에 함께 넣지 않는다. 현재 `core:model`의 Repository 인터페이스 위치도 구조 이동 단계 전까지 유지한다.
 
-2026-11-11 추가 승인에 따라 Coroutine Dispatcher·Scope를 Hilt로 주입한다. 실제 공유가 생긴 실행 의존성만 `core:common`으로 분리하며, [Qualifier·수명주기·Context 계약](../../core/common/README.md)을 따른다. Android Context는 기존 `@ApplicationContext` 제공을 유지한다.
+2026-11-11 추가 승인에 따라 `CoroutineContextProvider`의 main·io·default와 `CoroutineScopeProvider`의 ioScope·defaultScope를 Hilt로 제공한다. `core:common`의 [Qualifier·수명주기 계약](../../core/common/README.md)을 따르며 ViewModel은 기본 `viewModelScope`를 사용한다.
 
 기존 금융 저장 동작을 보존하면서 책임을 분리하고 조회 전용 동선을 추가한다.
 
@@ -58,7 +58,7 @@ Google 권장 아키텍처의 `UI → ViewModel → Repository → 데이터 소
 | `feature/accounts/src/test/kotlin/com/monit/feature/accounts/AccountRegistrationViewModelTest.kt` | 공개 상태/호출 결과를 기준으로 기존 시나리오 유지, 조회 전용 Action과 복원·지연 응답을 검증한다. |
 | `feature/accounts/src/test/kotlin/com/monit/feature/accounts/AccountRegistrationModelsTest.kt` | validator·mapper·codec·receipt 검증의 경계 시험. 구현을 그대로 재서술하는 테스트는 추가하지 않는다. |
 | `feature/accounts/STATE.md` | 실제 구현과 복구 보장 범위를 갱신한다. |
-| `core/common` 및 관련 Gradle 의존성 | 공유 Dispatcher Qualifier/제공과 ViewModel 수명주기 Scope를 조립한다. |
+| `core/common` 및 관련 Gradle 의존성 | Dispatcher Qualifier와 Context/Scope Provider를 Singleton으로 조립한다. |
 
 기존 core/model·app·Room schema는 변경하지 않는다. feature 단위 테스트에는 기존 Version Catalog의 Robolectric과 Android 리소스 지원을 연결해 Bundle/Parcel 경계를 검증한다.
 
@@ -106,7 +106,7 @@ Google 권장 아키텍처의 `UI → ViewModel → Repository → 데이터 소
 - StartNew 후 이전 조회의 성공/실패/취소가 새 입력을 덮어쓰지 않음.
 - Hilt 제공 누락/중복 없음, 기존 DB 파일 재열기·금융 원자성/재시도 보장 유지.
 
-테스트에는 한국어 시나리오 문서화를 적용한다. 주입 Scope의 ViewModel별 격리·제거 시 취소와 진단 로그의 금융 정보 배제를 포함한다. 최신 테스트 수·빌드·Lint·CI·독립 리뷰 결과는 PR에 기록하며 기기 수명주기 검증과 구분한다.
+테스트에는 한국어 시나리오 문서화를 적용한다. 기본 viewModelScope의 제거 시 취소, 공통 Scope의 실행 위치·Supervisor 실패 격리·취소 격리와 진단 로그의 금융 정보 배제를 포함한다. 최신 테스트 수·빌드·Lint·CI·독립 리뷰 결과는 PR에 기록하며 기기 수명주기 검증과 구분한다.
 
 ## 8. 리뷰 기준
 

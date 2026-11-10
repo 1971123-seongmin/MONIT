@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Bundle
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import com.monit.core.model.AccountStatus
 import com.monit.core.model.BalanceAnchor
 import com.monit.core.model.CreateAccount
@@ -29,15 +30,17 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -51,13 +54,14 @@ class AccountRegistrationViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val clock = Clock.fixed(Instant.parse("2026-11-10T15:30:00Z"), ZoneOffset.UTC)
     private val stores = mutableListOf<ViewModelStore>()
-    private val scopes = mutableListOf<CoroutineScope>()
     private val context = LedgerContext(
         "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002",
     )
 
+    @Before fun setUp() = Dispatchers.setMain(dispatcher)
     @After fun tearDown() {
         stores.forEach { it.clear() }
+        Dispatchers.resetMain()
     }
 
     /** 장부 식별자가 없으면 새 장부를 임의 생성하거나 저장하지 않는다. */
@@ -525,12 +529,12 @@ class AccountRegistrationViewModelTest {
     }
 
     /**
-     * 목적: 주입 Scope의 취소 수명주기와 ViewModel 간 작업 격리를 검증한다.
-     * 조건: 전역 Main 교체 없이 같은 TestDispatcher를 쓰는 두 Scope의 초기화가 각각 대기한다.
+     * 목적: 기본 viewModelScope의 취소 수명주기와 ViewModel 간 작업 격리를 검증한다.
+     * 조건: Main을 같은 TestDispatcher로 교체하고 두 ViewModel의 초기화가 각각 대기한다.
      * 절차: 첫 ViewModelStore만 clear하고 취소 정리를 실행한 뒤 두 번째 gate를 해제한다.
      * 기대: 첫 Scope와 초기화는 취소·정리되고 두 번째 Scope는 살아서 편집 상태로 진입한다.
      */
-    @Test fun injectedScopesFollowEachViewModelLifetime() = runTest(dispatcher) {
+    @Test fun defaultScopesFollowEachViewModelLifetime() = runTest(dispatcher) {
         val firstGate = CompletableDeferred<Unit>()
         val secondGate = CompletableDeferred<Unit>()
         val firstCleanedUp = CompletableDeferred<Unit>()
@@ -538,14 +542,14 @@ class AccountRegistrationViewModelTest {
             beforeInitialize = { try { firstGate.await() } finally { firstCleanedUp.complete(Unit) } }
         }
         val second = FakeRepository().apply { beforeInitialize = { secondGate.await() } }
-        viewModel(first)
+        val firstVm = viewModel(first)
         val secondVm = viewModel(second)
         runCurrent()
         stores[0].clear()
         runCurrent()
-        assertFalse(scopes[0].isActive)
+        assertFalse(firstVm.viewModelScope.isActive)
         assertTrue(firstCleanedUp.isCompleted)
-        assertTrue(scopes[1].isActive)
+        assertTrue(secondVm.viewModelScope.isActive)
         assertEquals(AccountSavePhase.INITIALIZING, secondVm.uiState.value.phase)
         secondGate.complete(Unit)
         advanceUntilIdle()
@@ -571,9 +575,7 @@ class AccountRegistrationViewModelTest {
         AccountRegistrationViewModel.STORAGE_GENERATION to context.storageGeneration,
     ))
     private fun viewModel(repository: FakeRepository, saved: SavedStateHandle = handle()) =
-        AccountRegistrationViewModel(repository, clock, saved,
-            CoroutineScope(SupervisorJob() + dispatcher).also { scopes += it },
-        ).also { vm ->
+        AccountRegistrationViewModel(repository, clock, saved).also { vm ->
             stores += ViewModelStore().also { it.put("account", vm) }
         }
     private fun ready(repository: FakeRepository, saved: SavedStateHandle = handle()): AccountRegistrationViewModel {

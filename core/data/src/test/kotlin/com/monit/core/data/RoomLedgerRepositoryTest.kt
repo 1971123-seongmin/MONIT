@@ -1,5 +1,6 @@
 package com.monit.core.data
 
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import android.app.Application
 import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
@@ -48,6 +49,11 @@ class RoomLedgerRepositoryTest {
     private lateinit var repository: RoomLedgerRepository
     private lateinit var databaseName: String
     private val context = LedgerContext(id(900), id(901))
+    private val coroutineContexts = object : CoroutineContextProvider {
+        override val main = Dispatchers.Main
+        override val io = Dispatchers.IO
+        override val default = Dispatchers.Default
+    }
     private val today = LocalDate.of(2026, 11, 3)
     // UTC로는 전날이다. Repository가 서울 날짜를 사용하는지도 함께 검증한다.
     private val clock = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC)
@@ -69,7 +75,7 @@ class RoomLedgerRepositoryTest {
 
     private fun reopen() {
         database = createLedgerDatabase(androidContext, databaseName)
-        repository = RoomLedgerRepository(database, clock, Dispatchers.Default)
+        repository = RoomLedgerRepository(database, clock, coroutineContexts)
     }
 
     private fun accountValue(number: Long, name: String = "같은 이름") = CreateAccount(

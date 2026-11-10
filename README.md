@@ -35,7 +35,7 @@ Material 3와 SEED의 의미·상태 원칙을 적용하며, 기존 파란색과
 ## 프로젝트 구조
 
 - `app`: 앱 진입점과 의존성 조립
-- `core:common`: [Coroutine Dispatcher·ViewModel Scope의 Hilt 제공](core/common/README.md)
+- `core:common`: [CoroutineContextProvider·CoroutineScopeProvider의 Hilt 제공](core/common/README.md)
 - `core:model`: Android 비의존 Kotlin 값·금액·날짜 계산과 Repository 계약
 - `core:data`: Room Entity·DAO·Repository 구현과 Hilt 바인딩, schema v1
 - `core:designsystem`: Material 3 기반 MONIT 테마·공통 컴포넌트·상태 Preview

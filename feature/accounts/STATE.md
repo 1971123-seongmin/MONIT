@@ -2,7 +2,7 @@
 
 계좌 신규 등록의 상태·이벤트·표시 모델을 제공한다. `app → feature:accounts → core:model`이며 Room 구현은 기존 `app → core:data`의 Hilt binding으로 연결한다. ViewModel은 Room Entity·DAO·내부 requestJson을 알지 못한다.
 
-공통 코루틴 제공은 [core:common](../../core/common/README.md)에 둔다. Hilt가 ViewModel별 Scope를 주입하고 `ViewModel(scope)`가 제거 시 취소를 소유한다. 테스트는 같은 TestDispatcher를 사용하는 별도 Scope를 직접 전달하며 전역 Main을 교체하지 않는다. Android Context는 Room 제공부에서 Hilt의 `@ApplicationContext`로 받고, 장부 ID/세대인 `LedgerContext`는 기존 호출 계약을 유지한다.
+ViewModel은 기본 `viewModelScope.launch`를 사용한다. 테스트는 Main을 TestDispatcher로 교체하고 종료 시 복원한다. Repository의 실행 환경은 [core:common의 CoroutineContextProvider](../../core/common/README.md)로 주입하며 계좌 저장은 호출자의 취소 관계를 유지한다. 장부 ID/세대인 `LedgerContext`는 기존 호출 계약을 유지한다.
 
 ## 호출 조건과 상태
 

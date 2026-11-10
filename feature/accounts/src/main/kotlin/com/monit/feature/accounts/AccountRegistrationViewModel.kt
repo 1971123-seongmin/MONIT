@@ -5,7 +5,6 @@ import androidx.annotation.MainThread
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.monit.core.common.di.ViewModelCoroutineScope
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
@@ -23,7 +22,6 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -33,8 +31,7 @@ class AccountRegistrationViewModel @Inject constructor(
     private val repository: LedgerRepository,
     private val clock: Clock,
     private val savedState: SavedStateHandle,
-    @ViewModelCoroutineScope scope: CoroutineScope,
-) : ViewModel(scope) {
+) : ViewModel() {
     private val context = runCatching {
         LedgerContext(
             requireNotNull(savedState.get<String>(LEDGER_ID)),

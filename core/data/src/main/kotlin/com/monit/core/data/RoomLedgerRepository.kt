@@ -1,7 +1,7 @@
 package com.monit.core.data
 
 import androidx.room.withTransaction
-import com.monit.core.common.di.DefaultDispatcher
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.AccountNature
 import com.monit.core.model.AccountStatus
 import com.monit.core.model.BalanceAnchor
@@ -27,13 +27,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 internal class RoomLedgerRepository @Inject constructor(
     private val database: LedgerDatabase,
     private val clock: Clock,
-    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    private val coroutineContexts: CoroutineContextProvider,
 ) : LedgerRepository {
     private val dao = database.ledgerDao()
     private fun today(): LocalDate = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
@@ -64,7 +63,7 @@ internal class RoomLedgerRepository @Inject constructor(
         dao.submissions(context.ledgerId).map { PendingWrite(it.operationId, it.requestJson) }
     }
 
-    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = withContext(defaultDispatcher) {
+    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = withContext(coroutineContexts.default) {
         val (prior, pending) = database.withTransaction {
             requireLedgerId(operationId)
             requireContext(context)
@@ -79,7 +78,7 @@ internal class RoomLedgerRepository @Inject constructor(
     }
 
     /** 제출 의도를 먼저 commit하고 금융 변경·결과·의도 소비는 다음 단일 트랜잭션에서 확정한다. */
-    private suspend fun submit(context: LedgerContext, operationId: String, command: WriteCommand): WriteReceipt = withContext(defaultDispatcher) {
+    private suspend fun submit(context: LedgerContext, operationId: String, command: WriteCommand): WriteReceipt = withContext(coroutineContexts.default) {
         requireLedgerId(operationId)
         val payload = captureWrite(context, command)
         val hash = requestHash(payload)
