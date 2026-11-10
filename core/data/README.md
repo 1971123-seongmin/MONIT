@@ -1,6 +1,6 @@
 # 로컬 저장 기반
 
-`LedgerRepository`의 첫 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `LedgerDataModule`은 파일 DB와 서울 Clock, Repository를 Singleton으로 제공한다. 실제 제품 화면은 아직 연결하지 않았다.
+`LedgerRepository`의 첫 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `di`의 `LedgerDatabaseModule`·`LedgerClockModule`은 파일 DB와 서울 Clock을 Singleton으로 제공하고, `LedgerRepositoryModule`은 생성자 주입 가능한 Room 구현을 Repository 계약에 Singleton으로 바인딩한다. 실제 제품 화면은 아직 연결하지 않았다.
 
 ## 지원 경로
 

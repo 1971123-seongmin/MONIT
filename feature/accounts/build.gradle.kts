@@ -12,6 +12,7 @@ android {
         sourceCompatibility = MonitAndroidConfig.javaVersion
         targetCompatibility = MonitAndroidConfig.javaVersion
     }
+    testOptions { unitTests.isIncludeAndroidResources = true }
 }
 
 dependencies {
@@ -23,4 +24,5 @@ dependencies {
     ksp(libs.hilt.compiler)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
 }

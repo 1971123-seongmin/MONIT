@@ -25,8 +25,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import javax.inject.Inject
 
-internal class RoomLedgerRepository(
+internal class RoomLedgerRepository @Inject constructor(
     private val database: LedgerDatabase,
     private val clock: Clock,
 ) : LedgerRepository {

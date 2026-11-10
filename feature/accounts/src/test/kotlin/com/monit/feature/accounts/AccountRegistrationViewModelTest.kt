@@ -1,5 +1,7 @@
 package com.monit.feature.accounts
 
+import android.app.Application
+import android.os.Bundle
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
 import com.monit.core.model.AccountStatus
@@ -38,8 +40,13 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28], manifest = Config.NONE, application = Application::class)
 class AccountRegistrationViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val clock = Clock.fixed(Instant.parse("2026-11-10T15:30:00Z"), ZoneOffset.UTC)
@@ -171,8 +178,8 @@ class AccountRegistrationViewModelTest {
         assertFalse(vm.uiState.value.editable)
         vm.onAction(AccountRegistrationAction.NameChanged("다른 이름"))
         repository.beforeWrite = {}
-        vm.onAction(AccountRegistrationAction.Retry)
-        vm.onAction(AccountRegistrationAction.Retry)
+        vm.onAction(AccountRegistrationAction.RetrySave)
+        vm.onAction(AccountRegistrationAction.RetrySave)
         advanceUntilIdle()
         assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
         assertEquals(2, repository.requests.size)
@@ -193,7 +200,7 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        vm.onAction(AccountRegistrationAction.Retry)
+        vm.onAction(AccountRegistrationAction.RetrySave)
         advanceUntilIdle()
         assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.uiState.value.problem)
         assertEquals(1, repository.requests.size)
@@ -287,7 +294,7 @@ class AccountRegistrationViewModelTest {
         assertEquals(1, repository.requests.size)
         assertEquals(1, repository.receiptReads)
         repository.beforeWrite = {}
-        restored.onAction(AccountRegistrationAction.Retry)
+        restored.onAction(AccountRegistrationAction.RetrySave)
         advanceUntilIdle()
         assertEquals(AccountSavePhase.SAVED, restored.uiState.value.phase)
         assertEquals(repository.requests[0], repository.requests[1])
@@ -369,7 +376,7 @@ class AccountRegistrationViewModelTest {
         advanceUntilIdle()
         assertEquals(AccountProblem.INITIALIZATION_FAILED, vm.uiState.value.problem)
         repository.beforeInitialize = {}
-        vm.onAction(AccountRegistrationAction.Retry)
+        vm.onAction(AccountRegistrationAction.RetryInitialization)
         advanceUntilIdle()
         assertTrue(vm.uiState.value.editable)
         assertEquals(2, repository.initializations)
@@ -410,6 +417,112 @@ class AccountRegistrationViewModelTest {
         advanceUntilIdle()
         assertEquals("", restored.uiState.value.draft.name)
         assertTrue(repository.requests.isEmpty())
+    }
+
+    /**
+     * 목적: 결과 확인은 추가 쓰기 권한을 갖지 않는다.
+     * 조건: 커밋 전 실패·영수증 없음, 이후 영수증 조회도 실패한다.
+     * 절차: gate로 조회 중 중복 탭을 제어하고 순서대로 두 조건을 확인한다.
+     * 기대: 추가 저장 없이 미확정 상태이며 CheckResult 연타는 한 번의 조회다.
+     */
+    @Test fun checkResultIsReadOnlyAndRejectsDuplicateTaps() = runTest(dispatcher) {
+        val repository = FakeRepository().apply { beforeWrite = { throw IOException() } }
+        val vm = ready(repository)
+        vm.onAction(AccountRegistrationAction.Submit)
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        repository.beforeWrite = {}
+        repository.beforeReceipt = { gate.await() }
+        vm.onAction(AccountRegistrationAction.CheckResult)
+        vm.onAction(AccountRegistrationAction.CheckResult)
+        vm.onAction(AccountRegistrationAction.RetrySave)
+        runCurrent()
+        assertEquals(AccountSavePhase.CHECKING_RESULT, vm.uiState.value.phase)
+        assertEquals(2, repository.receiptReads)
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(AccountSavePhase.RETRY_AVAILABLE, vm.uiState.value.phase)
+        assertEquals(1, repository.requests.size)
+        repository.beforeReceipt = { throw IOException() }
+        vm.onAction(AccountRegistrationAction.CheckResult)
+        advanceUntilIdle()
+        assertEquals(1, repository.requests.size)
+        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.uiState.value.problem)
+    }
+
+    /**
+     * 목적: v1 task를 읽어 v2로 바꾸어도 같은 금융 제출을 유지한다.
+     * 조건: 합성 v1 스냅샷만 있고 영수증은 없다.
+     * 절차: 복원·조회 전용 확인 후 명시 RetrySave한다.
+     * 기대: v2로 기록·복원 중 쓰기 없음·재시도는 원래 ID와 값이다.
+     */
+    @Test fun legacyTaskMigratesWithoutNewSubmission() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val saved = handle().apply {
+            this[AccountRegistrationViewModel.SUBMISSION] = arrayListOf(
+                "1", context.ledgerId, context.storageGeneration,
+                "00000000-0000-0000-0000-000000000003",
+                "00000000-0000-0000-0000-000000000004",
+                "00000000-0000-0000-0000-000000000005",
+                "복원 계좌", "GENERAL", "2026-11-10", "미확인",
+            )
+        }
+        val vm = viewModel(repository, saved)
+        advanceUntilIdle()
+        assertEquals(2, saved.get<Bundle>(AccountRegistrationViewModel.SUBMISSION)?.getInt("version"))
+        assertTrue(repository.requests.isEmpty())
+        vm.onAction(AccountRegistrationAction.CheckResult)
+        advanceUntilIdle()
+        assertTrue(repository.requests.isEmpty())
+        vm.onAction(AccountRegistrationAction.RetrySave)
+        advanceUntilIdle()
+        val request = repository.requests.single()
+        assertEquals("00000000-0000-0000-0000-000000000003", request.operationId)
+        assertEquals("00000000-0000-0000-0000-000000000004", request.value.id)
+        assertEquals("00000000-0000-0000-0000-000000000005", request.value.anchorId)
+        assertEquals("복원 계좌", request.value.name)
+        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+    }
+
+    /** 잘못된 v2는 초기화·조회·쓰기 없이 명시적인 복원 불가 상태가 된다. */
+    @Test fun malformedBundleRecoveryNeverWrites() = runTest(dispatcher) {
+        for (raw in listOf(Bundle().apply { putInt("version", 99) }, Bundle().apply { putString("version", "2") })) {
+            val repository = FakeRepository()
+            val saved = handle().apply { this[AccountRegistrationViewModel.SUBMISSION] = raw }
+            val vm = viewModel(repository, saved)
+            advanceUntilIdle()
+            vm.onAction(AccountRegistrationAction.CheckResult)
+            vm.onAction(AccountRegistrationAction.RetrySave)
+            advanceUntilIdle()
+            assertEquals(AccountProblem.INVALID_RECOVERY, vm.uiState.value.problem)
+            assertEquals(0, repository.initializations)
+            assertEquals(0, repository.receiptReads)
+            assertTrue(repository.requests.isEmpty())
+        }
+    }
+
+    /**
+     * 목적: 이전 조회의 실패·취소도 새 입력을 덮어쓰지 않는다.
+     * 조건: 저장은 확정됐고 snapshot이 gate에서 대기한다.
+     * 절차: StartNew 후 IOException 또는 CancellationException으로 조회를 종료한다.
+     * 기대: 새 편집 상태·빈 이름·조회 전 상태가 유지된다.
+     */
+    @Test fun lateReadFailureAndCancellationCannotOverwriteNewDraft() = runTest(dispatcher) {
+        for (failure in listOf(IOException(), kotlinx.coroutines.CancellationException())) {
+            val repository = FakeRepository()
+            val gate = CompletableDeferred<Unit>()
+            repository.beforeSnapshot = { gate.await(); throw failure }
+            val vm = ready(repository)
+            vm.onAction(AccountRegistrationAction.Submit)
+            runCurrent()
+            assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+            vm.onAction(AccountRegistrationAction.StartNew)
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(AccountSavePhase.EDITING, vm.uiState.value.phase)
+            assertEquals("", vm.uiState.value.draft.name)
+            assertEquals(AccountReadPhase.NOT_REQUESTED, vm.uiState.value.readPhase)
+        }
     }
 
     private fun handle() = SavedStateHandle(mapOf(
