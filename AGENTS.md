@@ -53,7 +53,9 @@ MONIT은 개인 금융 루틴 관리 Android 앱이다. 반복 납입 일정과 
 - GitHub 작업·저장소 설정·GitHub Actions·CodeRabbit은 `1971123-seongmin/MONIT`에만 한정한다. 다른 저장소·조직 설정을 변경하지 않는다. Git 설정은 저장소 로컬을 우선하며 GitHub CLI에는 저장소를 명시한다.
 - 가능한 경우 Issue 기반으로 작업하고 기능별 브랜치·논리적 단위 커밋·PR을 사용한다. 승인 없이 공유 브랜치 강제 push, PR 병합, 릴리스·배포를 하지 않는다.
 - 커밋은 한국어 `<type>(<scope>): <subject>` 형식으로 작성한다. type은 `feat`, `fix`, `mod`, `refactor`, `test`, `docs`, `style`, `perf`, `chore`, `ci` 중 선택하며 기존 관례에 맞는 scope를 사용한다.
+- 이슈 제목은 `[KEYWORD] 작업 내용` 형식이다. 예: `[FEAT] 서버 통합 대응 - 공통 응답 포맷 전환`. KEYWORD는 작업 성격에 맞는 커밋 type의 대문자를 사용한다.
 - PR 제목은 `[KEYWORD/#issue-number] 이슈명 또는 적절한 문장/단어` 형식이다. 대문자 키워드와 실제 관련 이슈 번호를 사용한다. 관련 이슈가 없으면 제목을 확인하고 번호를 만들지 않는다.
+- 작업 브랜치는 `<type>/#<issue-number>-<short-description>` 형식이다. type과 영문 설명은 소문자, 설명의 단어 구분은 하이픈을 사용한다. 예: `refactor/#123-migrate-poke-notification`(번호는 형식 예시). MONIT에서는 `codex/` 기본 접두사보다 이 사용자 지정 규칙을 우선한다. 실제 이슈 번호를 사용하며 이슈 생성 권한이 없으면 번호를 임의로 만들지 않는다. 기존 원격 브랜치의 이름 변경·삭제는 진행 중인 PR과 Worktree 영향을 확인하고 승인 범위에서 수행한다.
 - PR 제목과 커밋 형식을 혼동하지 않는다. 승인된 squash merge에서도 최종 커밋 메시지를 커밋 형식으로 검토·수정한다. 명명 규칙은 병합 권한을 부여하지 않는다.
 - 구현 완료 전 변경 검토, Acceptance Criteria 확인, 관련 테스트, 가능한 빌드·정적 검사, 의도하지 않은 동작 변경 확인을 수행한다. 결과는 공통 DoD에 따라 보고한다.
 - GitHub Actions를 CI에, CodeRabbit을 독립 PR 리뷰에 활용한다. AI 리뷰 제안은 근거와 영향으로 검증하며 자동 수용하지 않는다.
