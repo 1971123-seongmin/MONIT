@@ -91,9 +91,10 @@
 
 두 설치의 Git 작업 트리는 깨끗하고 전역 skills·프로젝트 `.agents/skills`에 중복 사본이 없다. 기존 설치를 재사용하여 재설치·업그레이드를 수행하지 않았다. 버전 문자열이 같아도 커밋은 다를 수 있으므로 함께 확인한다. 캐시·인증 정보·기기별 절대 경로를 저장소에 복사하지 않는다.
 
-다른 환경에서 설치가 없을 때만 아래 공식 CLI 경로를 사용한다. `--ref`는 위 확인 커밋을 선택하며 기존 설치가 있으면 먼저 사용자 수정과 중복을 확인한다.
+다른 환경에서 설치가 없을 때만 아래 공식 CLI 경로를 사용한다. `--ref`는 위 확인 커밋을 선택하며 기존 설치가 있으면 먼저 사용자 수정과 중복을 확인한다. 실패하면 남은 명령을 실행하지 않도록 아래 블록 전체를 한 번에 실행하며, 오류 뒤의 줄만 따로 실행하지 않는다.
 
 ```powershell
+& {
 codex plugin marketplace add google/elephant-goldfish-model --ref 6d2af49f635515a472ce0dbba375c62b73dace26
 if ($LASTEXITCODE -ne 0) { throw 'EGM marketplace registration failed; stop installation.' }
 codex plugin add egm@egm
@@ -104,6 +105,7 @@ codex plugin add paperthin@paperthin
 if ($LASTEXITCODE -ne 0) { throw 'Paperthin installation failed; stop installation.' }
 codex plugin list --json --marketplace egm
 codex plugin list --json --marketplace paperthin
+}
 ```
 
 지원되는 `[plugins."egm@egm"]`·`[plugins."paperthin@paperthin"]`의 `enabled = true`는 기존 사용자 설정에 이미 있어 프로젝트에 중복 설정하지 않았다. 설치·활성화가 바뀌면 데스크톱 앱을 재시작하고 새 채팅의 스킬 선택기에서 확인한다. 이번에는 설치·설정 변경이 없어 재시작을 필수로 요구하지 않는다. 현재 제공된 스킬 목록에 EGM 7개와 아래 Paperthin 선택 항목이 보이지만, 모든 설치 항목의 선택기 표시·실행을 시험한 것은 아니다.
