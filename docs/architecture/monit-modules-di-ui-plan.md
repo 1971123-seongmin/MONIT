@@ -20,12 +20,12 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 
 | 구조 | 책임 |
 | --- | --- |
-| feature → domain 계약, data → domain 구현 | 도메인 계약과 데이터 구현을 구분한다. feature는 data 구현을 직접 참조하지 않는다. |
+| UI → ViewModel → Repository → 데이터 소스 | ViewModel이 data 계층의 공개 Repository 계약을 호출한다. Room DAO·Entity·SDK 구현체는 data 내부에 숨긴다. |
 | 생성자 주입 / Binds / Provides 분리 | 일반 클래스 생성·인터페이스 연결·외부 객체 생성을 각각 구분한다. |
-| DTO → domain → UI 변환 | 각각 data와 feature 경계에 변환을 둔다. Entity·서버 응답을 화면에 넘기지 않는다. |
+| DTO/Entity → 앱 모델 → UI 모델 | 각각 data와 feature 경계에 변환을 둔다. 별도 domain 모듈 없이도 모델을 구분하며 Entity·서버 응답을 화면에 넘기지 않는다. |
 | Route / Screen, 상태·콜백 주입, Preview | Route가 수집·탐색을 연결하고 Screen은 합성 상태만으로 렌더 가능하게 한다. |
 | 기능 컴포넌트와 공통 디자인 시스템 구분 | 업무 의미가 있는 UI는 feature에, 범용 시각 규격은 designsystem에 둔다. |
-| UseCase | 복잡한 제출/복구 등 분리 근거가 있는 작업만 둔다. |
+| 선택적 domain / UseCase | 기본 경로에 추가하지 않는다. 여러 ViewModel에서 재사용하거나 Repository 책임과 구분되는 복잡한 비즈니스 로직이 확인될 때만 도입한다. |
 | 금융 결과와 화면 효과 구분 | 금융 저장 성공은 상태/영수증으로 유지하고, 알림·애니메이션은 UI에서 표현한다. |
 
 ## 3. 모듈 경계 제안과 선택지
@@ -34,30 +34,30 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 
 | 선택지 | 작동 방식 | 이점 | 한계·실패 조건 |
 | --- | --- | --- | --- |
-| A: 점진 분리 | `core:model`에 금융 모델을 유지하고 `domain:ledger`로 Repository 계약·복잡 UseCase만 옮긴다. `core:data`는 `data:ledger`로 정리한다. | 이동량이 작고 기존 import 변경이 적다. | 금융 도메인 모델을 범용 core로 계속 모으면 명칭과 소유 책임이 흐려진다. |
-| B: 금융 도메인 단일 소유 | 금융 모델·규칙·계약·의미 있는 UseCase를 `domain:ledger`, Room 구현을 `data:ledger`가 소유한다. 다른 실사용이 없는 `core:model`·`core:data`는 이동 후 제거한다. | 모델/계약 소유자가 일치하고 빈 공통 모듈·중복 모델을 남기지 않는다. | import와 테스트 경로 이동량이 크다. 모듈 이동 중 DB/요청 형식까지 바꾸면 원인 분리가 어려워진다. |
-| C: 당분간 패키지만 구분 | 현재 모듈 안에서 model/repository/usecase/local/di 패키지부터 분리한다. | 의존성 변경이 가장 작다. | Gradle이 feature의 구현체 참조를 막지 못하며 구조 정리를 다시 해야 할 수 있다. |
+| A: UI·data 기본 계층 | `core:model`은 금융 모델·순수 검증 함수를 유지한다. `data:ledger`에 Repository 계약·구현과 데이터 소스를 두고 ViewModel이 공개 Repository를 호출한다. | 별도 domain 모듈과 위임용 UseCase 없이 기본 흐름을 명확히 한다. | ViewModel에서 복잡한 비즈니스 로직을 중복하기 시작하면 선택적 domain 분리가 필요하다. |
+| B: 선택적 domain 계층 | 실제 복잡성/재사용 근거가 확인된 작업에만 UseCase를 둔다. UseCase는 data Repository에 의존하며 다른 작업은 계속 Repository를 직접 호출한다. | 필요한 로직만 공유·격리할 수 있다. | 사용 근거 없이 먼저 생성하면 호출 단계와 DI만 늘어난다. |
+| C: 현재 모듈 유지 | `core:data` 이름과 경로를 유지하고 내부 책임만 정리한다. | 모듈 이동량이 가장 작다. | 기능별 데이터 영역이 늘어나면 범용 모듈에 여러 책임이 모일 수 있다. |
 
-초안의 권고는 B다. 현재 `core:model`의 실체가 금융 장부 도메인이므로 불필요한 범용 계층을 남기지 않는 편이 목표에 맞는다. A도 작은 이행 단위가 우선일 때 가능한 대안이다. 구현자가 임의로 선택하지 않으며, 아래 계획의 경로는 B를 기준으로 한 예상 경로다.
+기본 설계는 A다. Google 권장 아키텍처의 UI·data 계층을 따르고 domain/UseCase는 필수로 두지 않는다. `core:data`를 `data:ledger`로 옮기는 것은 기능별 소유를 드러내기 위한 제안이며 UseCase 도입과 별개다. 아래 계획은 A를 기준으로 하고, 실제 파일 이동은 구조 승인 뒤 진행한다.
 
 ### 처음 정리할 모듈
 
 | 모듈 | 책임과 공개 경계 |
 | --- | --- |
 | `app` | 앱 시작, 안정적인 장부 context 진입, 최상위 탐색, Hilt 최종 조립. 금융 계산·SQL·HTTP 로직은 두지 않는다. |
-| `domain:ledger` | Kotlin/JVM. 계좌·거래·미확인 잔액 모델, 금액/날짜 규칙, 장부 context, Repository 계약, 제출·확인 결과. Android·Hilt·Room·SDK·HTTP 응답 코드에 의존하지 않는다. |
-| `data:ledger` | Room DB·DAO·Entity·Repository 구현·데이터 변환·관련 DI. 기존 원자성·중복/세대 검사·요청 bytes·영수증을 유지한다. |
+| `core:model` | Kotlin/JVM. 계좌·거래·미확인 잔액·장부 context·명령/결과 모델과 금액/날짜의 순수 검증. Android·Hilt·Room·SDK·HTTP 응답 코드에 의존하지 않는다. |
+| `data:ledger` | 공개 Repository 계약, 내부 Room DB·DAO·Entity·Repository 구현·데이터 변환·관련 DI. 기존 원자성·중복/세대 검사·요청 bytes·영수증을 유지한다. |
 | `core:designsystem` | 테마·컬러·타이포·간격·Shape·공통 시각 컴포넌트. Repository·ViewModel·업무 모델에 의존하지 않는다. |
 | `feature:accounts` | 계좌 등록/선택의 Route·Screen·ViewModel·UiState·UiModel·UI mapper·기능 컴포넌트·Preview. |
 | `feature:transactions` | 수입·지출·이체 입력의 같은 경계. 계좌 화면을 직접 호출하지 않고 탐색 콜백/반환 계약을 사용한다. |
 | `feature:calendar` | 월·선택일·필터·목록·조회 상태. 다른 feature의 ViewModel을 공유하지 않는다. |
 
-의존 방향은 `app → feature / data`, `feature → domain / designsystem`, `data → domain`이다. 기능끼리의 Gradle 의존과 domain → data 역방향 의존을 만들지 않는다. 디자인 시스템에는 범용 문자열/상태만 전달하고 금융 모델 변환은 feature가 담당한다.
+기본 의존 방향은 `app → feature / data`, `feature → data의 공개 Repository / core:model / designsystem`, `data → core:model`이다. feature에서 data의 internal 구현체·DAO·Entity는 참조하지 못하게 한다. domain이 필요해지면 해당 작업에만 `feature → domain → data`를 추가한다. Repository 계약을 domain으로 옮겨야 한다는 규칙은 두지 않는다. 기능끼리의 Gradle 의존과 순환 의존은 금지한다. 디자인 시스템에는 범용 문자열/상태만 전달하고 금융 모델 변환은 feature가 담당한다.
 
 ### 실제 사용이 생길 때 추가할 기반
 
 - `core:network`: 공유 Supabase client·직렬화·연결 설정과 외부 객체 DI. 금융 DTO/업무 정책은 넣지 않는다. 별도 HTTP API가 확정된 경우에만 해당 client를 추가한다.
-- `domain:auth` / `data:auth`: 인증 기능 착수 시 세션 상태 계약과 SDK 어댑터를 둔다. UI에는 토큰 원문 대신 인증 상태·사용자 식별 정보를 제공한다.
+- `data:auth`: 인증 기능 착수 시 공개 인증 Repository와 SDK 어댑터를 둔다. UI에는 토큰 원문 대신 인증 상태·사용자 식별 정보를 제공한다. 별도 인증 UseCase/domain 모듈은 기본 생성하지 않는다.
 - `core:database`: 실제로 여러 data 영역이 같은 DB를 공유해야 할 때 재검토한다. 현재 장부 DB 한 소비자만을 위해 Room 래퍼와 범용 DAO 계층을 추가하지 않는다.
 - `core:navigation`: 여러 기능이 공유할 구체적 타입/헬퍼가 생긴 경우만 분리한다. 이름만 있는 marker interface부터 복제하지 않는다.
 - 분석 SDK·WebView·공통 캐시·범용 security 모듈은 현재 첫 제품 동선의 필수 모듈이 아니다. 필요한 기능과 비용·보안 근거가 생기기 전 생성하지 않는다.
@@ -74,7 +74,21 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 
 현재 context 조회/선택 API가 없으므로 앱 bootstrap은 선행 설계 항목이다. 최초 빈 DB에서 context 생성은 한 번만 일어나야 하며 재시작 시 같은 context를 읽어야 한다. 메타 손상·여러 장부·세대 불일치에 대해 임의의 첫 행 선택이나 자동 재생성을 하지 않는다. 메타 조회/현재 장부 선택 계약과 원자적 생성 방법은 Backend와 확정한다. 새 영속 필드가 필요하면 정식 Migration 및 기존 v1 보존 시험을 별도 단계로 둔다.
 
-## 5. Repository·UseCase·서버 통신
+### 저장 파일 보호 검토안
+
+현재 Room 구성에는 DB 암호화가 없으며, `allowBackup=false`는 DB 암호화를 대신하지 않는다. 앱 전용 저장 영역의 접근 제한과 저장 파일 암호화를 구분한다.
+
+Android Keystore는 암호화 키를 보호하고 키를 사용한 암·복호화 연산을 제공한다. Room DB 전체를 자동 암호화하는 기능은 아니다. 금융 DB 파일의 기밀성까지 요구한다면 아래 조합을 설계 후보로 검토한다.
+
+- DB 내용: Room과 호환되는 DB 암호화 구현이 담당한다. SQLCipher는 후보이며 아직 선정·의존성 추가하지 않았다.
+- 키 보호: 별도로 생성한 무작위 DB 키를 Keystore 키로 암호화해 보관하고, DB를 열 때 복호화한다. Keystore 키 원문을 추출해 DB 암호로 전달하는 방식은 사용하지 않는다.
+- 범위: 키 보호 모듈은 실제 사용처에 맞춰 작게 두며 Repository·UI에 키 원문을 노출하지 않는다. 하드웨어 보호 여부를 모든 기기에서 보장한다고 가정하지 않는다.
+- 선행 결정: 기기 분실/DB 파일 유출 등 보호 대상, 앱 잠금·백그라운드 접근, 키 무효화·기기 이전·백업/복원 정책을 확정한다. 실행 중인 앱 프로세스가 침해된 경우의 완전한 보호를 주장하지 않는다.
+- 검증: 현재 DB의 암호화 전환·실패 롤백, DB/WAL 파일의 보호, 잘못되거나 유실된 키로 열기 실패, 키 복원 불가 시 사용자 데이터 보존을 시험한다. 키 오류를 DB 삭제나 평문 fallback으로 처리하지 않는다.
+
+암호화 구현·키 정책·라이브러리 호환성/이용 조건은 별도 보안 설계 승인 대상이다. 이번 문서 수정으로 보안 기능이 구현됐다는 뜻은 아니다.
+
+## 5. Repository·서버 통신과 선택적 UseCase
 
 ### 로컬 장부
 
@@ -84,17 +98,18 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 - 조회에는 정합된 월/선택일 결과 계약을 마련한다. 독립 Flow 여러 개를 단순 combine해 서로 다른 revision의 계좌·거래·합계를 한 화면에 섞지 않는다.
 - 현재 snapshot은 asOf를 서울 오늘까지로 제한한다. 미래 월 조회는 거래가 없다는 이유로 예외를 빈 결과로 바꾸지 않는다. 조회 API 확장 또는 지원된 asOf의 데이터와 미래 표시 기간을 분리하는 정확한 계약을 먼저 확정한다.
 
-### 의미 있는 작업 분리
+### Repository 책임과 선택적 로직 분리
 
 - 계좌 생성·거래 생성은 캡처된 제출을 입력으로 받는다. UUID/값을 재시도마다 새로 생성하지 않는다.
-- 저장 시도·기존 결과 확인·영수증 검증·동일 요청 재시도의 공통 규칙을 별도 작업으로 분리한다. 각 작업의 결과는 `확정됨 / 미확정 / 충돌`처럼 UI와 독립적인 typed 결과다.
-- UseCase 자체는 화면별 mutable 상태·진행 중 Job·draft를 보관하지 않는다. UI 진행 상태는 ViewModel, 영속 제출은 Repository가 소유한다.
+- 저장·조회·영수증 검증·멱등 재시도처럼 데이터 일관성에 해당하는 규칙은 먼저 Repository 또는 data 내부 협력 객체가 맡는다. ViewModel은 이 계약의 typed 결과를 UiState로 변환한다. 단순한 CRUD마다 UseCase를 추가하지 않는다.
+- 여러 ViewModel이 같은 복잡한 비즈니스 흐름을 중복하거나 Repository와 구분되는 로직이 비대해졌을 때만 UseCase를 제안한다. 대상 로직·소비자·테스트 이점을 먼저 기록하고, 이름만 바꾼 위임 클래스는 만들지 않는다.
+- 선택적으로 도입한 UseCase는 data Repository에 의존하며 화면별 mutable 상태·진행 중 Job·draft를 보관하지 않는다. UI 진행 상태는 ViewModel, 영속 제출은 Repository가 소유한다.
 - 복구할 제출의 종류·context·요청 값을 안전하게 식별하는 typed 계약을 마련한다. feature에서 opaque pending JSON을 해석하거나 다른 종류의 제출을 무조건 retry하지 않는다.
 - 등록된 계좌/거래를 UI 모델로 바꾸는 mapper는 feature의 model 파일로 옮긴다. 검증된 저장 결과와 실제 조회 실패는 계속 구분한다.
 
 ### 서버 경계
 
-목표 연결은 `feature → domain 계약/작업 → data Repository → remote 어댑터 → Supabase client`다. 서버 DTO는 data 내부에서만 사용하고 명시적으로 도메인 모델로 변환한다. `core:network`에 업무 DTO를 모으지 않는다. HTTP status·nullable 응답 본문·SDK exception을 도메인 모델 필드로 흘려보내지 않는다.
+기본 연결은 `ViewModel → data Repository → remote 어댑터 → Supabase client`다. 서버 DTO는 data 내부에서만 사용하고 명시적으로 앱의 금융 모델로 변환한다. `core:network`에 업무 DTO를 모으지 않는다. HTTP status·nullable 응답 본문·SDK exception을 모델 필드로 흘려보내지 않는다.
 
 서버 미확정 부분은 합성 응답을 사용하는 개발/테스트용 어댑터로 준비할 수 있다. 이 어댑터는 별도 개발 variant/명시적 DI binding에서만 사용하고 release에서 선택되지 않음을 확인한다. 서버 장애·설정 누락·인증 실패 시 자동 목 성공 fallback은 금지한다.
 
@@ -112,7 +127,7 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 | `@HiltViewModel` | ViewModel 생명주기별 상태. Activity·Composable이 concrete Repository를 생성하지 않는다. |
 | Qualifier | 동일 타입의 실제 복수 구현이 있을 때만 도입한다. 단일 DB/Clock에 장식용 이름을 붙이지 않는다. 테스트/개발 mock은 환경별 binding으로 분리한다. |
 
-권고안에서는 domain을 Hilt/주입 어노테이션에 묶지 않는다. UseCase는 순수 생성자를 사용하고 `data:ledger/di/LedgerUseCaseModule`의 `@Provides`에서 Repository 계약을 받아 조립한다. Flow 계약이 필요하면 domain에는 coroutines-core만 추가하고 coroutines-android는 넣지 않는다. SDK·Room 생성은 `@Provides`, 인터페이스 연결은 `@Binds`로 구분하되, 그 문법을 맞추기 위한 모듈/클래스 추가는 하지 않는다. DI 모듈을 쪼개는 목적은 생성 책임과 교체 경계를 분리하는 것이다.
+기본 구성에서는 Hilt ViewModel에 Repository 계약을 직접 주입한다. UseCase 모듈이나 그 전용 DI 제공 모듈은 미리 만들지 않는다. 선택적 domain이 필요해질 때 그 작업의 생성자/DI를 함께 정한다. SDK·Room 생성은 `@Provides`, 인터페이스 연결은 `@Binds`로 구분하되, 문법을 맞추기 위한 모듈/클래스 추가는 하지 않는다. DI 모듈을 쪼개는 목적은 생성 책임과 교체 경계를 분리하는 것이다.
 
 검증에는 정적 앱 그래프 컴파일과 실제 Hilt Route 생성/실행을 모두 포함한다. 컴파일 성공만으로 런타임 진입을 완료 처리하지 않는다. 테스트용 binding은 전역 production binding을 조용히 덮어쓰지 않도록 격리한다.
 
@@ -154,12 +169,12 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 | 단계 | 구체적 작업과 영향 경로 | 완료 기준 / 다음 단계 조건 |
 | --- | --- | --- |
 | P0 · 경계 확정 | 본 계획 검토, 모듈 선택 A/B/C와 context·복구·서버 계약의 열린 결정을 ADR로 확정. PR #15의 기존 동작·데이터 보장 목록 고정. | 사용자가 구조/범위 승인. 새 구현 코드는 아직 작성하지 않는다. |
-| P1 · 도메인/데이터 이동 | B 선택 시 `core/model/src/main/kotlin/com/monit/core/model/LedgerModels.kt`, `KrwAmounts.kt`, `LedgerDates.kt`와 기존 모델 테스트를 `domain/ledger`로 이동. `core/data` 구현/시험/schema 파일을 `data/ledger`로 이동. `settings.gradle.kts`, 관련 `build.gradle.kts`, feature import 갱신. | 한 PR 안에서는 패키지/모듈 경계만 변경. DB 파일명·테이블·schema version·요청/해시 형식·알고리즘을 보존하고 기존 시험/실제 DB 재열기 통과. 이동 후 빈 옛 모듈·재export 호환 래퍼를 남기지 않는다. |
+| P1 · 모델/데이터 경계 | `core:model`의 금융 모델·검증 함수를 유지한다. `LedgerModels.kt`의 Repository 인터페이스는 `data/ledger/.../repository/LedgerRepository.kt`로 분리하고 `core/data` 구현/시험/schema 파일을 `data/ledger`로 이동한다. `settings.gradle.kts`, 관련 `build.gradle.kts`, feature import 갱신. | ViewModel → 공개 Repository 직접 호출. 한 PR 안에서는 경계/경로만 변경하고 DB 파일명·테이블·schema version·요청/해시 형식·알고리즘은 보존한다. 기존 시험/실제 DB 재열기 통과, 빈 옛 모듈·재export 래퍼 없음. |
 | P2 · DI 분리 | `data/ledger/.../di/DatabaseModule.kt`, `RepositoryModule.kt`, `ClockModule.kt`와 Repository 생성자 조립을 정리. 기존 `LedgerDataModule`의 제공을 중복 등록하지 않는다. | Hilt 중복/누락 binding 없음, 파일 DB Singleton 유지, 앱 그래프/테스트 대체/실제 생성 경로 검증. |
 | P3 · context·복구 계약 | domain/data의 현재 장부 조회/선택·원자적 첫 생성, typed pending 결과, 요청 크기 P2 계약을 Backend와 확정한 후 구현. 앱 시작 ViewModel 연결. | 재시작/동시 진입에서도 같은 context, 손상/복수 장부/세대 불일치 명시 처리. schema 변경 시 승인된 Migration과 v1 데이터 보존 시험. |
-| P4 · 제출과 계좌 상태 | `domain/ledger/.../usecase`의 의미 있는 제출/확인 작업, `feature/accounts/.../model/AccountUiModel.kt`, mapper, submitted state/codec, 기존 ViewModel 상태 조정. | 기존 계좌 상태 18개 시나리오 유지 및 경계 이동 시험. 응답 유실/취소/재진입에서 ID·내용 보존, 금융 성공/조회 실패 구분. |
+| P4 · 제출과 계좌 상태 | Repository/data 내부의 제출·결과 확인 계약과 `feature/accounts/.../model/AccountUiModel.kt`, mapper, submitted state/codec, ViewModel 상태 조정을 정리한다. UseCase 분리는 실제 복잡성/재사용 근거가 있을 때만 별도 제안한다. | 기존 계좌 상태 18개 시나리오 유지 및 경계 이동 시험. 응답 유실/취소/재진입에서 ID·내용 보존, 금융 성공/조회 실패 구분. |
 | P5 · 서버 기반 | 승인된 `core/network` client DI, `data/auth` 세션 어댑터, `data/ledger/.../remote` DTO/mapper/어댑터. 미확정 응답은 개발/테스트 DI의 합성 어댑터로 격리. | 실제/개발 binding 구분, release mock 미포함, 인증 상태·매핑·취소·서버 오류 시험. 실동기화 전 소유권/RLS/충돌 정책 별도 승인. 서버 미확정 경계를 문서화하면 로컬 제품 단계는 계속 가능. |
-| P6 · 거래/조회 상태 | `feature/transactions` 입력·검증·제출 상태, `feature/calendar` 조회·선택·필터 상태, domain 조회 계약과 data의 일관된 결과 구현. | 금액/날짜·이체·중복/별개 동일값·미래 조회·월말·늦은 응답·월 전체/필터 범위 시험. |
+| P6 · 거래/조회 상태 | `feature/transactions` 입력·검증·제출 상태, `feature/calendar` 조회·선택·필터 상태, Repository 조회 계약과 data의 일관된 결과 구현. | 금액/날짜·이체·중복/별개 동일값·미래 조회·월말·늦은 응답·월 전체/필터 범위 시험. |
 | P7 · 토큰/공통 UI 정합성 | `core/designsystem` 기존 토큰/5종 컴포넌트를 Design 새 명세와 대조. 필요한 기본/복합 상태와 Preview 목록 보완. | 토큰 임의 중복 없음, Light/Dark·오류·비활성·저장 중·좁은 폭/큰 글자·semantics 검증. 새 토큰/Figma 변경은 해당 승인 절차 적용. |
 | P8 · 제품 화면 연결 | 각 feature의 `...Route.kt`, `...Screen.kt`, 기능별 컴포넌트/Preview/탐색 연결. 앞 단계에서 준비된 기능 순서대로 적용. | 계좌 생성 후 명시 선택/입력 보존 → 신규 거래 확정 → 달력·목록·요약 일관 갱신. 미지원 수정/삭제/기준액 확인은 동작 가능한 것처럼 노출하지 않는다. |
 | P9 · 통합 QA | Compose UI·Prevue 렌더·QA sm-948n의 테마/320dp/200%/TalkBack/실제 종료·복귀 확인. 최신 head CI와 필요한 독립 리뷰 확인. | AC별 실제 근거, 미지원/실패/미검증 구분. 강제 종료·재부팅·영속 초안은 실제 지원 계약과 시험이 있는 범위만 완료 처리. |
@@ -172,7 +187,7 @@ P1~P4까지는 금융 동작 보존이 우선이다. P5의 서버/인증 작업�
 
 | 영역 | 필요한 관찰 결과 |
 | --- | --- |
-| 구조 | feature → data 직접 의존 없음, domain의 Android/Room/SDK 의존 없음, 순환/빈 모듈/중복 DI 없음. |
+| 구조 | feature는 공개 Repository만 참조하고 internal 구현체·DAO·Entity에는 접근하지 않음. 순환/빈 모듈/중복 DI와 위임용 UseCase 없음. 선택적 domain은 재사용·복잡성 근거가 있을 때만 생성. |
 | 보존 | 기존 DB/요청 bytes/해시/영수증 재열기. 실제 파일 DB의 실패 롤백·이체 원자성·context 격리 유지. |
 | 제출 | 중복 탭 하나, 재시도 같은 ID/값, 별개 동일값 새 ID, 응답 유실 결과 확인, 조회 실패 재저장 없음, 취소 전파. |
 | 복구 | 시스템 화면 재생성·태스크 제거·강제 종료·재부팅을 구분. typed pending과 영수증으로 복구하고 전체 입력 초안 지원을 별도 판정. |
@@ -187,7 +202,8 @@ P1~P4까지는 금융 동작 보존이 우선이다. P5의 서버/인증 작업�
 
 | 결정/위험 | 판단에 필요한 것 | 확정 책임 / 보류 시 영향 |
 | --- | --- | --- |
-| 모듈 경계 B 권고 vs A/C | 이동량, 공통 타입의 실제 소비자, 불필요한 장기 호환 계층 비용 | 사용자 구조 승인. 미확정이면 코드 이동하지 않는다. |
+| 모듈 경계 | UI·data 기본 구조를 유지하면서 `core:data`를 기능별 `data:ledger`로 옮길 범위 | 사용자 구조 승인. 미확정이면 코드 이동하지 않는다. domain/UseCase는 기본 경로에서 제외. |
+| DB 파일 암호화·키 보호 | 보호 대상, Room 암호화 구현 후보·키 수명·백업/복원·기존 DB 전환 | 사용자 보안 설계 승인. Keystore 조합은 검토안이며 구현/라이브러리 선정은 하지 않는다. |
 | context bootstrap | 현재 장부 메타의 단일 소유, 첫 생성 경쟁, 다중 장부/손상 처리, 기존 v1 보존 | Backend 계약 + Android 구현 설계. 실제 화면 진입의 선행 조건. |
 | 요청 크기 P2 | 업무 문자열과 정규화 요청 bytes의 한도·이스케이프 처리·서버 대응 | Backend 최종 계약. UI 임의 상한으로 덮지 않는다. |
 | typed pending·영속 초안 | 제출 종류·사용자/장부 분리·기존 제출 복구·미확정 폐기·초안 보장 범위 | Planning/Backend/Android. API 준비 전 영속 복구 완료 표시 금지. |
@@ -210,7 +226,9 @@ Room 유지에는 오프라인 동작과 이미 검증한 원자성을 보존하
 
 ## 13. 참고 자료
 
-- Android 공식 data/domain/Hilt/UI events/offline-first 문서를 판단 근거로 사용했다. domain UseCase는 필요에 따라 도입하는 계층이며 Repository의 원자적 저장 책임을 제거하는 근거가 아니다.
+- Android 공식 data/domain/Hilt/UI events/offline-first 문서를 판단 근거로 사용했다. Google 권장 아키텍처에서도 domain/UseCase는 선택적이며 복잡한 로직 또는 여러 ViewModel의 재사용 필요가 있을 때만 도입한다. UseCase라는 이름이 특정 아키텍처 전용이라는 뜻은 아니다.
 - Supabase 공식 Kotlin 초기화·세션 상태/갱신 문서는 인증 모듈 경계를 설계할 때 확인한다. SDK 도입 버전과 실제 API는 착수 단계에서 고정·검증한다.
 
 원문 링크: [Android data](https://developer.android.com/topic/architecture/data-layer), [Android domain](https://developer.android.com/topic/architecture/domain-layer), [Hilt](https://developer.android.com/training/dependency-injection/hilt-android), [UI events](https://developer.android.com/topic/architecture/ui-layer/events), [offline-first](https://developer.android.com/topic/architecture/data-layer/offline-first), [Supabase Kotlin 초기화](https://supabase.com/docs/reference/kotlin/initializing), [세션 상태](https://supabase.com/docs/reference/kotlin/v2/auth-onauthstatechange), [세션 갱신](https://supabase.com/docs/reference/kotlin/auth-refreshsession).
+
+보안 검토 근거: [Android Keystore](https://developer.android.com/privacy-and-security/keystore), [앱 데이터 저장](https://developer.android.com/training/data-storage), [Room](https://developer.android.com/training/data-storage/room), [Room 호환 DB 암호화 후보](https://github.com/sqlcipher/sqlcipher-android).
