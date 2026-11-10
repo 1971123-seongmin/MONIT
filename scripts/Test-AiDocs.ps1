@@ -4,20 +4,28 @@ param()
 $ErrorActionPreference = 'Stop'
 $monitRoot = Split-Path $PSScriptRoot -Parent
 $monitRoles = @('pm', 'planning', 'design', 'backend', 'android', 'qa-devops')
-$monitRequired = @('AGENTS.md', 'docs/ai/definition-of-done.md') + @(
+$monitRequired = @('README.md', 'AGENTS.md', 'docs/ai/definition-of-done.md') + @(
     $monitRoles | ForEach-Object { "docs/ai/roles/$_.md" }
 )
 $monitErrors = [System.Collections.Generic.List[string]]::new()
+# Use the Git index for scope, but read current working-tree contents. This keeps
+# local drafts/build output out of CI checks and includes newly staged documents.
+$monitTracked = @(git -C $monitRoot -c core.quotepath=false ls-files --cached)
+if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate Git-managed documents.' }
 foreach ($monitRelative in $monitRequired) {
-    if (-not (Test-Path -LiteralPath (Join-Path $monitRoot $monitRelative) -PathType Leaf)) {
+    if ($monitRelative -cnotin $monitTracked -or
+        -not (Test-Path -LiteralPath (Join-Path $monitRoot $monitRelative) -PathType Leaf)) {
         $monitErrors.Add("Missing required document: $monitRelative")
     }
 }
 if ($monitErrors.Count) { throw ($monitErrors -join [Environment]::NewLine) }
 
-$monitFiles = @((Get-Item -LiteralPath (Join-Path $monitRoot 'AGENTS.md'))) + @(
-    Get-ChildItem -LiteralPath (Join-Path $monitRoot 'docs/ai') -Recurse -File -Filter '*.md'
-    Get-ChildItem -LiteralPath (Join-Path $monitRoot '.agents/skills') -Recurse -File -Filter '*.md'
+$monitFiles = @(
+    $monitTracked | Where-Object {
+        $_ -cmatch '(^|/)README\.md$|^AGENTS\.md$|^(docs/ai|\.agents/skills)/.*\.md$'
+    } | Sort-Object -Unique | ForEach-Object {
+        Get-Item -LiteralPath (Join-Path $monitRoot $_)
+    }
 )
 $monitExpectedHeadings = @(
     '## 1. 역할과 책임', '## 2. 작업 범위', '## 3. 산출물',

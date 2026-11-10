@@ -19,6 +19,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Check documentation
+        shell: pwsh
+        run: ./scripts/Test-AiDocs.ps1
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
