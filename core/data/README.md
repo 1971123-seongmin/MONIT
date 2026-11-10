@@ -2,6 +2,8 @@
 
 `LedgerRepository`의 첫 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `di`의 `LedgerDatabaseModule`·`LedgerClockModule`은 파일 DB와 서울 Clock을 Singleton으로 제공하고, `LedgerRepositoryModule`은 생성자 주입 가능한 Room 구현을 Repository 계약에 Singleton으로 바인딩한다. 실제 제품 화면은 아직 연결하지 않았다.
 
+공통 실행 의존성은 [core:common](../common/README.md)에서 제공한다. Repository의 요청 직렬화·해시·복원 준비에는 `@DefaultDispatcher`를 생성자로 주입한다. Room 트랜잭션 경계와 호출자 취소는 유지한다. Android Context는 DB 제공부에서 Hilt의 `@ApplicationContext`로 주입하며 Repository나 전역 객체에 보관하지 않는다.
+
 ## 지원 경로
 
 1. 호출자가 UUID `ledgerId`와 `storageGeneration`을 정해 `initialize`한다. 같은 context의 재호출은 기존 메타를 유지한다. 자동 계좌·0원 기준·샘플 거래를 만들지 않는다.

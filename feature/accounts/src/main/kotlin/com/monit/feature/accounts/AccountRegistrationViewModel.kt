@@ -1,9 +1,11 @@
 package com.monit.feature.accounts
 
+import android.util.Log
 import androidx.annotation.MainThread
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.monit.core.common.di.ViewModelCoroutineScope
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
@@ -21,6 +23,7 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -30,7 +33,8 @@ class AccountRegistrationViewModel @Inject constructor(
     private val repository: LedgerRepository,
     private val clock: Clock,
     private val savedState: SavedStateHandle,
-) : ViewModel() {
+    @ViewModelCoroutineScope scope: CoroutineScope,
+) : ViewModel(scope) {
     private val context = runCatching {
         LedgerContext(
             requireNotNull(savedState.get<String>(LEDGER_ID)),
@@ -112,7 +116,8 @@ class AccountRegistrationViewModel @Inject constructor(
             throw cancelled
         } catch (_: LedgerConflictException) {
             block(AccountProblem.CONFLICT)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Log.w(TAG, "initialize: ${error.javaClass.simpleName}")
             mutableState.value = uiState.value.copy(
                 saveState = AccountSaveState.InitializationFailed,
             )
@@ -165,7 +170,8 @@ class AccountRegistrationViewModel @Inject constructor(
         } catch (_: LedgerConflictException) {
             block(AccountProblem.CONFLICT)
             return
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Log.w(TAG, "write: ${error.javaClass.simpleName}")
             checkResult(intent, allowWrite = false)
             return
         }
@@ -182,7 +188,8 @@ class AccountRegistrationViewModel @Inject constructor(
         } catch (_: LedgerConflictException) {
             block(AccountProblem.CONFLICT)
             return
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Log.w(TAG, "receipt: ${error.javaClass.simpleName}")
             unconfirmed(intent)
             return
         }
@@ -220,7 +227,8 @@ class AccountRegistrationViewModel @Inject constructor(
         } catch (cancelled: CancellationException) {
             if (submitted == intent) mutableState.value = uiState.value.copy(readState = AccountReadState.Failed)
             throw cancelled
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            Log.w(TAG, "snapshot: ${error.javaClass.simpleName}")
             // 조회 실패가 확인된 저장 성공을 취소하거나 새 저장을 유발하지 않는다.
             if (submitted == intent) mutableState.value = uiState.value.copy(readState = AccountReadState.Failed)
         }
@@ -238,6 +246,7 @@ class AccountRegistrationViewModel @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "AccountRegistration"
         const val LEDGER_ID = "ledgerId"
         const val STORAGE_GENERATION = "storageGeneration"
         internal const val SUBMISSION = "accountSubmission"

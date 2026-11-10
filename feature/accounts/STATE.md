@@ -2,6 +2,8 @@
 
 계좌 신규 등록의 상태·이벤트·표시 모델을 제공한다. `app → feature:accounts → core:model`이며 Room 구현은 기존 `app → core:data`의 Hilt binding으로 연결한다. ViewModel은 Room Entity·DAO·내부 requestJson을 알지 못한다.
 
+공통 코루틴 제공은 [core:common](../../core/common/README.md)에 둔다. Hilt가 ViewModel별 Scope를 주입하고 `ViewModel(scope)`가 제거 시 취소를 소유한다. 테스트는 같은 TestDispatcher를 사용하는 별도 Scope를 직접 전달하며 전역 Main을 교체하지 않는다. Android Context는 Room 제공부에서 Hilt의 `@ApplicationContext`로 받고, 장부 ID/세대인 `LedgerContext`는 기존 호출 계약을 유지한다.
+
 ## 호출 조건과 상태
 
 호출자는 `SavedStateHandle`의 `ledgerId`, `storageGeneration`에 기존 장부의 정규 UUID를 전달해야 한다. 식별자가 없거나 잘못되면 `UNAVAILABLE / CONTEXT_REQUIRED`이며 새 장부를 자동 생성하지 않는다. 현재 앱의 진입 화면은 placeholder이며, 안정적인 장부 식별자 소유·재진입 경로와 실제 화면 연결은 후속 작업이다. Hilt 앱 빌드는 정적 의존성 연결의 검증이며 실제 화면에서의 주입·기기 실행 검증을 뜻하지 않는다.
@@ -22,6 +24,10 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 하나의 saved-state 값에 제출 당시의 context·ID·typed 입력 스냅샷을 저장한다. `model/AccountSubmissionCodec`은 명명된 Bundle v2 필드로 기록하며 기존 ArrayList v1 task는 ID/내용을 보존해 읽은 뒤 v2로 기록한다. 알 수 없는 버전·필드/타입 오류·다른 context는 명시적으로 거부한다. 지원되는 재생성에서는 기존 결과부터 조회하며, 성공한 제출은 같은 계좌로 복귀하고 미확정 제출은 명시 Action을 기다린다. 취소 예외는 전파하고 성공을 추정하지 않는다.
 
 `SavedStateHandle`은 task stack에 종속된다. 강제 종료·최근 앱 제거·재부팅 후에도 유지되는 영속 저장소가 아니다. 아직 제출하지 않은 입력폼 전체 초안, 장부 식별자 bootstrap, saved-state가 사라진 뒤의 Room pending 제출 선택·복구, 미확정 제출의 폐기·수정 UI는 이번 구현에 없다. Repository의 영속 제출과 화면의 saved-state 스냅샷을 동일한 보장으로 취급하지 않는다. [Android saved-state 문서](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)를 따른다.
+
+호스트 Activity가 중지될 때 저장된 값만 복원된다. 중지된 동안 제출한 뒤 다시 시작·중지되기 전에 프로세스가 종료되면 task가 남아 있어도 최신 제출 스냅샷이 없을 수 있다. 이 경우 기존 제출의 결과 조회를 보장하지 못하며, 새 ID의 등록으로 중복될 위험이 있다. 실제 화면 연결 전 영속 장부 진입·pending 복구 계약에서 해결해야 한다.
+
+예상하지 못한 예외는 작업 종류와 예외 클래스명만 Android 로그에 남긴다. 예외 메시지·Throwable·계좌명·금액·ID는 기록하지 않는다. 이 진단 정보가 성공 판정이나 재시도 정책을 바꾸지는 않는다.
 
 현재 업무 문자열 검증과 정규화 requestJson 크기의 차이(P2)는 [개발 계획의 열린 결정](../../docs/architecture/monit-modules-di-ui-plan.md#11-열린-결정반대-의견중단-조건)의 Backend 확정 대기 항목이며, 이 모듈에서 임의의 새 상한이나 내부 JSON 파서를 도입하지 않는다. 큰 이스케이프 문자열 등은 저장 단계에서 거부될 수 있다.
 

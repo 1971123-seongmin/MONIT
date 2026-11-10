@@ -17,6 +17,7 @@ android {
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 dependencies {
+    implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(libs.androidx.room.runtime)
     implementation(libs.kotlinx.coroutines.android)

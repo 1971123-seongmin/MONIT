@@ -69,7 +69,7 @@ class RoomLedgerRepositoryTest {
 
     private fun reopen() {
         database = createLedgerDatabase(androidContext, databaseName)
-        repository = RoomLedgerRepository(database, clock)
+        repository = RoomLedgerRepository(database, clock, Dispatchers.Default)
     }
 
     private fun accountValue(number: Long, name: String = "같은 이름") = CreateAccount(

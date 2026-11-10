@@ -1,6 +1,7 @@
 package com.monit.core.data
 
 import androidx.room.withTransaction
+import com.monit.core.common.di.DefaultDispatcher
 import com.monit.core.model.AccountNature
 import com.monit.core.model.AccountStatus
 import com.monit.core.model.BalanceAnchor
@@ -26,10 +27,13 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 
 internal class RoomLedgerRepository @Inject constructor(
     private val database: LedgerDatabase,
     private val clock: Clock,
+    @DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : LedgerRepository {
     private val dao = database.ledgerDao()
     private fun today(): LocalDate = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
@@ -60,7 +64,7 @@ internal class RoomLedgerRepository @Inject constructor(
         dao.submissions(context.ledgerId).map { PendingWrite(it.operationId, it.requestJson) }
     }
 
-    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt {
+    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = withContext(defaultDispatcher) {
         val (prior, pending) = database.withTransaction {
             requireLedgerId(operationId)
             requireContext(context)
@@ -69,13 +73,13 @@ internal class RoomLedgerRepository @Inject constructor(
             check(requestHash(submission.requestJson) == submission.requestSha256)
             null to submission
         }
-        if (prior != null) return prior
+        if (prior != null) return@withContext prior
         val submission = checkNotNull(pending)
-        return submit(context, operationId, decodeWrite(context, submission.requestJson))
+        submit(context, operationId, decodeWrite(context, submission.requestJson))
     }
 
     /** 제출 의도를 먼저 commit하고 금융 변경·결과·의도 소비는 다음 단일 트랜잭션에서 확정한다. */
-    private suspend fun submit(context: LedgerContext, operationId: String, command: WriteCommand): WriteReceipt {
+    private suspend fun submit(context: LedgerContext, operationId: String, command: WriteCommand): WriteReceipt = withContext(defaultDispatcher) {
         requireLedgerId(operationId)
         val payload = captureWrite(context, command)
         val hash = requestHash(payload)
@@ -91,8 +95,8 @@ internal class RoomLedgerRepository @Inject constructor(
             else requireSameRequest(pending.requestJson, pending.requestSha256, payload, hash)
             null
         }
-        if (prior != null) return prior
-        return database.withTransaction {
+        if (prior != null) return@withContext prior
+        database.withTransaction {
             database.requireDurableWriter()
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)?.let {

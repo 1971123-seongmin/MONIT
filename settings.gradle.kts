@@ -1,4 +1,4 @@
 pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name = "MONIT"
-include(":app", ":core:model", ":core:data", ":core:designsystem", ":feature:accounts")
+include(":app", ":core:common", ":core:model", ":core:data", ":core:designsystem", ":feature:accounts")
