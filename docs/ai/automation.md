@@ -95,9 +95,13 @@
 
 ```powershell
 codex plugin marketplace add google/elephant-goldfish-model --ref 6d2af49f635515a472ce0dbba375c62b73dace26
+if ($LASTEXITCODE -ne 0) { throw 'EGM marketplace registration failed; stop installation.' }
 codex plugin add egm@egm
+if ($LASTEXITCODE -ne 0) { throw 'EGM installation failed; stop installation.' }
 codex plugin marketplace add LilMGenius/paperthin --ref 1306ea4a2c038b5dee508db23197b3a19ccfbdfc
+if ($LASTEXITCODE -ne 0) { throw 'Paperthin marketplace registration failed; stop installation.' }
 codex plugin add paperthin@paperthin
+if ($LASTEXITCODE -ne 0) { throw 'Paperthin installation failed; stop installation.' }
 codex plugin list --json --marketplace egm
 codex plugin list --json --marketplace paperthin
 ```
@@ -118,7 +122,7 @@ codex plugin list --json --marketplace paperthin
 | `re0-memo` | 완료·실패에서 다음 작업에 필요한 교훈만 기존 기록에 반영 |
 | `re0-workflow` | 실제로 여러 스킬의 순서·의존성을 조율할 필요가 있을 때 선택 |
 
-EGM 7개는 모두 frontmatter의 `disable-model-invocation: true`를 유지한다. 이 설치의 `agents/openai.yaml`에는 `allow_implicit_invocation`이 없어 Codex가 제한을 어떻게 강제하는지는 별도로 확인해야 한다. MONIT에서는 기존 공통 지침에 따라 사용자 호출 전용으로 취급한다. Paperthin의 사용자 호출 전용 항목은 frontmatter와 `agents/openai.yaml`의 `allow_implicit_invocation: false`가 대응한다. 메타데이터를 완화하거나 사본으로 우회하지 않는다.
+EGM 7개는 모두 frontmatter의 `disable-model-invocation: true`를 유지한다. 확인한 CLI `0.167.0-alpha.3.2`의 [frontmatter 파서](https://github.com/openai/codex/blob/rust-v0.167.0-alpha.3.2/codex-rs/skills/src/parser.rs)는 이 필드를 읽지 않으며, 이 설치의 `agents/openai.yaml`에도 `allow_implicit_invocation`이 없어 스킬이 모델에 노출되고 자동 선택될 수 있다. MONIT의 사용자 직접 호출 전용 방침은 에이전트가 따라야 할 공통 지침이며 호스트가 메타데이터로 자동 호출을 차단했다는 의미가 아니다. Paperthin의 사용자 호출 전용 항목은 frontmatter와 `agents/openai.yaml`의 `allow_implicit_invocation: false`가 대응한다. 메타데이터를 완화하거나 사본으로 우회하지 않는다.
 
 자동 호출 가능은 실행 의무나 권한 부여가 아니다. 기존 MONIT의 커밋·PR·테스트·학습 스킬을 우선하며 작은 작업에 전체 플러그인 절차를 붙이지 않는다. `modelchk`는 조언이며 실제 모델 자동 전환기가 아니다. 새 맥락이 필요한 검토는 실제 격리된 검토 환경을 확인한다. `re0-work`·`re0-loop`·`re0-squash`는 대화 압축 명령이 아니고, `re0-squash`는 일반 PR squash merge도 아니다. 설치 확인용으로 재구축·다중 검토·회고·업그레이드·릴리스 절차를 실행하지 않는다. 자동 업데이트 예약, 다른 에이전트 설치, Spotify Portal·shunt는 추가하지 않는다.
 
