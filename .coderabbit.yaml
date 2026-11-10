@@ -10,7 +10,8 @@ reviews:
   in_progress_fortune: false
   request_changes_workflow: false
   auto_review:
-    enabled: true
+    enabled: false
+    auto_incremental_review: false
     drafts: false
   path_instructions:
     - path: "**/*"
