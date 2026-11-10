@@ -2,9 +2,37 @@
 
 기기 설정을 따르는 Light/Dark 테마, 동적 색상 비사용, 기존 파란색과 M3+SEED 의미/상태 대응을 적용한다. 제품 기능 화면은 포함하지 않는다. app의 기존 MONIT 임시 런처에 테마만 연결하며 Room·서버·금융 계산에는 의존하지 않는다.
 
-## 원본과 대응
+## 최신 Figma와 읽는 순서
 
-시각·토큰 원본은 Figma다. 2026-11-09 아래 실제 노드의 design context·스크린샷과 Compose Code Connect 참조를 확인했다. Figma의 과거 ‘미승인/예정’ 설명과 실제 Kotlin 구현을 혼동하지 않는다. 테마 정책은 같은 날 사용자가 확정했다.
+2026-11-10 Design의 최종 인계를 반영했다. 시각·토큰 원본은 선택된 팀의 Folders → MONIT에 있는 Figma이며, 실행 가능한 컴포넌트의 원본은 이 모듈이다. 이번 Figma 개편을 Compose 전체 구현 완료로 해석하지 않는다.
+
+| 읽는 순서 | Figma 바로가기 | 확인할 내용 |
+|---|---|---|
+| 1. 시작 안내 | [00 · Start here](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=123-2) | 현재 원본, 페이지 구성과 전달 상태 |
+| 2. 디자인 시스템 | [Foundations](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=127-1028), [원본 컴포넌트](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=120-1086) | 토큰·타입과 재사용 가능한 컴포넌트·Variant |
+| 3. 사용 예시 | [공통 패턴과 상태](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=112-188), [탐색과 피드백](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-807) | 조합·상태별 사용 예시. 원본 컴포넌트와 구분 |
+| 4. 와이어프레임 | [02 · Wireframes](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=122-2) | 정보 배치와 조회 → 입력 → 계좌 등록·선택 → 저장·결과 확인 동선 |
+| 5. 화면 디자인 | [03 · Screen Design](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=7-2325) | 기능별 화면과 정상·빈 화면·오류·진행 상태 |
+| 6. 개발 전달 | [현재 전달 기준](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=131-2), [Prevue 대응표](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=98-796) | 이전→현재 참조, 구현 대상과 검증 경계 |
+| 이전 자료 | [90 · Archive](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=48-141) | 기존 디자인 시스템·SEED 대응 명세. 새 구현의 최신 원본으로 사용하지 않음 |
+
+### 설계된 자산과 구현된 자산
+
+Figma에는 `MONIT/` 컴포넌트 19종·Variant 62개가 있다. Variables 45개와 Text Styles 5개의 값·모드·정의는 유지했으며 새 컴포넌트에 연결했다. 전체 토큰 값과 상태 표는 Figma에서 관리한다.
+
+| Figma 구성 | 현재 Compose 대응 |
+|---|---|
+| ActionButton, Field, TransactionRow, CalendarCell | 기존 `MonitButton`, `MonitAmountField`, `MonitTransactionRow`, `MonitDateCell`이 관련 역할을 구현한다. 최신 Figma와의 상태·치수 일치는 별도 대조 필요 |
+| AccountCard, BottomSheet | 기존 `MonitAccountPicker`는 계좌 선택을 제공하지만 최신 카드·시트 전체를 구현한 것은 아님 |
+| Badge, FilterChip, TopBar, SegmentedControl, StatusPanel, MonthSummary, BottomNavigation, Dialog, Snackbar, Skeleton, CalendarHeader, PaymentStatusRow, DatePicker | Figma 설계 확장. 같은 이름의 공통 Compose API가 이 모듈에 구현됐다고 가정하지 않음 |
+
+화면 프레임 52개는 **Light 상태별 프레임 48개와 대표 Dark 4개**이며 독립 기능 52개가 아니다. 와이어프레임은 8개다. 루틴·납입 연결·기준액 확인·편집·삭제 등 후속 기능의 화면도 설계 자료로 포함되며 앱 구현 완료를 뜻하지 않는다.
+
+설계 기준은 360 × 780, 일반 콘텐츠 폭 328, 달력 폭 336·날짜 터치 영역 48이다. 이는 Figma 좌표이며 Android에서는 dp/sp와 가변 레이아웃으로 해석한다. 360 너비나 780 높이를 모든 기기에 고정하지 않는다. Design은 화면 크기와 중첩 요소의 가로 넘침 없음, 대표 Light/Dark를 확인했다. 새 설계의 320dp·글자 200%·TalkBack·IME·실기기·Prevue 렌더 비교는 미검증이다. 아래 기존 Compose 테스트 결과와 구분한다.
+
+## 기존 Compose 구현의 참조 기준
+
+아래는 2026-11-09 구현 시 확인한 노드의 design context·스크린샷과 Compose Code Connect 참조다. 개편 이후에도 기존 노드 링크를 보존했으므로 **구현 근거 추적용**으로 남긴다. 새 구현은 위 최신 전달 기준부터 확인한다. 테마 정책은 기기 Light/Dark·동적 색상 비사용으로 유지된다.
 
 | Figma 원본 | 구현 |
 | --- | --- |
