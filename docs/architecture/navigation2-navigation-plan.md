@@ -1,6 +1,6 @@
 # Navigation 2 화면 이동 설계안
 
-- 상태: 검토용 제안. 제품 코드·모듈·의존성 추가와 구현 승인을 포함하지 않는다.
+- 상태: 설계는 #29에서 병합했으며, 승인된 첫 구현 단위는 [#36](https://github.com/1971123-seongmin/MONIT/issues/36)이다. `core:navigation` 실행기, app의 MainNavigator·읽기 전용 MonitAppState·필수 화면 인자를 받는 MonitNavHost, feature별 타입 경로·진입·등록 계약을 구현한다. MainActivity의 제품 화면 연결과 금융 복구는 후속 단계다.
 - MONIT 기준: main `8fe478bdfa0d8895e99f27702ab5eebdbf69b4e3` (#15·#24·#35 병합). 관련 작업은 [#28](https://github.com/1971123-seongmin/MONIT/issues/28)이다.
 - 목적: 기존 3탭과 거래 입력·계좌 선택/등록의 이동·복귀·복원 책임을 정한다. #24 수정, 납입 API, 새 딥링크, Navigation 3, SDK 출판은 별도 범위다.
 
@@ -18,7 +18,7 @@
 
 고정 기준의 [settings](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/settings.gradle.kts)와 소스 트리에는 core:navigation 모듈이 없다. 공통 Navigator를 core:navigation에 두고 app의 MainNavigator와 feature별 navigation을 나누는 구조는 사용자가 승인한 MONIT의 설계 선택이다. 샘플에 같은 중앙 모듈이 있다고 간주하지 않는다. 현재 MONIT에도 이 모듈은 미구현이며 이번 승인은 설계 보완 범위다.
 
-현재 MONIT의 [MainActivity](../../app/src/main/java/com/monit/app/MainActivity.kt)는 Theme를 적용한 실행 확인 화면이다. [settings](../../settings.gradle.kts)에는 app·core:common·core:model·core:data·core:designsystem·feature:accounts가 있다. #15에서 계좌 등록 ViewModel·순수 표시 UiState·진행 State·공통 코루틴 DI, #24에서 장부 진입·읽기 전용 제출 복구 조회가 반영됐다. 탐색 의존성·제품 화면·ViewModel의 새 복구 API 소비 연결은 아직 없다. 이 문서는 [기존 모듈·DI·UI 제안](monit-modules-di-ui-plan.md)의 탐색 부분을 구체화하며 그 문서의 모듈 이동을 승인하지 않는다.
+현재 MONIT의 [MainActivity](../../app/src/main/java/com/monit/app/MainActivity.kt)는 Theme를 적용한 실행 확인 화면이다. #15에서 계좌 등록 ViewModel·순수 표시 UiState·진행 State·공통 코루틴 DI, #24에서 장부 진입·읽기 전용 제출 복구 조회가 반영됐다. #36에서 [settings](../../settings.gradle.kts)에 core:navigation·feature:home·feature:transactions와 탐색 의존성을 추가한다. [실행기 계약](../../core/navigation/README.md)을 구현하되 제품 화면과 ViewModel의 새 복구 API 소비 연결은 후속 단계다. 이 문서는 [기존 모듈·DI·UI 제안](monit-modules-di-ui-plan.md)의 탐색 부분을 구체화하며 그 문서의 모듈 이동을 승인하지 않는다.
 
 승인된 D1은 로그인/서버 연결 없이 Room 단일 기기에서 기록·계산을 완결하는 범위다. Supabase 인증·다중 기기 동기화는 첫 탐색/화면 구현의 선행 조건이 아니다. 목표 스택의 존재를 원격 연결 승인으로 해석하지 않는다.
 
@@ -242,7 +242,7 @@ app이 소유하는 진입 ViewModel에서 openLedger를 읽고, 로딩·오류�
 
 ## 10. 파일 후보와 구현 순서
 
-현재 app의 Kotlin 소스는 app/src/main/java/com/monit/app, 계좌 feature는 feature/accounts/src/main/kotlin/com/monit/feature/accounts에 있다. 아래 파일은 제안 목록이며 이번 PR에서 생성하지 않는다. 거래/조회 feature의 Gradle 배치는 기존 모듈 제안 승인 시 정한다.
+현재 app의 Kotlin 소스는 app/src/main/java/com/monit/app, feature 소스는 각 모듈의 src/main/kotlin에 있다. 아래는 전체 구현 후보 목록이다. #36의 첫 구현 단위는 공통 실행기·앱 이동 정책/표시 상태/host·feature 탐색 계약이며, MonitApp·장부 진입 ViewModel·제품 Route/Screen 연결은 후속 단계다. feature:home·feature:transactions는 탐색 계약만 포함한다.
 
 | 위치·파일 후보 | 책임 |
 | --- | --- |

@@ -6,6 +6,7 @@ plugins {
 }
 
 android {
+    testOptions { unitTests.isIncludeAndroidResources = true }
     namespace = "com.monit.app"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
     defaultConfig {
@@ -25,6 +26,16 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:navigation"))
+    implementation(project(":feature:home"))
+    implementation(project(":feature:transactions"))
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.navigation.testing)
+    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.robolectric)
     implementation(project(":feature:accounts"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))

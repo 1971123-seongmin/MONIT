@@ -26,4 +26,12 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "MONIT"
-include(":app", ":core:common", ":core:model", ":core:data", ":core:designsystem", ":feature:accounts")
+include(
+    ":app",
+    ":core:common",
+    ":core:model",
+    ":core:data",
+    ":core:designsystem",
+    ":feature:accounts"
+)
+include(":core:navigation", ":feature:home", ":feature:transactions")
