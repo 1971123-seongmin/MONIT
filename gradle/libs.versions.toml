@@ -8,8 +8,11 @@ ksp = "2.3.6"
 room = "2.8.5"
 coroutines = "1.10.2"
 robolectric = "4.17"
+lifecycle = "2.9.4"
 
 [libraries]
+androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-savedstate = { module = "androidx.lifecycle:lifecycle-viewmodel-savedstate", version.ref = "lifecycle" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-runtime = { module = "androidx.compose.runtime:runtime" }

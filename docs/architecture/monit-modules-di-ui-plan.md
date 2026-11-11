@@ -72,7 +72,7 @@ MONIT의 장부 데이터·제출 의도·성공 영수증은 Room을 기준으�
 
 인증정보 보관 방식은 인증 기능 설계에서 별도로 확정한다. 이번 계획은 인증 모듈의 계약과 DI 경계까지만 다루며, 모든 데이터를 Room에 저장한다고 정하지 않는다.
 
-현재 context 조회/선택 API가 없으므로 앱 bootstrap은 선행 설계 항목이다. 최초 빈 DB에서 context 생성은 한 번만 일어나야 하며 재시작 시 같은 context를 읽어야 한다. 메타 손상·여러 장부·세대 불일치에 대해 임의의 첫 행 선택이나 자동 재생성을 하지 않는다. 메타 조회/현재 장부 선택 계약과 원자적 생성 방법은 Backend와 확정한다. 새 영속 필드가 필요하면 정식 Migration 및 기존 v1 보존 시험을 별도 단계로 둔다.
+현재 context 조회/선택 API가 없으므로 앱 bootstrap은 선행 설계 항목이다. Backend가 빈 저장소의 원자적 첫 생성·단일 장부 재사용·손상/복수 장부의 복구 필요 결과를 논리 계약으로 정리했다. Android는 이를 공개 Repository API와 실제 원자적 조회/생성으로 설계해야 한다. 재시작 시 같은 context를 읽으며 임의의 첫 행 선택·자동 재생성은 하지 않는다. 새 영속 필드가 필요하면 승인된 Migration 및 기존 v1 보존 시험을 별도 단계로 둔다.
 
 ### 저장 파일 보호 검토안
 
@@ -133,9 +133,9 @@ Android Keystore는 암호화 키를 보호하고 키를 사용한 암·복호�
 
 ## 7. ViewModel·상태·복구
 
-- ViewModel은 입력 Action을 받고 작업을 호출하며 불변 UiState를 갱신한다. StateFlow는 읽기 전용으로 공개한다. Main에서의 이벤트 직렬화와 늦은 응답 배제를 유지한다.
+- ViewModel은 입력 Action을 받고 작업을 호출하며 불변 등록/화면 상태를 갱신한다. 순수 표시용 UiState와 작업 진행 상태의 명명·파일 구분은 [Android 지침](../ai/roles/android.md)을 따른다. StateFlow는 읽기 전용으로 공개하며 Main에서의 이벤트 직렬화와 늦은 응답 배제를 유지한다.
 - `SaveState`와 `ReadState`를 분리한다. 저장 성공 뒤 목록 조회 실패가 금융 재저장을 유발하지 않는다. 상태별 필수 데이터는 해당 상태가 소유하도록 해 `Saved`인데 식별자가 없는 조합을 줄인다.
-- 금융 성공·미확정 제출·충돌은 UiState/영속 결과로 표현한다. Snackbar·애니메이션 같은 보조 표현이 유실되더라도 금융 결과가 사라지지 않아야 한다.
+- 금융 성공·미확정 제출·충돌은 작업 상태/영속 결과로 표현한다. Snackbar·애니메이션 같은 보조 표현이 유실되더라도 금융 결과가 사라지지 않아야 한다.
 - 초기 계좌 입력은 이름·유형·기준일·미확인 사유를 유지한다. 금액 확인 API가 없는 동안 기준액 확인·수정·삭제를 성공 가능한 행동으로 노출하지 않는다.
 - `SubmittedAccount` 스냅샷과 codec을 ViewModel 밖의 별도 타입/파일로 분리한다. 버전·필드 이름·복원 검증을 명시하고 인덱스 ArrayList의 변경 영향을 격리한다. 과거 saved-state 버전의 처리도 정한다.
 - `SavedStateHandle`은 화면 인자·가벼운 UI 상태의 복원 수단이다. 강제 종료/재부팅 후의 제출 복구는 Room의 typed pending 조회와 확정 결과가 근거이며 전체 draft 복구와 별도로 시험한다.
@@ -171,7 +171,7 @@ Android Keystore는 암호화 키를 보호하고 키를 사용한 암·복호�
 | P0 · 경계 확정 | 본 계획 검토, 모듈 선택 A/B/C와 context·복구·서버 계약의 열린 결정을 ADR로 확정. PR #15의 기존 동작·데이터 보장 목록 고정. | 사용자가 구조/범위 승인. 새 구현 코드는 아직 작성하지 않는다. |
 | P1 · 모델/데이터 경계 | `core:model`의 금융 모델·검증 함수를 유지한다. `LedgerModels.kt`의 Repository 인터페이스는 `data/ledger/.../repository/LedgerRepository.kt`로 분리하고 `core/data` 구현/시험/schema 파일을 `data/ledger`로 이동한다. `settings.gradle.kts`, 관련 `build.gradle.kts`, feature import 갱신. | ViewModel → 공개 Repository 직접 호출. 한 PR 안에서는 경계/경로만 변경하고 DB 파일명·테이블·schema version·요청/해시 형식·알고리즘은 보존한다. 기존 시험/실제 DB 재열기 통과, 빈 옛 모듈·재export 래퍼 없음. |
 | P2 · DI 분리 | `data/ledger/.../di/DatabaseModule.kt`, `RepositoryModule.kt`, `ClockModule.kt`와 Repository 생성자 조립을 정리. 기존 `LedgerDataModule`의 제공을 중복 등록하지 않는다. | Hilt 중복/누락 binding 없음, 파일 DB Singleton 유지, 앱 그래프/테스트 대체/실제 생성 경로 검증. |
-| P3 · context·복구 계약 | domain/data의 현재 장부 조회/선택·원자적 첫 생성, typed pending 결과, 요청 크기 P2 계약을 Backend와 확정한 후 구현. 앱 시작 ViewModel 연결. | 재시작/동시 진입에서도 같은 context, 손상/복수 장부/세대 불일치 명시 처리. schema 변경 시 승인된 Migration과 v1 데이터 보존 시험. |
+| P3 · context·복구 계약 | Backend 최소 논리 계약을 data의 현재 장부 조회/선택·원자적 첫 생성·typed pending 공개 API로 설계한 뒤 별도 구현한다. 앱 시작 ViewModel 연결은 API 검증 후 진행한다. | 재시작/동시 진입에서도 같은 context, 손상/복수 장부/세대 불일치 명시 처리. schema 변경 시 승인된 Migration과 v1 데이터 보존 시험. |
 | P4 · 제출과 계좌 상태 | Repository/data 내부의 제출·결과 확인 계약과 `feature/accounts/.../model/AccountUiModel.kt`, mapper, submitted state/codec, ViewModel 상태 조정을 정리한다. UseCase 분리는 실제 복잡성/재사용 근거가 있을 때만 별도 제안한다. | 기존 계좌 상태 18개 시나리오 유지 및 경계 이동 시험. 응답 유실/취소/재진입에서 ID·내용 보존, 금융 성공/조회 실패 구분. |
 | P5 · 서버 기반 | 승인된 `core/network` client DI, `data/auth` 세션 어댑터, `data/ledger/.../remote` DTO/mapper/어댑터. 미확정 응답은 개발/테스트 DI의 합성 어댑터로 격리. | 실제/개발 binding 구분, release mock 미포함, 인증 상태·매핑·취소·서버 오류 시험. 실동기화 전 소유권/RLS/충돌 정책 별도 승인. 서버 미확정 경계를 문서화하면 로컬 제품 단계는 계속 가능. |
 | P6 · 거래/조회 상태 | `feature/transactions` 입력·검증·제출 상태, `feature/calendar` 조회·선택·필터 상태, Repository 조회 계약과 data의 일관된 결과 구현. | 금액/날짜·이체·중복/별개 동일값·미래 조회·월말·늦은 응답·월 전체/필터 범위 시험. |
@@ -204,15 +204,26 @@ P1~P4까지는 금융 동작 보존이 우선이다. P5의 서버/인증 작업�
 | --- | --- | --- |
 | 모듈 경계 | UI·data 기본 구조를 유지하면서 `core:data`를 기능별 `data:ledger`로 옮길 범위 | 사용자 구조 승인. 미확정이면 코드 이동하지 않는다. domain/UseCase는 기본 경로에서 제외. |
 | DB 파일 암호화·키 보호 | 보호 대상, Room 암호화 구현 후보·키 수명·백업/복원·기존 DB 전환 | 사용자 보안 설계 승인. Keystore 조합은 검토안이며 구현/라이브러리 선정은 하지 않는다. |
-| context bootstrap | 현재 장부 메타의 단일 소유, 첫 생성 경쟁, 다중 장부/손상 처리, 기존 v1 보존 | Backend 계약 + Android 구현 설계. 실제 화면 진입의 선행 조건. |
-| 요청 크기 P2 | 업무 문자열과 정규화 요청 bytes의 한도·이스케이프 처리·서버 대응 | Backend 최종 계약. UI 임의 상한으로 덮지 않는다. |
-| typed pending·영속 초안 | 제출 종류·사용자/장부 분리·기존 제출 복구·미확정 폐기·초안 보장 범위 | Planning/Backend/Android. API 준비 전 영속 복구 완료 표시 금지. |
+| context bootstrap | 단일 장부 재사용·원자적 첫 생성·손상/복수 장부 차단의 논리 계약은 수령. 공개 API·현재 장부 선택과 v1 보존 시험은 미구현 | Android 상세 설계·별도 구현. 실제 화면 진입의 선행 조건. |
+| 요청 크기 P2 | Backend 보완 완료: 입력별 16 KiB와 캡처 원문을 구분. 현재 Room 경로의 경계/원문/hash 재시도 시험 통과 | 현재 저장 경로의 Backend 대기 해제. 전체 백업 JSON 8 MiB·writer/reader round-trip은 백업 구현 단계에서 검증. |
+| typed pending·영속 초안 | context 확인·결과 우선 조회·typed 선택·명시 재시도 논리 계약 수령. 공개 typed API와 saved-state 소실 복구는 미구현 | Android API 설계·별도 구현. 영속 입력 초안은 별도 정책이며 현재 복구 완료 표시 금지. |
 | 인증/계정 전환 경계 | 인증 상태·갱신·로컬 장부 소유/로그아웃 정책 | Backend/Android와 필요한 사용자 정책 승인. 인증/동기화 활성화 보류. |
 | 서버 동기화 | RLS·버전·소유권·동일 제출·충돌/오프라인 정책 | Backend 및 사용자 승인. 개발 mock으로 상태/UI는 진행 가능. |
 | Figma 개편 | 새 노드/토큰/상태·컴포넌트 매핑 | Design. 시각 구현과 승인만 해당 부분 대기. |
 | 추상화 증가 | 같은 책임을 중복 구현하는 실제 두 소비자가 있는지 | Android. 역할 없는 UseCase/DataSource/core 모듈은 생성하지 않는다. |
 
 Room 유지에는 오프라인 동작과 이미 검증한 원자성을 보존하는 이점이 있지만 향후 서버와의 동기화 비용이 있다. 서버 직접 조회만으로 단순화하는 대안은 지금의 오프라인 제출/복구 보장을 다시 설계해야 하므로 이번 권고에서 채택하지 않는다. 이 판단은 사용자가 이미 확정한 결정이라고 주장하지 않는다.
+
+### 장부 진입·typed pending 복구의 구현 준비
+
+Backend 작업본 `docs/architecture/local-ledger-contract.md` 8.1절과 `docs/contracts/README.md`의 P2를 2026-11-11 조회했다. 현재 main `5502ba7`에는 두 문서가 등록되지 않았으므로 계약 수령과 Git 원본 등록을 구분한다. Backend 문서 원본은 담당자가 등록하며 이 PR에 복사하거나 수정하지 않는다. 아래는 Android 후속 설계 범위이며 새 API 명칭·SQL·schema를 확정하거나 구현한 결과가 아니다.
+
+1. **장부 진입 API를 먼저 설계한다.** 저장소 확인·검증된 최초 빈 상태·ID 쌍 생성·메타 저장을 하나의 원자적 경계로 묶는다. 유효한 단일 장부는 기존 context를 반환한다. 조회 실패·메타 손상·복수 장부는 신규 생성 없이 복구 필요로 구분한다. 화면은 UUID를 생성하지 않는다.
+2. **typed pending 조회 경계를 설계한다.** data가 원문 hash·버전·context·종류를 검증하고 계좌 등록의 operationId·대상 계좌/기준점·typed 입력을 반환한다. 손상·미지원 종류·조회 실패를 빈 목록으로 대체하지 않는다. UI는 내부 JSON을 해석하지 않는다.
+3. **복귀·재시도 규칙을 연결한다.** 결과를 먼저 조회하고 선택한 기존 ID만 명시적으로 재시도한다. pending이 없어도 이미 commit됐을 수 있으므로 기존 계좌 목록으로 복귀한다. 기존 결과가 불명확할 때 새 ID를 자동 발급하거나 다른 종류의 pending을 일괄 실행하지 않는다.
+4. **별도 구현의 수용 기준을 고정한다.** 첫 진입 경합·재열기 시 같은 context, 손상/복수 장부 보존, 세대 불일치, typed 검증 실패, 선택 중 다른 실행의 선행 commit, pending 없는 확정 결과를 시험한다. 필요 시 승인된 Migration을 포함하며 현재 PR에 새 금융 기능을 추가하지 않는다.
+
+바로 준비할 후속 작업은 **장부 진입·typed pending 공개 Repository API의 상세 설계와 별도 이슈 범위 정리**다. 논리 계약은 수령했지만 구현·제품 화면 연결 준비 완료는 아니다. 백업 writer/reader 검증·전체 입력 초안·디자인 시스템 신규 구현은 이 작업과 분리한다.
 
 ## 12. EGM 독립 검토 제안
 

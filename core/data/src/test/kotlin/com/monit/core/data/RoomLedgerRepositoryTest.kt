@@ -1,5 +1,6 @@
 package com.monit.core.data
 
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import android.app.Application
 import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
@@ -48,6 +49,11 @@ class RoomLedgerRepositoryTest {
     private lateinit var repository: RoomLedgerRepository
     private lateinit var databaseName: String
     private val context = LedgerContext(id(900), id(901))
+    private val coroutineContexts = object : CoroutineContextProvider {
+        override val main = Dispatchers.Main
+        override val io = Dispatchers.IO
+        override val default = Dispatchers.Default
+    }
     private val today = LocalDate.of(2026, 11, 3)
     // UTC로는 전날이다. Repository가 서울 날짜를 사용하는지도 함께 검증한다.
     private val clock = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC)
@@ -69,7 +75,7 @@ class RoomLedgerRepositoryTest {
 
     private fun reopen() {
         database = createLedgerDatabase(androidContext, databaseName)
-        repository = RoomLedgerRepository(database, clock)
+        repository = RoomLedgerRepository(database, clock, coroutineContexts)
     }
 
     private fun accountValue(number: Long, name: String = "같은 이름") = CreateAccount(
@@ -257,13 +263,18 @@ class RoomLedgerRepositoryTest {
     }
 
     /**
-     * 목적: 계좌/기준/성공 원장 원자성과 재열기 복구를 검증한다. 조건: Unicode 입력과 실패 trigger.
+     * 목적: 입력별 16 KiB와 더 큰 캡처 JSON을 구분하고 원자성·재열기 복구를 검증한다.
+     * 조건: Unicode 접두사와 제어 문자를 포함한 이름·사유가 각각 UTF-8 16 KiB이며 실패 trigger가 있다.
      * 절차: 저장 실패 확인 후 trigger 제거·DB 닫기/재열기·같은 캡처 재시도.
-     * 기대: 실패 시 계좌/기준 0, 재시도 후 원래 문자열의 계좌 1개와 소비된 의도.
+     * 기대: 실패 시 계좌/기준 0, 16 KiB를 넘는 원문·hash 보존, 재시도 후 원래 값의 계좌 1개·같은 receipt다.
      */
     @Test
     fun failedAccountAndItsAnchorRollbackAndRecoverAfterReopen() = runTest {
-        val value = accountValue(1, "계좌 \"한글\"\\\n💰")
+        val prefix = "계좌 \"한글\"\\\n💰"
+        val name = prefix + "\u0001".repeat(16 * 1024 - prefix.toByteArray(Charsets.UTF_8).size)
+        val value = accountValue(1, name).copy(unknownReason = "\u0002".repeat(16 * 1024))
+        assertEquals(16 * 1024, value.name.toByteArray(Charsets.UTF_8).size)
+        assertEquals(16 * 1024, value.unknownReason.toByteArray(Charsets.UTF_8).size)
         database.openHelper.writableDatabase.execSQL("""
             CREATE TRIGGER fail_account BEFORE INSERT ON operations
             WHEN NEW.kind='UPDATE_ACCOUNT'
@@ -274,12 +285,23 @@ class RoomLedgerRepositoryTest {
         assertTrue(database.ledgerDao().anchors(context.ledgerId).isEmpty())
         assertEquals(1L, repository.snapshot(context, today).revision)
         val captured = repository.pendingWrites(context).single().requestJson
+        assertTrue(captured.toByteArray(Charsets.UTF_8).size > 16 * 1024)
+        val capturedHash = requestHash(captured)
+        assertEquals(capturedHash, database.ledgerDao().submission(context.ledgerId, id(101))?.requestSha256)
         assertEquals(value, (decodeWrite(context, captured) as WriteCommand.Account).value)
         database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_account")
         database.close()
         reopen()
-        repository.retryPending(context, id(101))
-        assertEquals(value.name, repository.snapshot(context, today).accounts.single().name)
+        val receipt = repository.retryPending(context, id(101))
+        val restored = repository.snapshot(context, today)
+        assertEquals(value.name, restored.accounts.single().name)
+        assertEquals(value.unknownReason, restored.accounts.single().anchor.unknownReason)
+        assertEquals(2L, restored.revision)
+        val operation = requireNotNull(database.ledgerDao().operation(context.ledgerId, id(101)))
+        assertEquals(captured, operation.requestJson)
+        assertEquals(capturedHash, operation.requestSha256)
+        assertEquals(receipt, repository.retryPending(context, id(101)))
+        assertEquals(1, repository.snapshot(context, today).accounts.size)
         assertTrue(repository.pendingWrites(context).isEmpty())
     }
 
