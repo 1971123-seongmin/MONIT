@@ -1,4 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# 2026-11-12 사용자 지시: 재활성화 요청 전까지 자동·수동 리뷰 OFF.
+# 수동 요청 중단 기준: docs/ai/automation.md의 CodeRabbit 절.
 language: ko-KR
 reviews:
   profile: quiet
