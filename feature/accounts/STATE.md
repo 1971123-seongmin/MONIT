@@ -31,7 +31,9 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 
 예상하지 못한 예외는 작업 종류와 예외 클래스명만 Android 로그에 남긴다. 예외 메시지·Throwable·계좌명·금액·ID는 기록하지 않는다. 이 진단 정보가 성공 판정이나 재시도 정책을 바꾸지는 않는다.
 
-현재 업무 문자열 검증과 정규화 requestJson 크기의 차이(P2)는 [개발 계획의 열린 결정](../../docs/architecture/monit-modules-di-ui-plan.md#11-열린-결정반대-의견중단-조건)의 Backend 확정 대기 항목이며, 이 모듈에서 임의의 새 상한이나 내부 JSON 파서를 도입하지 않는다. 큰 이스케이프 문자열 등은 저장 단계에서 거부될 수 있다.
+요청 크기 P2의 Backend 계약 보완은 완료됐다. 입력별 UTF-8 16 KiB와 직렬화 원문은 서로 다른 검증 경계다. 현재 `captureWrite → submit`은 캡처 JSON에 입력용 16 KiB 검사를 재사용하지 않는다. 이름·사유가 각각 정확히 16 KiB이고 캡처 JSON은 이를 초과하는 실제 Room 시험에서 실패 롤백·재열기·같은 제출 재시도와 원문/hash 보존을 확인했다. 큰 이스케이프 입력이 이 경로에서 크기 때문에 거부된다는 기존 설명은 근거가 없어 정정한다.
+
+전체 백업 JSON의 UTF-8 8 MiB 제한은 백업 writer/reader의 책임이며 개별 Room 요청의 새 상한이 아니다. 백업 round-trip은 아직 구현·검증하지 않았다. Backend 작업본 `docs/architecture/local-ledger-contract.md` 8.1절과 `docs/contracts/README.md` P2는 조회했으나 현재 main에는 등록되지 않아 상대 링크를 완료된 원본처럼 연결하지 않는다. 후속 준비와 검증 경계는 [개발 계획](../../docs/architecture/monit-modules-di-ui-plan.md#11-열린-결정반대-의견중단-조건)을 따른다.
 
 ## 검증과 다음 단위
 
