@@ -29,7 +29,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import com.monit.core.designsystem.R
 
 /** 편집 값·검증·키보드 정책은 호출자가 관리하는 공통 입력. 문자열을 임의 변환하지 않는다. */
@@ -102,7 +101,6 @@ internal fun MonitTextFieldContent(
     val borderWidth = if (active && (focused || errorMessage != null)) layout.focusedOutlineWidth else layout.outlineWidth
     Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) {
         if (!active) disabled()
-        if (loading) stateDescription = loadingDescription
     }, verticalArrangement = Arrangement.spacedBy(layout.supportingSpacing)) {
         Surface(
             shape = layout.shape,
@@ -120,7 +118,6 @@ internal fun MonitTextFieldContent(
                     .semantics {
                         contentDescription = if (loading) "$label, $loadingDescription" else label
                         errorMessage?.let { error(it) }
-                        if (loading) stateDescription = loadingDescription
                     },
                 decorationBox = { input ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)) {

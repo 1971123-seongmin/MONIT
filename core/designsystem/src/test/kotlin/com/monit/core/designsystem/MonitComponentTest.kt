@@ -173,7 +173,8 @@ class MonitComponentTest {
         field.assertContentDescriptionEquals("거래 금액 (원)")
         compose.runOnIdle { loading = true }
         compose.onNodeWithTag("amount").assertIsNotEnabled()
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "저장 중"))
+        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText), useUnmergedTree = true)
+            .assertContentDescriptionEquals("거래 금액 (원), 저장 중")
     }
 
     /** 같은 이름을 ID로 구별하고 라디오+행이 각각 하나의 선택 대상이며 미확인/확인 0원을 구별한다. */

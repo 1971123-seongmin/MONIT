@@ -92,8 +92,14 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     MonitDateCell(null, {})
                     MonitDateCell(today, {}, selected = true, enabled = false)
                 }
-                ComponentFamily.Badge -> MonitBadgeTone.entries.forEachIndexed { i, tone ->
-                    MonitBadge(listOf("미확인", "선택됨", "확인 필요", "미제공")[i], Modifier.widthIn(min = 132.dp), tone = tone)
+                ComponentFamily.Badge -> MonitBadgeTone.entries.forEach { tone ->
+                    val label = when (tone) {
+                        MonitBadgeTone.Neutral -> "미확인"
+                        MonitBadgeTone.Selected -> "선택됨"
+                        MonitBadgeTone.Error -> "확인 필요"
+                        MonitBadgeTone.Disabled -> "미제공"
+                    }
+                    MonitBadge(label, Modifier.widthIn(min = 132.dp), tone = tone)
                 }
                 ComponentFamily.FilterChip -> {
                     MonitFilterChip("전체 계좌", false, Modifier.widthIn(min = 154.dp)) {}

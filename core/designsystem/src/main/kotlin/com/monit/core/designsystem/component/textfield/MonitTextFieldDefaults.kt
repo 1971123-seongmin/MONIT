@@ -15,7 +15,7 @@ object MonitTextFieldDefaults {
     @Composable
     fun layout(): MonitTextFieldLayout = MonitTextFieldLayout(
         textStyle = MaterialTheme.typography.bodyLarge, labelStyle = MaterialTheme.typography.labelSmall,
-        supportingStyle = MaterialTheme.typography.labelSmall, shape = RoundedCornerShape(MonitTheme.sizes.fieldRadius),
+        supportingStyle = MaterialTheme.typography.labelSmall, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
         contentPadding = PaddingValues(horizontal = MonitTheme.spacing.content, vertical = MonitTheme.spacing.inline),
         minHeight = MonitTheme.sizes.inputMinHeight, supportingSpacing = MonitTheme.spacing.inline,
         iconSpacing = MonitTheme.spacing.inline, labelSpacing = MonitTheme.spacing.compact,

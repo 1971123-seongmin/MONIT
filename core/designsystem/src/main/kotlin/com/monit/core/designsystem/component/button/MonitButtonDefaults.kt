@@ -29,7 +29,8 @@ object MonitButtonDefaults {
     @Composable
     fun layout(size: MonitButtonSize = MonitButtonSize.Regular): MonitButtonLayout = MonitButtonLayout(
         contentPadding = when (size) {
-            MonitButtonSize.Regular -> PaddingValues(horizontal = MonitTheme.spacing.section, vertical = MonitTheme.sizes.controlRadius)
+            // 기존 Compose의 24/12 패딩을 간격 값으로 해석하며 모서리 반경과 결합하지 않는다.
+            MonitButtonSize.Regular -> PaddingValues(horizontal = MonitTheme.spacing.section, vertical = MonitTheme.spacing.section / 2)
             MonitButtonSize.Compact -> PaddingValues(horizontal = MonitTheme.spacing.content, vertical = MonitTheme.spacing.inline)
         }, textStyle = MaterialTheme.typography.labelLarge, minHeight = MonitTheme.sizes.touchTarget,
         cornerRadius = MonitTheme.sizes.controlRadius, iconSize = MonitTheme.sizes.icon,

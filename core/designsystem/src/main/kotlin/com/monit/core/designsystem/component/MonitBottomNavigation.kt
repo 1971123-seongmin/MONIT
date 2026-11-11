@@ -22,7 +22,8 @@ import com.monit.core.designsystem.theme.MonitTheme
 @Composable
 fun MonitBottomNavigation(labels: List<String>, selectedIndex: Int, onSelected: (Int) -> Unit, modifier: Modifier = Modifier,
     enabled: Boolean = true, icon: (@Composable (index: Int) -> Unit)? = null) {
-    require(labels.size in 2..5 && selectedIndex in labels.indices)
+    require(labels.size in 2..5) { "labels.size must be in 2..5; was ${labels.size}" }
+    require(selectedIndex in labels.indices) { "selectedIndex must be in ${labels.indices}; was $selectedIndex" }
     val colors = MonitTheme.colors
     Surface(modifier, color = colors.surfaceContainer, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
         Row(Modifier.padding(vertical = MonitTheme.spacing.inline).selectableGroup(),

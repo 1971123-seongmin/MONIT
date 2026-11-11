@@ -3,6 +3,7 @@ package com.monit.core.designsystem.component
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.BasicAlertDialog
@@ -27,7 +28,7 @@ fun MonitDialog(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BasicAlertDialog(onDismissRequest, modifier = modifier, properties = properties) {
-        MonitDialogContent(Modifier.padding(horizontal = MonitTheme.spacing.content).widthIn(max = 304.dp),
+        MonitDialogContent(Modifier.padding(horizontal = MonitTheme.spacing.content).widthIn(max = 304.dp).fillMaxWidth(),
             title = title, actions = actions, content = content)
     }
 }

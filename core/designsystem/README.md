@@ -19,7 +19,7 @@ Material 3 Compose 기반 공통 UI와 테마를 제공한다. 기기 Light/Dark
 | `MonitFilterChip`·`MonitBadge` | 라벨·상태, 칩의 Filled/Outlined·Regular/Compact·색상·배치·앞뒤 아이콘 |
 | `MonitBottomNavigation`·`MonitSegmentedControl` | 목적지/선택지·선택 값·콜백, 탐색 아이콘·활성 여부 |
 | `MonitStatusPanel`·`MonitSnackbar` | 안내 문구·아이콘/행동 슬롯. 상태 판정과 표시 수명은 호출자 책임 |
-| `MonitSkeleton` | 줄 개수·폭 비율·높이·모양 |
+| `MonitSkeleton` | 줄 개수·폭 비율·높이·막대 모양 |
 | `MonitDateCell`·`MonitCalendarHeader`·`MonitDatePicker` | 날짜·월·선택 값·설명·이동/선택 콜백·선택 가능 정책 |
 
 계좌 목록 조회·ID 선택·명시적 적용, 거래 행, 월 수입/지출 요약, 납입 상태 조합은 공개 공통 API가 아니다. [preview](src/main/kotlin/com/monit/core/designsystem/preview)의 internal 합성 예시로 공통 컴포넌트를 조합한다. 실제 제품 구현 시 해당 조합과 정책은 feature의 화면 컴포넌트에 둔다. 현재 제품 화면이나 feature 모듈은 생성하지 않았다.
@@ -105,6 +105,7 @@ Type/Size는 프리셋 선택, Colors/Layout은 불변 설정 값, Defaults는 �
 - Compact는 기존 간격을 조합한 API 사용 예시다. 좌우 16·상하 8·아이콘 24·간격 8·최소 터치 높이 48이며 Figma 원본의 추가 variant가 아니다.
 - 칩의 Outlined·Compact도 API 조합 예시이며 Figma 원본에는 기본 Filled·Regular를 대응한다. 칩은 Checkbox 역할과 체크 상태를 함께 전달한다.
 - Secondary는 surface 배경과 primary 글자 역할을 사용한다. 탐색 아이콘은 Material 아이콘과 AutoMirrored 화살표를 조합한다.
+- `MaterialTheme.shapes.extraSmall`은 기존 `fieldRadius=4dp`를 유지한다. 공통 TextField는 승인된 입력 규격에 맞춰 `controlRadius=12dp`를 기본 shape로 명시한다.
 - Dark Skeleton은 `disabledBackground`와 `surfaceContainer`가 같아 바에만 기존 `surface`를 쓴다. 전역 disabled 색은 유지한다.
 - 선택·비활성 날짜에는 disabled 배경/글자와 primary 외곽선을 사용한다. 카탈로그에 이 복합 상태 예시를 추가한다.
 
@@ -116,6 +117,8 @@ Type/Size는 프리셋 선택, Colors/Layout은 불변 설정 값, Defaults는 �
 - 시트는 `LocalWindowInfo`의 현재 창 높이 90%에서 제목·행동을 고정한다. 시스템 영역·IME 높이를 직접 빼는 추가 계산은 없고 M3 모달의 기본 insets 처리를 사용한다. 본문 스크롤은 끌 수 있으므로 Lazy 목록은 `scrollContent=false`로 구성한다. 닫기 허용 여부는 호출자가 정하며 선택 검증·적용·추가·재시도·복귀 초점은 화면 책임이다.
 - 날짜 선택기는 표시 월·선택일·오늘·선택 가능 정책을 받는다. 월 변경 시 선택일 보정과 기록 정책은 소유자가 처리한다. 빈 날짜는 비상호작용이며 320dp/큰 글꼴에서는 7열을 줄이지 않고 가로 스크롤한다.
 - 상태 패널은 결과를 판정하지 않는다. 스낵바는 `SnackbarHost` 슬롯에서 수명을 관리한다. 모달 Preview는 같은 본문을 사용하며 실제 모달 동작 검증을 대신하지 않는다.
+
+상태바·시스템 내비게이션은 OS 영역이다. 실제 화면의 `WindowInsets`·외부 padding 연결은 feature 화면 구현 단계에서 관리하고, 공통 모달은 현재 M3 기본 insets 처리를 사용한다.
 
 ## 공통 클릭 Modifier
 
@@ -134,6 +137,19 @@ cooldown Modifier는 대상마다 생성한다. 반환 Modifier를 공유하면 
 ```
 
 테스트는 기본 동작·키보드/IME·잠금·선택·큰 글꼴, 클릭 Modifier, 타입/크기/슬롯 조합, 진행 라벨과 Android 편집 노드 정보, interaction 이벤트의 색상 변경·복귀를 검사한다. 합성 금융 조합 시험은 실제 금융 기능 통과를 뜻하지 않는다. `MonitCatalogRenderTest`의 Native Canvas 호스트 PNG는 76개 설계 조건과 네 사용 예시를 생성하며 Prevue·자동 픽셀 일치·실기기 성공 증거가 아니다. 실제 Prevue의 대상 head·입력·확인 범위는 PR에서 관리한다.
+
+Android Studio에서는 `MonitFamilyPreviews.kt`와 `MonitUsagePreviews.kt`의 Preview를 연다. 기존 Prevue 0.21.0이 준비된 WSL/Linux에서는 JDK 21·Linux Android SDK와 실행 파일 경로 `PREVUE_CLI`를 지정하고 저장소 루트에서 실행한다. 다음은 Ubuntu 환경 예시다.
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PREVUE_JDK="$JAVA_HOME"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+bash "$PREVUE_CLI" --lang ko show "$PWD/core/designsystem/src/main/kotlin/com/monit/core/designsystem/preview/MonitFamilyPreviews.kt"
+# 공통 API 조합은 같은 명령의 파일을 MonitUsagePreviews.kt로 바꾼다.
+```
+
+viewer 주소·포트는 실행 응답을 사용한다. 환경 준비 요청이나 캐시 불일치가 있으면 기존 환경의 health 확인·준비 절차를 거치며 자동 설치 성공으로 간주하지 않는다. Light/Dark·360dp·320dp/200%를 선택해 마지막 상태와 오류 문구까지 확인한다. 정적 첫 캡처와 입력 이벤트 시험은 별도로 다룬다.
 
 Prevue 정적 첫 캡처:
 
