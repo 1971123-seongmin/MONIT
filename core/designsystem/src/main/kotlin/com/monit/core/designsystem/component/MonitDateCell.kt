@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -40,6 +41,9 @@ fun MonitDateCell(
     today: Boolean = false,
     summary: String = "",
     accessibilitySummary: String = summary,
+    enabled: Boolean = true,
+    showStateLabel: Boolean = false,
+    future: Boolean = false,
 ) {
     val scale = maxOf(1f, LocalDensity.current.fontScale)
     val minSize = MonitTheme.sizes.touchTarget * scale
@@ -56,7 +60,7 @@ fun MonitDateCell(
         .filter { it.isNotBlank() }.joinToString(", ")
     Column(
         modifier.defaultMinSize(minWidth = minSize, minHeight = minSize)
-            .selectable(selected, role = Role.Button, onClick = onClick)
+            .selectable(selected, enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = description },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.compact),
@@ -64,8 +68,8 @@ fun MonitDateCell(
         Box(Modifier.sizeIn(minWidth = minSize, minHeight = minSize), contentAlignment = Alignment.Center) {
             Surface(
                 shape = CircleShape,
-                color = if (selected) colors.primary else colors.surface,
-                contentColor = if (selected) colors.onPrimary else colors.onSurface,
+                color = if (selected) colors.primary else Color.Transparent,
+                contentColor = when { !enabled -> colors.disabledText; selected -> colors.onPrimary; future -> colors.muted; else -> colors.onSurface },
                 border = if (today && !selected) BorderStroke(MonitTheme.sizes.outline, colors.primary) else null,
                 modifier = Modifier.clearAndSetSemantics {},
             ) {
@@ -74,7 +78,7 @@ fun MonitDateCell(
                 }
             }
         }
-        if (today || selected) Text(
+        if (showStateLabel && (today || selected)) Text(
             listOf(if (today) todayLabel else "", if (selected) selectedLabel else "").filter { it.isNotBlank() }.joinToString(" · "),
             modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall,
         )

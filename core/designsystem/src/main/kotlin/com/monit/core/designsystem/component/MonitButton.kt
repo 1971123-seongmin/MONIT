@@ -40,12 +40,13 @@ fun MonitButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    loadingText: String = stringResource(R.string.monit_loading),
+    loadingDescription: String = stringResource(R.string.monit_saving),
 ) {
     val colors = MonitTheme.colors
     val sizes = MonitTheme.sizes
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
-    val saving = stringResource(R.string.monit_saving)
     val primary = colors.primary
     // MONIT 누름 색상과 포커스 링을 직접 적용하므로 M3 state layer를 중첩하지 않는다.
     CompositionLocalProvider(LocalRippleConfiguration provides null) {
@@ -65,7 +66,7 @@ fun MonitButton(
                 }
                 .semantics {
                     if (loading) {
-                        stateDescription = saving
+                        stateDescription = loadingDescription
                         liveRegion = LiveRegionMode.Polite
                     }
                 },
@@ -78,7 +79,7 @@ fun MonitButton(
                 disabledContentColor = if (loading && enabled) colors.onPrimary else colors.disabledText,
             ),
         ) {
-            Text(if (loading) stringResource(R.string.monit_loading) else text, style = MaterialTheme.typography.labelLarge)
+            Text(if (loading) loadingText else text, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

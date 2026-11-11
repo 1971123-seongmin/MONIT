@@ -26,7 +26,7 @@ object MonitSizes {
     val rowMinHeight = 72.dp
     val dateIndicator = 40.dp
     val controlRadius = 12.dp
-    val fieldRadius = 4.dp
+    val fieldRadius = 12.dp
     val outline = 1.dp
     val focusOutline = 2.dp
     val focusGap = 2.dp

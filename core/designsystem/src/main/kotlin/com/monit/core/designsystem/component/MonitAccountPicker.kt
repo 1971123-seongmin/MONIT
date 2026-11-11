@@ -1,30 +1,18 @@
 package com.monit.core.designsystem.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import com.monit.core.designsystem.R
 import com.monit.core.designsystem.theme.MonitTheme
 
@@ -58,12 +46,12 @@ fun MonitAccountPicker(
         if (errorMessage != null) {
             Text(errorMessage, color = colors.error, style = MaterialTheme.typography.bodyMedium)
             if (onRetry != null) MonitButton(
-                stringResource(R.string.monit_retry), onRetry, enabled = enabled && !loading,
+                stringResource(R.string.monit_retry), onRetry, Modifier.fillMaxWidth(), enabled = enabled && !loading,
             )
         }
-        if (accounts.isEmpty() && errorMessage == null) {
+        if (accounts.isEmpty() && errorMessage == null && !loading) {
             Text(stringResource(R.string.monit_no_accounts), style = MaterialTheme.typography.bodyMedium)
-            MonitButton(stringResource(R.string.monit_add_account), onAddAccount, enabled = enabled && !loading)
+            MonitButton(stringResource(R.string.monit_add_account), onAddAccount, Modifier.fillMaxWidth(), enabled = enabled && !loading)
         } else if (accounts.isNotEmpty()) {
             if (accounts.none { it.id == selectedId }) Text(
                 stringResource(R.string.monit_choose_account), color = colors.muted,
@@ -82,39 +70,11 @@ fun MonitAccountPicker(
 
 @Composable
 private fun MonitAccountRow(account: MonitAccountOption, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val colors = MonitTheme.colors
-    Column(
-        Modifier.fillMaxWidth().background(colors.surfaceContainer)
-            .selectable(selected, enabled = enabled && account.disabledReason == null, role = Role.RadioButton, onClick = onClick)
-            .semantics(mergeDescendants = true) { account.disabledReason?.let { stateDescription = it } }
-            .padding(MonitTheme.spacing.content),
-        verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
-    ) {
-        Row(
-            Modifier.heightIn(min = MonitTheme.sizes.touchTarget),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
-        ) {
-            RadioButton(
-                selected, onClick = null, enabled = enabled && account.disabledReason == null,
-                modifier = Modifier.size(MonitTheme.sizes.touchTarget).clearAndSetSemantics {},
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = colors.primary, unselectedColor = colors.outline,
-                    disabledSelectedColor = colors.disabledText, disabledUnselectedColor = colors.disabledText,
-                ),
-            )
-            Text("${account.name} · ${account.kindLabel}", style = MaterialTheme.typography.bodyMedium)
-        }
-        Text(
-            "${account.baselineLabel} · ${account.balanceText ?: stringResource(R.string.monit_balance_unknown)}",
-            color = colors.muted, style = MaterialTheme.typography.bodyMedium,
-        )
-        if (account.balanceText == null) Text(
-            stringResource(R.string.monit_balance_excluded), color = colors.muted,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        account.disabledReason?.let {
-            Text(it, modifier = Modifier.clearAndSetSemantics {}, color = colors.muted, style = MaterialTheme.typography.bodyMedium)
-        }
-    }
+    val balance = account.balanceText ?: stringResource(R.string.monit_balance_unknown)
+    MonitAccountCard(
+        name = "${account.name} · ${account.kindLabel}",
+        balanceText = listOf(account.baselineLabel, balance).filter { it.isNotBlank() }.joinToString(" · "),
+        description = if (account.balanceText == null) stringResource(R.string.monit_balance_excluded) else account.baselineLabel,
+        selected = selected, onClick = onClick, enabled = enabled, disabledReason = account.disabledReason,
+    )
 }

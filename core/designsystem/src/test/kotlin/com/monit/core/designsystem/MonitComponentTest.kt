@@ -170,7 +170,7 @@ class MonitComponentTest {
         compose.runOnIdle { error = "정수 원 단위로 입력하세요." }
         field.assert(SemanticsMatcher.expectValue(SemanticsProperties.Error, "정수 원 단위로 입력하세요."))
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.LiveRegion))
-        compose.onNodeWithText("원", useUnmergedTree = true).assertExists()
+        field.assertContentDescriptionEquals("거래 금액 (원)")
         compose.runOnIdle { loading = true }
         compose.onNodeWithTag("amount").assertIsNotEnabled()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "저장 중"))
@@ -215,7 +215,8 @@ class MonitComponentTest {
         compose.onNodeWithText("등록된 계좌가 없어요.").assertExists()
         compose.onNodeWithText("계좌 추가").performClick()
         compose.runOnIdle { loading = true }
-        compose.onNodeWithText("계좌 추가").assertIsNotEnabled().performClick()
+        compose.onNodeWithText("계좌 추가").assertDoesNotExist()
+        compose.onNodeWithText("등록된 계좌가 없어요.").assertDoesNotExist()
         compose.runOnIdle { error = "목록을 불러오지 못했어요." }
         compose.onNodeWithText("다시 시도").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(1, retries); assertEquals(1, additions) }
@@ -246,7 +247,7 @@ class MonitComponentTest {
     @Test
     fun narrowLargeTextExpandsInsteadOfEllipsizing() {
         val button = "확인하고 선택한 계좌를 사용합니다"
-        val headline = "지출 · 긴 합성 거래 제목을 모두 읽을 수 있습니다  -999,999,999,999원"
+        val headline = "지출 · 긴 합성 거래 제목을 모두 읽을 수 있습니다"
         val account = "아주 긴 합성 계좌 이름을 다음 줄에서도 정확하게 확인합니다"
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 1600.dp))) {
@@ -261,12 +262,13 @@ class MonitComponentTest {
             }
         }
         compose.onNodeWithTag("longButton").assertHeightIsAtLeast(68.dp)
-        for (text in listOf(button, headline, account)) {
+        for (text in listOf(button, headline, "-999,999,999,999원", account)) {
             val layouts = mutableListOf<TextLayoutResult>()
             compose.onNodeWithText(text, useUnmergedTree = true)
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue(layouts.isNotEmpty())
-            assertFalse(layouts.single().hasVisualOverflow, text)
+            val layout = layouts.single()
+            assertFalse(layout.hasVisualOverflow, "$text / size=${layout.size}, constraints=${layout.layoutInput.constraints}, lines=${layout.lineCount}, widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}")
         }
     }
 

@@ -1,87 +1,93 @@
 # MONIT 디자인 시스템
 
-기기 설정을 따르는 Light/Dark 테마, 동적 색상 비사용, 기존 파란색과 M3+SEED 의미/상태 대응을 적용한다. 제품 기능 화면은 포함하지 않는다. app의 기존 MONIT 임시 런처에 테마만 연결하며 Room·서버·금융 계산에는 의존하지 않는다.
+Material 3 Compose와 MONIT의 승인된 색상·타이포·상태 역할을 사용한다. 기기 Light/Dark를 따르고 동적 색상은 사용하지 않는다. 제품 화면·ViewModel·Room·서버·금융 정책은 이 모듈에 포함하지 않는다.
 
-## 최신 Figma와 읽는 순서
+## 디자인 원본과 구현
 
-2026-11-10 Design의 최종 인계를 반영했다. 시각·토큰 원본은 선택된 팀의 Folders → MONIT에 있는 Figma이며, 실행 가능한 컴포넌트의 원본은 이 모듈이다. 이번 Figma 개편을 Compose 전체 구현 완료로 해석하지 않는다.
+시각 원본은 선택된 팀의 Folders → MONIT에 있는 [Figma Foundations](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=127-1028), [19개 원본 컴포넌트](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=120-1086), [현재 인계](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=131-2)다. 사용 예제와 원본 컴포넌트를 구분하며 Figma의 전체 제품 화면을 구현했다고 해석하지 않는다. M3의 상태·접근성과 SEED의 선택·시트·피드백 구성 원칙을 참고하며 웹 코드를 복제하지 않는다.
 
-| 읽는 순서 | Figma 바로가기 | 확인할 내용 |
+기본 설계 좌표는 360×780, 좌우 16·콘텐츠 328, 달력만 좌우 12·콘텐츠 336이다. 앱 크기를 고정하지 않으며 최소 48dp 터치·24dp 아이콘·가변 높이를 유지한다. 색상과 다섯 글자 스타일은 [theme](src/main/kotlin/com/monit/core/designsystem/theme)에서 관리한다. Figma Variables·Text Styles는 변경하지 않았다.
+
+각 family에는 아래 상태를 보여주는 Compose Preview를 작성했다. 상태 수는 Figma의 설계 분류이며 독립 제품 기능 수가 아니다. 구현·Preview 작성, 실제 렌더, 접근성 동작 검증은 각각 구분한다.
+
+| Figma family · master | Compose API | Preview에 포함한 상태 |
 |---|---|---|
-| 1. 시작 안내 | [00 · Start here](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=123-2) | 현재 원본, 페이지 구성과 전달 상태 |
-| 2. 디자인 시스템 | [Foundations](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=127-1028), [원본 컴포넌트](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=120-1086) | 토큰·타입과 재사용 가능한 컴포넌트·Variant |
-| 3. 사용 예시 | [공통 패턴과 상태](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=112-188), [탐색과 피드백](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-807) | 조합·상태별 사용 예시. 원본 컴포넌트와 구분 |
-| 4. 와이어프레임 | [02 · Wireframes](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=122-2) | 정보 배치와 조회 → 입력 → 계좌 등록·선택 → 저장·결과 확인 동선 |
-| 5. 화면 디자인 | [03 · Screen Design](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=7-2325) | 기능별 화면과 정상·빈 화면·오류·진행 상태 |
-| 6. 개발 전달 | [현재 전달 기준](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=131-2), [Prevue 대응표](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=98-796) | 이전→현재 참조, 구현 대상과 검증 경계 |
-| 이전 자료 | [90 · Archive](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=48-141) | 기존 디자인 시스템·SEED 대응 명세. 새 구현의 최신 원본으로 사용하지 않음 |
+| [ActionButton · 127:995](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=127-995) | `MonitButton` | Default·Pressed·Focused·Disabled·Loading |
+| [Field · 109:284](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-284) | `MonitAmountField` | Default·Focused·Error·Disabled |
+| [AccountCard · 109:381](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-381) | `MonitAccountCard` | Unknown·Selected·Disabled·Confirmed(표시 예시) |
+| [TransactionRow · 109:367](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-367) | `MonitTransactionRow` | Income·Expense·Transfer |
+| [CalendarCell · 113:404](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-404) | `MonitDateCell` | Default·Today·Selected·Future·Blank |
+| [Badge · 109:223](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-223) | `MonitBadge` | Neutral·Selected·Error·Disabled |
+| [FilterChip · 109:231](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-231) | `MonitFilterChip` | Default·Selected·Disabled |
+| [TopBar · 109:238](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-238) | `MonitTopBar` | Root·Back·Close |
+| [SegmentedControl · 109:253](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-253) | `MonitSegmentedControl` | Expense·Income·Transfer·Calendar·List |
+| [StatusPanel · 109:335](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-335) | `MonitStatusPanel` | Empty·Loading·Error·Saving·Checking·CheckFailed·Success |
+| [MonthSummary · 109:396](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=109-396) | `MonitMonthSummary` | Normal·Empty |
+| [BottomNavigation · 113:333](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-333) | `MonitBottomNavigation` | Overview·Transactions·Accounts |
+| [BottomSheet · 113:354](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-354) | `MonitAccountBottomSheet`·`MonitAccountSheetContent` | Account·Empty |
+| [Dialog · 113:373](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-373) | `MonitDialog`·`MonitDialogContent` | Discard·DeleteFuture(비활성 예시) |
+| [Snackbar · 113:388](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-388) | `MonitSnackbar` | Saved·Retry |
+| [Skeleton · 113:393](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-393) | `MonitSkeleton` | Row·Card |
+| [CalendarHeader · 113:426](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-426) | `MonitCalendarHeader` | Month |
+| [PaymentStatusRow · 113:437](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-437) | `MonitPaymentStatusRow` | Pending·Completed·Skipped(표시 예시) |
+| [DatePicker · 113:449](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=113-449) | `MonitDatePicker` | Selected·Error |
 
-### 설계된 자산과 구현된 자산
+기존 5개에서 입력은 내부 고정 라벨·radius 12, 거래는 제목/금액/계좌 세 줄, 계좌 선택은 카드 구성으로 바뀌었다. `MonitAccountPicker`는 ID 선택·미확인/확인한 0원·오류/잠금 계약을 유지하며 카드를 재사용한다. 날짜는 48dp/40dp 원과 확대·통합 semantics를 유지한다. Field의 Focused+Error는 오류 문구와 오류 테두리를 유지하며 별도 시각 variant를 만들지 않는다.
 
-Figma에는 `MONIT/` 컴포넌트 19종·Variant 62개가 있다. Variables 45개와 Text Styles 5개의 값·모드·정의는 유지했으며 새 컴포넌트에 연결했다. 전체 토큰 값과 상태 표는 Figma에서 관리한다.
+TopBar·CalendarHeader의 24dp 아이콘은 Design에서 원본 key가 Material 3 Design Kit임을 확인한 `Icons.AutoMirrored.Filled.ArrowBack/ArrowForward`, `Icons.Filled.Close`를 재사용한다. RTL에서는 화살표 방향만 반전하고 이전/다음 행동 의미를 유지한다. 별도 Code Connect 등록·Figma 쓰기는 하지 않았다.
 
-| Figma 구성 | 현재 Compose 대응 |
+Dark Skeleton은 원본의 `surfaceContainer`와 `disabledBackground`가 같은 색이어서 바가 보이지 않는다. Design 확인에 따라 Skeleton 내부의 바에만 기존 `surface`를 대응한다. Light와 전역 disabled 토큰·Figma는 유지하며, 이 차이는 로딩 자리 표시의 식별성 보완이다.
+
+## 사용 계약
+
+- `MonitButton`의 disabled/loading은 입력을 잠근다. 처리 문구와 접근성 안내를 지정할 수 있다. 이 버튼만 직접 누름 색상·외부 포커스 링을 제공하므로 ripple을 조정하며, 다른 M3 컴포넌트의 ripple은 유지한다. 주변 4dp를 clip하지 않는다.
+- `MonitAmountField`는 BasicTextField와 M3 Surface·Text로 내부 라벨을 구성한다. 빈칸·단독 `-`·소수·긴 붙여넣기와 커서를 보존하며 금액으로 변환하지 않는다. 호출자가 검증·IME 완료·오류 초점을 처리한다. 오류는 입력에 연결하며 타이핑마다 live announcement를 만들지 않는다.
+- `MonitAccountCard`의 선택과 잔액 확인은 독립한다. `balanceText=null`은 미확인이며 0원으로 바꾸지 않는다. 선택 불가 사유를 안내하고 라디오 역할의 한 대상으로 읽는다. `MonitAccountPicker`의 ID는 유일해야 한다.
+- `MonitAccountBottomSheet`는 소유자가 전달한 선택 ID를 명시적 적용 때만 반환한다. 추가 계좌를 자동 적용하지 않는다. 최대 높이 90%, 목록만 스크롤하며 로딩 때 닫기·적용·선택을 잠근다. 조회 중·실패를 미등록으로 표시하지 않는다. 화면 복귀 초점은 소유자가 처리한다.
+- 거래 행·월 합계·납입 상태·피드백은 표시 값만 받는다. 계산·반올림·완료 판정·삭제·저장을 실행하지 않는다. Confirmed·DeleteFuture·PaymentStatusRow의 예시가 제품 API 활성화를 뜻하지 않는다.
+- 날짜 선택기는 표시 월·선택일·오늘·선택 가능 날짜 정책을 받는다. 계좌 기준일/거래일 정책과 월 이동 시 선택일 보정·최신 응답 판정은 소유자가 처리한다. 미래 날짜는 조회 가능하며 기록 제한은 별도 정책이다. 빈 날짜는 비상호작용이며 320dp/큰 글꼴에서 7열을 줄이지 않고 가로 스크롤한다.
+- `MonitStatusPanel`은 호출자가 구분한 상태를 표시한다. pending 없음만으로 저장 실패를 추정하거나 확정 응답 전에 성공을 표시하지 않는다. 결과 불명은 Snackbar 한 줄로 축약하지 않는다. `MonitSnackbar`는 SnackbarHost 슬롯에 넣어 수명을 관리한다.
+- Dialog는 M3의 모달 focus/뒤로/바깥 클릭을 사용한다. Preview는 별도 창을 여는 대신 같은 Content를 보여주므로 모달 동작 검증을 대신하지 않는다.
+
+## 공통 클릭 Modifier
+
+[MonitClickModifiers.kt](src/main/kotlin/com/monit/core/designsystem/modifier/MonitClickModifiers.kt)에 두 확장을 둔다.
+
+- `clickableWithoutRipple`: 직접 시각 피드백을 제공하는 대상에서만 사용한다. foundation clickable의 enabled·role·onClickLabel·키보드·포커스를 유지한다.
+- `clickableWithCooldown`: composition 인스턴스별로 첫 클릭을 즉시 허용하며 수락한 클릭부터 간격을 센다. 억제 클릭은 대기 시간을 늘리지 않는다. 재구성 뒤에도 간격을 유지하고 최신 callback을 호출한다. 기본 ripple을 유지하며 필요한 대상만 `withoutRipple=true`로 지정한다.
+
+대상의 최소 터치 크기는 호출자가 보장한다. M3 Button에 위 clickable을 중첩하지 않는다. cooldown은 UI의 빠른 반복 입력만 줄이며 loading 잠금과 Repository의 operationId 기반 금융 idempotency를 대신하지 않는다. `composed`·전역 timestamp·실제 지연 타이머는 사용하지 않는다.
+
+cooldown Modifier는 대상마다 별도로 생성한다. 반환한 하나의 Modifier를 여러 대상에 재사용하면 gate도 공유한다. 비활성화/재활성화는 마지막 수락 시점을 지우지 않고, 간격을 바꾸면 그 시점에 새 간격을 적용한다. composition에서 제거되면 gate도 사라진다. ripple을 없앤 대상에는 눌림 색상·포커스 외곽선 등 동등한 피드백을 별도로 제공해야 한다.
+
+## Preview와 검증
+
+[MonitFamilyPreviews.kt](src/main/kotlin/com/monit/core/designsystem/preview/MonitFamilyPreviews.kt)는 family별 Light/Dark 360dp와 Light/Dark 320dp·200%를 제공한다. Hilt·DB·네트워크 없이 고정 날짜와 합성 데이터만 사용한다. [Figma Prevue 대응표](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=98-796)와 함께 비교한다.
+
+```powershell
+.\gradlew.bat :core:designsystem:testDebugUnitTest :app:assembleDebug :core:designsystem:lintDebug :app:lintDebug --console=plain
+```
+
+`MonitComponentTest`는 테마·대비·문자열/IME·잠금·ID 선택·미확인/0원·최소 터치·큰 글꼴·키보드를 검사한다. `MonitInteractionTest`는 cooldown의 첫/경계 클릭·인스턴스 분리·재구성·최신 callback·disabled, no-ripple의 role/label/focus/Enter, 명시적 계좌 적용·조회 상태·날짜 정책·확인 중 잠금을 검사한다.
+
+`MonitCatalogRenderTest`는 19 family × 네 조건의 호스트 PNG 76개를 `build/reports/designsystem/screenshots/testDebugUnitTest`에 만든다. 실제 View의 Native Canvas를 사용한다. 이는 Prevue renderer·자동 픽셀 회귀·실기기 렌더의 성공 증거가 아니다. 필터 실행 때는 해당 조건 이미지만 남으며 전체 실행으로 다시 생성한다. 실제 Prevue 비교의 대상 head·조건·결과는 해당 PR에 별도로 기록한다.
+
+다음은 코드 검토용 **호스트** 렌더이며 Prevue 증거가 아니다.
+
+| Light 입력 · 360dp | Light 선택 시트 본문 · 360dp |
 |---|---|
-| ActionButton, Field, TransactionRow, CalendarCell | 기존 `MonitButton`, `MonitAmountField`, `MonitTransactionRow`, `MonitDateCell`이 관련 역할을 구현한다. 최신 Figma와의 상태·치수 일치는 별도 대조 필요 |
-| AccountCard, BottomSheet | 기존 `MonitAccountPicker`는 계좌 선택을 제공하지만 최신 카드·시트 전체를 구현한 것은 아님 |
-| Badge, FilterChip, TopBar, SegmentedControl, StatusPanel, MonthSummary, BottomNavigation, Dialog, Snackbar, Skeleton, CalendarHeader, PaymentStatusRow, DatePicker | Figma 설계 확장. 같은 이름의 공통 Compose API가 이 모듈에 구현됐다고 가정하지 않음 |
+| ![내부 라벨과 입력 상태](docs/current-light-field.png) | ![계좌 선택·미등록](docs/current-light-sheet.png) |
 
-화면 프레임 52개는 **Light 상태별 프레임 48개와 대표 Dark 4개**이며 독립 기능 52개가 아니다. 와이어프레임은 8개다. 루틴·납입 연결·기준액 확인·편집·삭제 등 후속 기능의 화면도 설계 자료로 포함되며 앱 구현 완료를 뜻하지 않는다.
+| Dark Skeleton · 320dp/200% | Dark 거래 행 · 320dp/200% |
+|---|---|
+| ![로딩 자리 표시 식별성](docs/current-dark-skeleton.png) | ![큰 글자 거래 표시](docs/current-dark-large-records.png) |
 
-설계 기준은 360 × 780, 일반 콘텐츠 폭 328, 달력 폭 336·날짜 터치 영역 48이다. 이는 Figma 좌표이며 Android에서는 dp/sp와 가변 레이아웃으로 해석한다. 360 너비나 780 높이를 모든 기기에 고정하지 않는다. Design은 화면 크기와 중첩 요소의 가로 넘침 없음, 대표 Light/Dark를 확인했다. 새 설계의 320dp·글자 200%·TalkBack·IME·실기기·Prevue 렌더 비교는 미검증이다. 아래 기존 Compose 테스트 결과와 구분한다.
-
-## 기존 Compose 구현의 참조 기준
-
-아래는 2026-11-09 구현 시 확인한 노드의 design context·스크린샷과 Compose Code Connect 참조다. 개편 이후에도 기존 노드 링크를 보존했으므로 **구현 근거 추적용**으로 남긴다. 새 구현은 위 최신 전달 기준부터 확인한다. 테마 정책은 기기 Light/Dark·동적 색상 비사용으로 유지된다.
-
-| Figma 원본 | 구현 |
-| --- | --- |
-| [Foundations 40:12](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=40-12) | `theme/MonitColors.kt`, `MonitTypography.kt`, `MonitTheme.kt` |
-| [버튼 3:15](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=3-15) | `MonitButton`: Default/Pressed/Focused/Disabled/Loading |
-| [입력·행·날짜 상태 40:103](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=40-103) | `MonitAmountField`, `MonitTransactionRow`, `MonitDateCell` |
-| [계좌 선택 54:823](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=54-823) | `MonitAccountPicker`: 선택·미선택·미등록·잠금·실패/재시도 |
-| [접근성 33:1346](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=33-1346), [전달 보완 54:906](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=54-906) | 가변 높이·48dp·통합 semantics·편집 문자열 보존 |
-
-전달된 54:754는 실제 계좌 이름 필드다. 금액 입력의 실제 참조는 40:112/122/132/152와 상위 40:103을 사용했다. `OutlinedTextField`, `RadioButton`, `ListItem`은 기존 M3 Compose 매핑을 재사용했다. 날짜 셀의 Figma `.Building Blocks/Local M3 calendar cell`은 프로젝트에 존재하는 공개 Compose API가 아니므로, 조회된 48dp 터치 영역/40dp 표시 원과 상태를 Compose 기본 요소로 구성했다. 별도 Code Connect 등록·Figma 쓰기는 수행하지 않았다.
-
-5개 글자 스타일은 titleLarge(Title), bodyMedium(Body), labelLarge(Label), bodyLarge(Input), labelSmall(Caption)에 대응한다. 수치는 코드에서 관리하고 이 문서에 전체 토큰 표를 복제하지 않는다. M3에 별도 값이 필요한 나머지 역할은 승인된 semantic 쌍으로 연결하고, 새 기능별 색상 의미를 만들지 않는다. SEED 공식 Compose SDK나 토큰의 1:1 복제를 주장하지 않는다.
-
-## 컴포넌트 사용 경계
-
-- `MonitButton`은 loading/disabled일 때 콜백을 차단하고 loading을 말로 알린다. 누름 색상과 포커스 링이 M3 기본 state layer와 이중 적용되지 않도록 해당 버튼에서만 ripple 설정을 조정한다. 포커스 외곽선이 잘리지 않게 주변 4dp를 확보한다. 저장 원자성과 중복 방지는 Repository의 별도 책임이다.
-- `MonitAmountField`는 문자열을 그대로 소유자에게 전달한다. 전체 삭제·단독 `-`·소수·매우 긴 붙여넣기를 0원이나 유효 정수로 바꾸지 않는다. 천 단위 자동 변환도 하지 않는다. 호출자는 제출/포커스 이동 시 L1 검증·오류 공개·첫 오류 이동을 처리하고 `KeyboardActions`에서 IME 완료도 같은 검증 경로로 보낸다. 숫자 키보드는 검증 수단이 아니다.
-- `MonitAccountPicker`의 `MonitAccountOption`은 표시 값이다. ID는 항목별로 유일해야 한다. 같은 이름을 ID로 구별하며 선택 콜백은 해당 ID만 반환한다. `balanceText=null`은 ‘잔액 미확인/합계 제외’, `"0원"`은 확인한 0원이다. 라디오와 행은 한 선택 대상으로 읽으며, 선택 불가 사유·전체 잠금을 처리한다. 오류가 있을 때 빈 목록을 ‘등록된 계좌 없음’으로 단정하지 않는다. 추가/재시도·반대편 계좌 제한·화면 복귀 초점은 호출자의 책임이다.
-- `MonitTransactionRow`는 종류·정확한 금액·계좌 라벨을 받아 줄바꿈한다. 수입/지출을 색상만으로 구별하지 않으며 계산·반올림·단위 축약을 수행하지 않는다.
-- `MonitDateCell`은 연도·월·일·요일·오늘·선택·요약을 하나의 읽기/선택 대상으로 묶는다. `date=null`은 이웃 월 빈칸으로 비활성이다. 미래 조회는 가능하며 미래 기록 허용 여부는 판단하지 않는다. 셀은 최소 48dp, 확대 시 늘어난다. 실제 7열 달력은 최소 폭을 유지하며 가로 스크롤/목록 전환을 제공해야 하고, 이 모듈은 달력 화면을 만들지 않는다. 축약 요약에는 정확한 `accessibilitySummary`를 함께 준다.
+실기기 TalkBack 읽기 순서·IME·시스템 바/insets·모달 복귀 초점과 제품 화면의 저장/복구 동작은 별도 검증 범위다. 지정 기기가 연결되지 않으면 다른 기기로 대체해 통과 처리하지 않는다.
 
 ## 글꼴과 라이선스
 
-[공식 google/fonts Noto Sans KR](https://github.com/google/fonts/tree/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr)의 variable TTF를 수정 없이 포함한다. 400/500 weight를 명시하며 폰트 다운로드 서비스·실행 시 네트워크를 사용하지 않는다. 원본 `OFL.txt`는 줄끝 공백 한 곳만 정리하여 APK의 `assets/fonts/NotoSansKR-OFL.txt`에 함께 배포한다.
+[공식 google/fonts Noto Sans KR](https://github.com/google/fonts/tree/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr)의 variable TTF를 수정 없이 포함한다. 400/500 weight를 명시하고 실행 시 네트워크를 사용하지 않는다. 라이선스는 APK의 `assets/fonts/NotoSansKR-OFL.txt`에 포함한다.
 
 - 고정 revision: `b38c5c93af322c45f633e17ac440ec1e6c94d489`
 - SHA-256: `194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252`
-- 원본 파일 크기: 10,414,588 bytes. 이 첫 구현은 전체 글리프를 포함하며 APK 크기 영향이 있다. 폰트 분할/서브셋 최적화는 별도 검토한다.
-
-## 검증과 한계
-
-```powershell
-.\gradlew.bat :core:model:test testDebugUnitTest assembleDebug lintDebug --console=plain
-```
-
-기존 CI의 루트 task selector가 새 Android 모듈도 검사한다. Compose/Robolectric 시험은 시스템 테마 전환·대비·잠금·문자열/IME·ID 선택·미확인/0원·통합 semantics·최소 터치/글자 확대·키보드 포커스를 검사한다. 새 기능 시험이므로 수정 전 실패를 일괄 요구하지 않는다.
-
-`MonitCatalogRenderTest` 전체 실행은 390dp/100%와 320dp/200%, Light/Dark 각각의 버튼·입력·계좌·행/날짜 16개 이미지를 만든다. 호스트 API 28의 PixelCopy 콜백 대기 문제를 피하기 위해 실제 View를 Native Canvas에 동기 렌더한다. PNG는 `build/reports/designsystem/screenshots/testDebugUnitTest`에 있으며 Gradle Test task의 출력으로 선언해 캐시 복원에도 포함한다. task별 폴더를 분리하고 JVM 속성에는 모듈 기준 상대 경로를 전달한다. 실제 task 실행 전에는 이전 이미지를 정리하므로 필터 실행은 해당 조건 이미지만 남긴다. UP-TO-DATE/캐시 복원에서는 정리 동작을 실행하지 않는다. 자동 픽셀 기준 회귀 테스트·실기기 렌더 통과를 뜻하지 않는다.
-
-Preview와 테스트 카탈로그는 합성 데이터만 사용한다. 실제 기기의 TalkBack 읽기 순서·키보드/IME·시스템 바/insets·강제 테마 전환은 별도 확인이 필요하다. 제품 화면의 오류 초점 이동·저장/복귀·7열 그리드는 후속 구현에서 검증한다.
-
-### 검토용 호스트 렌더
-
-대표 4개는 코드 검토를 위해 보관한다. 픽셀 자동 기준선이 아니며 나머지 상태는 테스트 실행으로 생성한다.
-
-| Light 버튼 · 390dp/100% | Dark 입력 · 390dp/100% |
-| --- | --- |
-| ![Light 버튼](docs/light-buttons.png) | ![Dark 입력](docs/dark-amounts.png) |
-
-| Light 행/날짜 · 320dp/200% | Dark 계좌 · 320dp/200% |
-| --- | --- |
-| ![큰 글자 행/날짜](docs/light-large-records.png) | ![큰 글자 계좌](docs/dark-large-accounts.png) |
+- 크기: 10,414,588 bytes. 폰트 분할/서브셋 최적화는 별도 검토한다.
