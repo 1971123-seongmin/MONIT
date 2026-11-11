@@ -144,6 +144,10 @@ class LedgerConflictException(val conflict: LedgerConflict) :
 
 /** 계좌/거래 신규 저장 경계. 편집·삭제·납입·복원은 별도 구현 전 공개하지 않는다. */
 interface LedgerRepository {
+    /** 단일 장부를 찾거나, 업무 기록까지 비어 있는 최초 저장소에서만 원자적으로 생성한다. */
+    suspend fun openLedger(): LedgerEntryResult
+    /** 같은 읽기 트랜잭션의 제출 복구 자료. 조회는 재실행 예약이나 저장 성공 판정이 아니다. */
+    suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot
     suspend fun initialize(context: LedgerContext)
     suspend fun createAccount(context: LedgerContext, operationId: String, value: CreateAccount): WriteReceipt
     suspend fun createTransaction(context: LedgerContext, operationId: String, value: CreateTransaction): WriteReceipt

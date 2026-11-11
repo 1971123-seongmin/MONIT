@@ -14,9 +14,11 @@ import com.monit.core.model.LedgerAccount
 import com.monit.core.model.LedgerConflict
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
+import com.monit.core.model.LedgerEntryResult
 import com.monit.core.model.LedgerRepository
 import com.monit.core.model.LedgerSnapshot
 import com.monit.core.model.PendingWrite
+import com.monit.core.model.PendingRecoverySnapshot
 import com.monit.core.model.WriteReceipt
 import java.io.IOException
 import java.time.Clock
@@ -602,6 +604,10 @@ private class FakeRepository : LedgerRepository {
     private val receipts = mutableMapOf<String, WriteReceipt>()
     private val accounts = mutableMapOf<String, LedgerAccount>()
 
+    override suspend fun openLedger(): LedgerEntryResult =
+        error("계좌 등록 상태 시험은 준비된 장부 context를 전달합니다")
+    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot =
+        error("계좌 등록 상태 시험에서 복구 대상 선택을 대신하지 않습니다")
     override suspend fun initialize(context: LedgerContext) { initializations++; beforeInitialize() }
     override suspend fun createAccount(context: LedgerContext, operationId: String, value: CreateAccount): WriteReceipt {
         requests += AccountRequest(context, operationId, value)

@@ -12,10 +12,13 @@ import com.monit.core.model.LedgerAccount
 import com.monit.core.model.LedgerConflict
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
+import com.monit.core.model.LedgerEntryProblem
+import com.monit.core.model.LedgerEntryResult
 import com.monit.core.model.LedgerRepository
 import com.monit.core.model.LedgerSnapshot
 import com.monit.core.model.LedgerTransaction
 import com.monit.core.model.PendingWrite
+import com.monit.core.model.PendingRecoverySnapshot
 import com.monit.core.model.TransactionKind
 import com.monit.core.model.WriteReceipt
 import com.monit.core.model.requireLedgerId
@@ -26,7 +29,10 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 internal class RoomLedgerRepository @Inject constructor(
@@ -36,6 +42,45 @@ internal class RoomLedgerRepository @Inject constructor(
 ) : LedgerRepository {
     private val dao = database.ledgerDao()
     private fun today(): LocalDate = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
+
+    override suspend fun openLedger(): LedgerEntryResult = database.withTransaction {
+        currentCoroutineContext().ensureActive()
+        val ledgers = dao.entryLedgers()
+        when {
+            ledgers.size > 1 -> LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MULTIPLE_LEDGERS)
+            ledgers.size == 1 -> {
+                val row = ledgers.single()
+                val context = try {
+                    require(row.revision > 0)
+                    LedgerContext(row.id, row.storageGeneration)
+                } catch (_: IllegalArgumentException) {
+                    return@withTransaction LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.INVALID_METADATA)
+                }
+                if (dao.hasRecordsWithoutLedger()) {
+                    LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA)
+                } else {
+                    LedgerEntryResult.Ready(context)
+                }
+            }
+            dao.hasBusinessRecords() -> LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA)
+            else -> {
+                database.requireDurableWriter()
+                val context = LedgerContext(UUID.randomUUID().toString(), UUID.randomUUID().toString())
+                dao.insertLedger(LedgerEntity(context.ledgerId, context.storageGeneration, 1))
+                currentCoroutineContext().ensureActive()
+                LedgerEntryResult.Ready(context)
+            }
+        }
+    }
+
+    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot = database.withTransaction {
+        requireContext(context)
+        val items = dao.submissions(context.ledgerId).map {
+            currentCoroutineContext().ensureActive()
+            it.toRecoveryItem(context)
+        }
+        PendingRecoverySnapshot(context, items)
+    }
 
     override suspend fun initialize(context: LedgerContext) = database.withTransaction {
         database.requireDurableWriter()
