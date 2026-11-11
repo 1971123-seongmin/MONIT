@@ -1,9 +1,14 @@
 name: Android CI
-run-name: 'Cold comparison · workers ${{ inputs.workers }}'
+run-name: 'Cold comparison · ${{ inputs.mode }} · workers ${{ inputs.workers }}'
 
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: '전체 직렬 기준 또는 검증 종류별 무료 환경 분리'
+        type: choice
+        options: ['full', 'separate']
+        default: 'full'
       workers:
         description: '일반 빌드 worker 수 (비교 전용·병합 금지)'
         type: choice
@@ -26,9 +31,17 @@ defaults:
     working-directory: product
 
 jobs:
-  build:
+  validation:
+    name: 'cold / ${{ matrix.scope }}'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        scope: ${{ fromJSON(inputs.mode == 'separate' && '["independent","assemble","tests","lint"]' || '["all"]') }}
+    env:
+      MONIT_SCOPE: ${{ matrix.scope }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,3 +76,16 @@ jobs:
           cache-disabled: true
       - name: Cold full validation and profile
         run: node ../harness/.github/scripts/ci-cold-benchmark.mjs
+  build:
+    needs: validation
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Require every validation job
+        env:
+          VALIDATION_RESULT: ${{ needs.validation.result }}
+        run: test "$VALIDATION_RESULT" = success

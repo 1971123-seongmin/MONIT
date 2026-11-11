@@ -4,6 +4,8 @@ import path from 'node:path';
 
 const workers = process.env.MONIT_WORKERS;
 if (!['2', '4'].includes(workers)) throw new Error('Only 2 or 4 workers are allowed');
+const scope = process.env.MONIT_SCOPE ?? 'all';
+if (!['all', 'independent', 'assemble', 'tests', 'lint'].includes(scope)) throw new Error('Invalid validation scope');
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 if (revision !== process.env.MONIT_PRODUCT_SHA) throw new Error('Unexpected product revision');
 const gradleHome = process.env.GRADLE_USER_HOME;
@@ -43,10 +45,11 @@ function profileSummary(started) {
   const html = fs.readFileSync(report.file, 'utf8');
   const rows = [...html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)].map(row =>
     [...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/g)].map(cell => plainText(cell[1])));
-  const tasks = rows.filter(row => row[0]?.startsWith(':') && seconds(row[1] ?? '') !== null)
-    .map(row => ({ task: row[0], seconds: seconds(row[1]) })).sort((a, b) => b.seconds - a.seconds).slice(0, 10);
+  const profileRows = rows.filter(row => row[0]?.startsWith(':') && seconds(row[1] ?? '') !== null)
+    .map(row => ({ label: row[0], seconds: seconds(row[1]) })).sort((a, b) => b.seconds - a.seconds).slice(0, 15);
   const phases = rows.filter(row => /^(Total Build Time|Startup|Settings and buildSrc|Loading Projects|Configuring Projects|Task Execution)$/.test(row[0] ?? ''));
-  return { available: true, phases, longestTasks: tasks };
+  return { available: true, phases, longestRows: profileRows,
+    rowScope: 'May include project/configuration aggregates; validate task labels against execution logs' };
 }
 async function runGradle(label, args) {
   const started = Date.now();
@@ -68,14 +71,20 @@ async function runGradle(label, args) {
 }
 
 try {
-  for (const family of ['button', 'chip', 'textfield']) {
-    await runGradle(`independent-${family}`, [':core:designsystem:compileDebugKotlin',
-      '--init-script', 'scripts/verify-component.init.gradle.kts', `-Pmonit.component=${family}`,
-      '-Pkotlin.incremental=false', '--project-cache-dir',
-      `core/designsystem/build/component-compilation/project-cache/${family}`, '--max-workers=2']);
+  if (scope === 'all' || scope === 'independent') {
+    for (const family of ['button', 'chip', 'textfield']) {
+      await runGradle(`independent-${family}`, [':core:designsystem:compileDebugKotlin',
+        '--init-script', 'scripts/verify-component.init.gradle.kts', `-Pmonit.component=${family}`,
+        '-Pkotlin.incremental=false', '--project-cache-dir',
+        `core/designsystem/build/component-compilation/project-cache/${family}`, '--max-workers=2']);
+    }
   }
-  await runGradle('build-tests-lint', [':core:model:test', 'assembleDebug', 'testDebugUnitTest', 'lintDebug',
-    '--parallel', `--max-workers=${workers}`]);
+  const targets = {
+    all: [':core:model:test', 'assembleDebug', 'testDebugUnitTest', 'lintDebug'],
+    assemble: ['assembleDebug'], tests: [':core:model:test', 'testDebugUnitTest'], lint: ['lintDebug'],
+  };
+  if (targets[scope]) await runGradle(scope === 'all' ? 'build-tests-lint' : scope,
+    [...targets[scope], '--parallel', `--max-workers=${workers}`]);
 } finally {
   clearInterval(memoryTimer);
   sampleMemory();
@@ -83,7 +92,7 @@ try {
   // Linux guest ticks are already included in user/nice: sum only the first eight counters.
   const delta = afterCpu.slice(0, 8).map((value, index) => value - beforeCpu[index]);
   const total = delta.reduce((sum, value) => sum + value, 0);
-  const summary = { revision, workers: Number(workers), restoredOrSavedGithubCache: false,
+  const summary = { revision, scope, workers: Number(workers), restoredOrSavedGithubCache: false,
     peakVmUsedMiB: Math.round(peakVmUsedMiB),
     averageVmCpuBusyPercent: total ? Math.round((1 - (delta[3] + delta[4]) / total) * 100) : null,
     memoryScope: 'Whole VM MemTotal - MemAvailable; not a per-JVM heap measurement', results };
