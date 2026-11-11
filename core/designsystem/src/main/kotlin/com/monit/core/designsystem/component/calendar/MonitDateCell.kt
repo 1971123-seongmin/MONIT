@@ -1,4 +1,4 @@
-package com.monit.core.designsystem.component
+package com.monit.core.designsystem.component.calendar
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -40,12 +41,17 @@ fun MonitDateCell(
     today: Boolean = false,
     summary: String = "",
     accessibilitySummary: String = summary,
+    enabled: Boolean = true,
+    showStateLabel: Boolean = false,
+    future: Boolean = false,
 ) {
     val scale = maxOf(1f, LocalDensity.current.fontScale)
     val minSize = MonitTheme.sizes.touchTarget * scale
     val indicatorSize = MonitTheme.sizes.dateIndicator * scale
     if (date == null) {
-        Spacer(modifier.defaultMinSize(minWidth = minSize, minHeight = minSize).clearAndSetSemantics {})
+        Spacer(
+            modifier.defaultMinSize(minWidth = minSize, minHeight = minSize)
+                .clearAndSetSemantics {})
         return
     }
     val colors = MonitTheme.colors
@@ -56,30 +62,49 @@ fun MonitDateCell(
         .filter { it.isNotBlank() }.joinToString(", ")
     Column(
         modifier.defaultMinSize(minWidth = minSize, minHeight = minSize)
-            .selectable(selected, role = Role.Button, onClick = onClick)
+            .selectable(selected, enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = description },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.compact),
     ) {
-        Box(Modifier.sizeIn(minWidth = minSize, minHeight = minSize), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.sizeIn(minWidth = minSize, minHeight = minSize),
+            contentAlignment = Alignment.Center
+        ) {
             Surface(
                 shape = CircleShape,
-                color = if (selected) colors.primary else colors.surface,
-                contentColor = if (selected) colors.onPrimary else colors.onSurface,
-                border = if (today && !selected) BorderStroke(MonitTheme.sizes.outline, colors.primary) else null,
+                color = when {
+                    !enabled && selected -> colors.disabledBackground; selected -> colors.primary; else -> Color.Transparent
+                },
+                contentColor = when {
+                    !enabled -> colors.disabledText; selected -> colors.onPrimary; future -> colors.muted; else -> colors.onSurface
+                },
+                border = if ((selected && !enabled) || (today && !selected)) BorderStroke(
+                    MonitTheme.sizes.outline,
+                    colors.primary
+                ) else null,
                 modifier = Modifier.clearAndSetSemantics {},
             ) {
-                Box(Modifier.sizeIn(minWidth = indicatorSize, minHeight = indicatorSize), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.sizeIn(minWidth = indicatorSize, minHeight = indicatorSize),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
-        if (today || selected) Text(
-            listOf(if (today) todayLabel else "", if (selected) selectedLabel else "").filter { it.isNotBlank() }.joinToString(" · "),
-            modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall,
+        if (showStateLabel && (today || selected)) Text(
+            listOf(
+                if (today) todayLabel else "",
+                if (selected) selectedLabel else ""
+            ).filter { it.isNotBlank() }.joinToString(" · "),
+            modifier = Modifier.clearAndSetSemantics {},
+            style = MaterialTheme.typography.labelSmall,
         )
         if (summary.isNotBlank()) Text(
-            summary, modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall,
+            summary,
+            modifier = Modifier.clearAndSetSemantics {},
+            style = MaterialTheme.typography.labelSmall,
         )
     }
 }

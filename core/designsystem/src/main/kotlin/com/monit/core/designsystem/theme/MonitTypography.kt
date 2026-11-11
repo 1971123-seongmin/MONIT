@@ -12,14 +12,23 @@ import com.monit.core.designsystem.R
 
 @OptIn(ExperimentalTextApi::class)
 private val NotoSansKr = FontFamily(
-    Font(R.font.noto_sans_kr, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
-    Font(R.font.noto_sans_kr, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(
+        R.font.noto_sans_kr,
+        FontWeight.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+    ),
+    Font(
+        R.font.noto_sans_kr,
+        FontWeight.Medium,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500))
+    ),
 )
 
-private fun textStyle(size: Int, lineHeight: Int, weight: FontWeight = FontWeight.Normal) = TextStyle(
-    fontFamily = NotoSansKr, fontWeight = weight,
-    fontSize = size.sp, lineHeight = lineHeight.sp, letterSpacing = 0.sp,
-)
+private fun textStyle(size: Int, lineHeight: Int, weight: FontWeight = FontWeight.Normal) =
+    TextStyle(
+        fontFamily = NotoSansKr, fontWeight = weight,
+        fontSize = size.sp, lineHeight = lineHeight.sp, letterSpacing = 0.sp,
+    )
 
 /** Figma 40:87의 5개 글자 스타일. 모든 M3 fallback 역할에도 같은 오프라인 글꼴을 사용한다. */
 internal val MonitTypography = Typography(

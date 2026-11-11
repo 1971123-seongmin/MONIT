@@ -1,8 +1,5 @@
 package com.monit.core.designsystem.preview
 
-import androidx.compose.foundation.interaction.FocusInteraction
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,18 +8,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.tooling.preview.Preview
-import com.monit.core.designsystem.component.MonitAccountOption
-import com.monit.core.designsystem.component.MonitAccountPicker
-import com.monit.core.designsystem.component.MonitAmountField
-import com.monit.core.designsystem.component.MonitButton
-import com.monit.core.designsystem.component.MonitDateCell
-import com.monit.core.designsystem.component.MonitTransactionRow
+import com.monit.core.designsystem.component.button.MonitButtonContent
+import com.monit.core.designsystem.component.calendar.MonitDateCell
 import com.monit.core.designsystem.theme.MonitTheme
 import java.time.LocalDate
 
@@ -39,51 +28,58 @@ internal fun MonitComponentCatalog(section: CatalogSection, modifier: Modifier =
             when (section) {
                 CatalogSection.Buttons -> {
                     Text("버튼 상태", style = MaterialTheme.typography.titleLarge)
-                    val pressed = remember { MutableInteractionSource() }
-                    val focused = remember { MutableInteractionSource() }
-                    LaunchedEffect(Unit) {
-                        // 자식 버튼의 interaction 수집이 시작된 다음 상태를 전달한다.
-                        withFrameNanos { }
-                        pressed.emit(PressInteraction.Press(Offset.Zero))
-                        focused.emit(FocusInteraction.Focus())
-                    }
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth())
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), interactionSource = pressed)
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), interactionSource = focused)
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), enabled = false)
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), loading = true)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth())
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), pressed = true)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), focused = true)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), enabled = false)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), loading = true)
                 }
+
                 CatalogSection.Amounts -> {
                     Text("금액 입력", style = MaterialTheme.typography.titleLarge)
-                    val focused = remember { MutableInteractionSource() }
-                    LaunchedEffect(Unit) {
-                        withFrameNanos { }
-                        focused.emit(FocusInteraction.Focus())
-                    }
-                    MonitAmountField("", {}, supportingText = "금액을 입력해주세요.")
-                    MonitAmountField("30000", {})
-                    MonitAmountField("30000", {}, interactionSource = focused)
-                    MonitAmountField("0", {}, errorMessage = "0원보다 큰 금액을 입력하세요.")
-                    MonitAmountField("-", {}, label = "기준 잔액", supportingText = "편집 중인 문자열")
-                    MonitAmountField("30000", {}, loading = true)
+                    AmountFieldContentSample("", {}, supportingText = "금액을 입력해주세요.")
+                    AmountFieldContentSample("30000", {})
+                    AmountFieldContentSample("30000", {}, focused = true)
+                    AmountFieldContentSample("0", {}, errorMessage = "0원보다 큰 금액을 입력하세요.")
+                    AmountFieldContentSample("-", {}, label = "기준 잔액", supportingText = "편집 중인 문자열")
+                    AmountFieldContentSample("30000", {}, loading = true)
                 }
+
                 CatalogSection.Accounts -> {
                     Text("계좌 선택", style = MaterialTheme.typography.titleLarge)
                     val accounts = listOf(
-                        MonitAccountOption("synthetic-1", "생활비", "일반", "기준일 2026.11.02", null),
-                        MonitAccountOption("synthetic-2", "생활비", "저축", "기준일 2026.10.31", "0원"),
+                        AccountOptionSample("synthetic-1", "생활비", "일반", "기준일 2026.11.02", null),
+                        AccountOptionSample("synthetic-2", "생활비", "저축", "기준일 2026.10.31", "0원"),
                     )
-                    MonitAccountPicker(accounts, "synthetic-1", {}, {})
-                    MonitAccountPicker(emptyList(), null, {}, {})
-                    MonitAccountPicker(emptyList(), null, {}, {}, errorMessage = "계좌를 불러오지 못했어요.", onRetry = {})
+                    AccountPickerSample(accounts, "synthetic-1", {}, {})
+                    AccountPickerSample(emptyList(), null, {}, {})
+                    AccountPickerSample(
+                        emptyList(),
+                        null,
+                        {},
+                        {},
+                        errorMessage = "계좌를 불러오지 못했어요.",
+                        onRetry = {})
                 }
+
                 CatalogSection.Records -> {
                     Text("거래 행 · 날짜 셀", style = MaterialTheme.typography.titleLarge)
-                    MonitTransactionRow("수입", "합성 예시", "+20,000원", "일반 계좌 · 기타 수입")
-                    MonitTransactionRow("지출", "아주 긴 합성 거래 제목도 생략하지 않고 표시합니다", "-999,999,999,999원", "긴 계좌 이름도 다음 줄로 이어서 표시하는 합성 예시")
+                    TransactionRowSample("수입", "합성 예시", "+20,000원", "일반 계좌 · 기타 수입")
+                    TransactionRowSample(
+                        "지출",
+                        "아주 긴 합성 거래 제목도 생략하지 않고 표시합니다",
+                        "-999,999,999,999원",
+                        "긴 계좌 이름도 다음 줄로 이어서 표시하는 합성 예시"
+                    )
                     MonitDateCell(LocalDate.of(2026, 11, 2), {})
                     MonitDateCell(LocalDate.of(2026, 11, 3), {}, today = true)
-                    MonitDateCell(LocalDate.of(2026, 11, 3), {}, selected = true, summary = "수입 3만 · 지출 6만 · 이체 1건", accessibilitySummary = "수입 30,000원, 지출 60,000원, 이체 1건")
+                    MonitDateCell(
+                        LocalDate.of(2026, 11, 3),
+                        {},
+                        selected = true,
+                        summary = "수입 3만 · 지출 6만 · 이체 1건",
+                        accessibilitySummary = "수입 30,000원, 지출 60,000원, 이체 1건"
+                    )
                 }
             }
         }

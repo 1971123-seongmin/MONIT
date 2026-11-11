@@ -1,7 +1,7 @@
 <resources>
     <string name="monit_loading">처리 중…</string>
     <string name="monit_saving">저장 중</string>
-    <string name="monit_amount_label">거래 금액</string>
+    <string name="monit_amount_label">거래 금액 (원)</string>
     <string name="monit_currency_won">원</string>
     <string name="monit_balance_unknown">잔액 미확인</string>
     <string name="monit_balance_excluded">현재 잔액 합계에서 제외</string>
@@ -11,4 +11,11 @@
     <string name="monit_retry">다시 시도</string>
     <string name="monit_today">오늘</string>
     <string name="monit_selected">선택됨</string>
+    <string name="monit_transfer_excluded">내부 이체는 수입·지출 합계에서 제외</string>
+    <string name="monit_back">뒤로</string>
+    <string name="monit_close">닫기</string>
+    <string name="monit_previous_month">이전 달</string>
+    <string name="monit_next_month">다음 달</string>
+    <string name="monit_account_picker_title">계좌 선택</string>
+    <string name="monit_apply_account">이 계좌 사용</string>
 </resources>
