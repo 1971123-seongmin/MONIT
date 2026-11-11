@@ -11,24 +11,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
-import com.monit.core.designsystem.component.MonitAmountField
-import com.monit.core.designsystem.component.MonitButton
+import com.monit.core.designsystem.component.button.MonitButton
+import com.monit.core.designsystem.preview.AmountFieldSample
 import com.monit.core.designsystem.theme.MonitTheme
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Rule
-import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import org.junit.Test
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.RobolectricTestRunner
 
 /** 공개 API의 실제 interaction 수집이 공유 본문의 픽셀에 반영되는지 검사한다. */
 @RunWith(RobolectricTestRunner::class)
@@ -52,8 +52,8 @@ class MonitRuntimeVisualStateTest {
             SideEffect { view = current }
             MonitTheme(false) {
                 Column(Modifier.padding(16.dp)) {
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth().testTag("button"), interactionSource = buttonSource)
-                    MonitAmountField("30000", {}, Modifier.testTag("field"), interactionSource = fieldSource)
+                    MonitButton("계속하기", Modifier.fillMaxWidth().testTag("button"), interactionSource = buttonSource) {}
+                    AmountFieldSample("30000", {}, Modifier.testTag("field"), interactionSource = fieldSource)
                 }
             }
         }

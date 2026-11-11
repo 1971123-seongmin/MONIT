@@ -1,4 +1,4 @@
-package com.monit.core.designsystem.component
+package com.monit.core.designsystem.preview
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,14 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.R
 import com.monit.core.designsystem.theme.MonitTheme
 
 /** 표시 값만 받는다. balanceText=null은 미확인으로서 확인한 '0원'과 구분한다. */
-data class MonitAccountOption(
+internal data class AccountOptionSample(
     val id: String,
     val name: String,
     val kindLabel: String,
@@ -28,8 +29,8 @@ data class MonitAccountOption(
 
 /** 계좌 선택은 ID만 반환한다. 계좌 추가·재시도·화면 복귀·거래 저장은 호출자가 처리한다. */
 @Composable
-fun MonitAccountPicker(
-    accounts: List<MonitAccountOption>,
+internal fun AccountPickerSample(
+    accounts: List<AccountOptionSample>,
     selectedId: String?,
     onSelect: (String) -> Unit,
     onAddAccount: () -> Unit,
@@ -46,12 +47,12 @@ fun MonitAccountPicker(
         if (errorMessage != null) {
             Text(errorMessage, color = colors.error, style = MaterialTheme.typography.bodyMedium)
             if (onRetry != null) MonitButton(
-                stringResource(R.string.monit_retry), onRetry, Modifier.fillMaxWidth(), enabled = enabled && !loading,
+                stringResource(R.string.monit_retry), Modifier.fillMaxWidth(), enabled = enabled && !loading, onClick = onRetry,
             )
         }
         if (accounts.isEmpty() && errorMessage == null && !loading) {
             Text(stringResource(R.string.monit_no_accounts), style = MaterialTheme.typography.bodyMedium)
-            MonitButton(stringResource(R.string.monit_add_account), onAddAccount, Modifier.fillMaxWidth(), enabled = enabled && !loading)
+            MonitButton(stringResource(R.string.monit_add_account), Modifier.fillMaxWidth(), enabled = enabled && !loading, onClick = onAddAccount)
         } else if (accounts.isNotEmpty()) {
             if (accounts.none { it.id == selectedId }) Text(
                 stringResource(R.string.monit_choose_account), color = colors.muted,
@@ -69,8 +70,8 @@ fun MonitAccountPicker(
 }
 
 @Composable
-private fun MonitAccountRow(account: MonitAccountOption, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    MonitAccountCard(
+private fun MonitAccountRow(account: AccountOptionSample, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    AccountCardSample(
         name = "${account.name} · ${account.kindLabel}",
         balanceText = account.balanceText,
         description = listOf(account.baselineLabel,

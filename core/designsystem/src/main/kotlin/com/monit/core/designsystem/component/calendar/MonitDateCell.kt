@@ -1,4 +1,4 @@
-package com.monit.core.designsystem.component
+package com.monit.core.designsystem.component.calendar
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement

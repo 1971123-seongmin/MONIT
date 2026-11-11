@@ -2,39 +2,38 @@ package com.monit.core.designsystem
 
 import android.app.Application
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.test.DeviceConfigurationOverride
-import androidx.compose.ui.test.DarkMode
-import androidx.compose.ui.test.FontScale
-import androidx.compose.ui.test.ForcedSize
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.DarkMode
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.FontScale
+import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -42,33 +41,34 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performImeAction
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
-import com.monit.core.designsystem.component.MonitAccountOption
-import com.monit.core.designsystem.component.MonitAccountPicker
-import com.monit.core.designsystem.component.MonitAmountField
-import com.monit.core.designsystem.component.MonitButton
-import com.monit.core.designsystem.component.MonitDateCell
-import com.monit.core.designsystem.component.MonitTransactionRow
+import androidx.compose.ui.unit.DpSize
+import com.monit.core.designsystem.component.button.MonitButton
+import com.monit.core.designsystem.component.calendar.MonitDateCell
+import com.monit.core.designsystem.preview.AccountOptionSample
+import com.monit.core.designsystem.preview.AccountPickerSample
+import com.monit.core.designsystem.preview.AmountFieldSample
+import com.monit.core.designsystem.preview.TransactionRowSample
 import com.monit.core.designsystem.theme.MonitColors
 import com.monit.core.designsystem.theme.MonitTheme
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 import java.time.LocalDate
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.Rule
+import org.junit.runner.RunWith
+import org.junit.Test
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import org.robolectric.RobolectricTestRunner
 
 /** 실제 Compose semantics/레이아웃을 실행하는 호스트 시험이다. TalkBack·실기기 시험은 아니다. */
 @OptIn(ExperimentalTestApi::class)
@@ -133,8 +133,8 @@ class MonitComponentTest {
         compose.setContent {
             MonitTheme {
                 Column {
-                    MonitButton("저장", { clicks++; loading = true }, Modifier.testTag("save"), loading = loading)
-                    MonitButton("잠김", { clicks++ }, enabled = false)
+                    MonitButton("저장", Modifier.testTag("save"), loading = loading, loadingDescription = "저장 중") { clicks++; loading = true }
+                    MonitButton("잠김", enabled = false) { clicks++ }
                 }
             }
         }
@@ -156,7 +156,7 @@ class MonitComponentTest {
         var loading by mutableStateOf(false)
         compose.setContent {
             MonitTheme {
-                MonitAmountField(value, { value = it }, Modifier.testTag("amount"), errorMessage = error, loading = loading,
+                AmountFieldSample(value, { value = it }, Modifier.testTag("amount"), errorMessage = error, loading = loading,
                     keyboardActions = KeyboardActions(onDone = { submitted = value }))
             }
         }
@@ -180,12 +180,12 @@ class MonitComponentTest {
     @Test
     fun accountSelectionReturnsIdentityAndDistinguishesUnknownFromZero() {
         val options = listOf(
-            MonitAccountOption("first", "동명 계좌", "일반", "기준일 2026.11.02", null),
-            MonitAccountOption("second", "동명 계좌", "저축", "기준일 2026.10.31", "0원"),
+            AccountOptionSample("first", "동명 계좌", "일반", "기준일 2026.11.02", null),
+            AccountOptionSample("second", "동명 계좌", "저축", "기준일 2026.10.31", "0원"),
         )
         var selected by mutableStateOf<String?>(null)
         compose.setContent {
-            MonitTheme { MonitAccountPicker(options, selected, { selected = it }, {}) }
+            MonitTheme { AccountPickerSample(options, selected, { selected = it }, {}) }
         }
         val radio = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton)
         compose.onAllNodes(radio).assertCountEquals(2)
@@ -205,7 +205,7 @@ class MonitComponentTest {
         var retries = 0
         compose.setContent {
             MonitTheme {
-                MonitAccountPicker(emptyList(), null, {}, { additions++ }, loading = loading,
+                AccountPickerSample(emptyList(), null, {}, { additions++ }, loading = loading,
                     errorMessage = error, onRetry = { retries++ })
             }
         }
@@ -254,8 +254,8 @@ class MonitComponentTest {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme {
                         Column(Modifier.fillMaxWidth()) {
-                            MonitButton(button, {}, Modifier.fillMaxWidth().testTag("longButton"))
-                            MonitTransactionRow("지출", "긴 합성 거래 제목을 모두 읽을 수 있습니다", "-999,999,999,999원", account)
+                            MonitButton(button, Modifier.fillMaxWidth().testTag("longButton")) {}
+                            TransactionRowSample("지출", "긴 합성 거래 제목을 모두 읽을 수 있습니다", "-999,999,999,999원", account)
                         }
                     }
                 }
@@ -291,7 +291,7 @@ class MonitComponentTest {
         compose.setContent {
             val current = LocalInputModeManager.current
             SideEffect { inputMode = current }
-            MonitTheme { MonitButton("계속", { clicks++ }, Modifier.testTag("keyboard")) }
+            MonitTheme { MonitButton("계속", Modifier.testTag("keyboard")) { clicks++ } }
         }
         compose.runOnIdle { assertTrue(inputMode.requestInputMode(InputMode.Keyboard)) }
         compose.onNodeWithTag("keyboard")

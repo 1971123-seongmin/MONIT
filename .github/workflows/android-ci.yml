@@ -27,5 +27,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Check independent UI components
+        run: |
+          for component in button chip textfield; do
+            bash ./gradlew :core:designsystem:compileDebugKotlin --init-script scripts/verify-component.init.gradle.kts "-Pmonit.component=$component" -Pkotlin.incremental=false --project-cache-dir "core/designsystem/build/component-compilation/project-cache/$component" --console=plain
+          done
       - name: Build, unit tests and lint
         run: bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug --console=plain

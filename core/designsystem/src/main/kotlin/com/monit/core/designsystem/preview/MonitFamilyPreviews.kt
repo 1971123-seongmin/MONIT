@@ -11,28 +11,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.monit.core.designsystem.component.MonitAccountCard
-import com.monit.core.designsystem.component.MonitAccountOption
-import com.monit.core.designsystem.component.MonitAccountSheetContent
-import com.monit.core.designsystem.component.MonitAmountFieldContent
 import com.monit.core.designsystem.component.MonitBadge
 import com.monit.core.designsystem.component.MonitBadgeTone
 import com.monit.core.designsystem.component.MonitBottomNavigation
-import com.monit.core.designsystem.component.MonitButtonContent
-import com.monit.core.designsystem.component.MonitCalendarHeader
-import com.monit.core.designsystem.component.MonitDateCell
-import com.monit.core.designsystem.component.MonitDatePicker
-import com.monit.core.designsystem.component.MonitDialogContent
-import com.monit.core.designsystem.component.MonitFilterChip
-import com.monit.core.designsystem.component.MonitMonthSummary
-import com.monit.core.designsystem.component.MonitNavigationAction
-import com.monit.core.designsystem.component.MonitPaymentStatusRow
+import com.monit.core.designsystem.component.button.MonitButtonContent
+import com.monit.core.designsystem.component.calendar.MonitCalendarHeader
+import com.monit.core.designsystem.component.calendar.MonitDateCell
+import com.monit.core.designsystem.component.calendar.MonitDatePicker
+import com.monit.core.designsystem.component.chip.MonitFilterChip
 import com.monit.core.designsystem.component.MonitSegmentedControl
 import com.monit.core.designsystem.component.MonitSkeleton
 import com.monit.core.designsystem.component.MonitSnackbar
-import com.monit.core.designsystem.component.MonitStatusPanel
-import com.monit.core.designsystem.component.MonitTopBar
-import com.monit.core.designsystem.component.MonitTransactionRow
 import com.monit.core.designsystem.theme.MonitTheme
 import java.time.LocalDate
 import java.time.YearMonth
@@ -79,21 +68,21 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     MonitButtonContent("계속하기", {}, full, loading = true)
                 }
                 ComponentFamily.Field -> {
-                    MonitAmountFieldContent("30,000", {})
-                    MonitAmountFieldContent("30,000", {}, focused = true)
-                    MonitAmountFieldContent("0", {}, errorMessage = "0원보다 큰 금액을 입력해주세요.")
-                    MonitAmountFieldContent("30,000", {}, enabled = false)
+                    AmountFieldContentSample("30,000", {})
+                    AmountFieldContentSample("30,000", {}, focused = true)
+                    AmountFieldContentSample("0", {}, errorMessage = "0원보다 큰 금액을 입력해주세요.")
+                    AmountFieldContentSample("30,000", {}, enabled = false)
                 }
                 ComponentFamily.AccountCard -> {
-                    MonitAccountCard("생활비 · 일반", null, "현재 잔액 합계에서 제외", false, {})
-                    MonitAccountCard("생활비 · 일반", null, "선택됨 · 현재 잔액 합계에서 제외", true, {})
-                    MonitAccountCard("생활비 · 일반", null, "", false, {}, disabledReason = "이체의 반대편 계좌로 선택할 수 없어요")
-                    MonitAccountCard("생활비 · 일반", "250,000원", "사용자 확인 장부 잔액 · 후속 설계", false, {})
+                    AccountCardSample("생활비 · 일반", null, "현재 잔액 합계에서 제외", false, {})
+                    AccountCardSample("생활비 · 일반", null, "선택됨 · 현재 잔액 합계에서 제외", true, {})
+                    AccountCardSample("생활비 · 일반", null, "", false, {}, disabledReason = "이체의 반대편 계좌로 선택할 수 없어요")
+                    AccountCardSample("생활비 · 일반", "250,000원", "사용자 확인 장부 잔액 · 후속 설계", false, {})
                 }
                 ComponentFamily.TransactionRow -> {
-                    MonitTransactionRow("수입", "중고 판매", "+20,000원", "생활비 · 2026.11.03", full, income = true)
-                    MonitTransactionRow("지출", "점심", "−20,000원", "생활비 · 2026.11.03", full)
-                    MonitTransactionRow("이체", "저축으로", "20,000원", "생활비 → 저축", full)
+                    TransactionRowSample("수입", "중고 판매", "+20,000원", "생활비 · 2026.11.03", full, income = true)
+                    TransactionRowSample("지출", "점심", "−20,000원", "생활비 · 2026.11.03", full)
+                    TransactionRowSample("이체", "저축으로", "20,000원", "생활비 → 저축", full)
                 }
                 ComponentFamily.CalendarCell -> {
                     MonitDateCell(today.minusDays(1), {})
@@ -104,17 +93,17 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     MonitDateCell(today, {}, selected = true, enabled = false)
                 }
                 ComponentFamily.Badge -> MonitBadgeTone.entries.forEachIndexed { i, tone ->
-                    MonitBadge(listOf("미확인", "선택됨", "확인 필요", "미제공")[i], tone = tone)
+                    MonitBadge(listOf("미확인", "선택됨", "확인 필요", "미제공")[i], Modifier.widthIn(min = 132.dp), tone = tone)
                 }
                 ComponentFamily.FilterChip -> {
-                    MonitFilterChip("전체 계좌", false, {})
-                    MonitFilterChip("생활비 계좌", true, {})
-                    MonitFilterChip("선택 불가", false, {}, enabled = false)
+                    MonitFilterChip("전체 계좌", false, Modifier.widthIn(min = 154.dp)) {}
+                    MonitFilterChip("생활비 계좌", true, Modifier.widthIn(min = 154.dp)) {}
+                    MonitFilterChip("선택 불가", false, Modifier.widthIn(min = 154.dp), enabled = false) {}
                 }
                 ComponentFamily.TopBar -> {
-                    MonitTopBar("거래", full)
-                    MonitTopBar("거래 기록", full, MonitNavigationAction.Back)
-                    MonitTopBar("계좌 선택", full, MonitNavigationAction.Close)
+                    TopBarSample("거래", full)
+                    TopBarSample("거래 기록", full, NavigationActionSample.Back)
+                    TopBarSample("계좌 선택", full, NavigationActionSample.Close)
                 }
                 ComponentFamily.SegmentedControl -> {
                     repeat(3) { MonitSegmentedControl(listOf("지출", "수입", "이체"), it, {}, full) }
@@ -131,35 +120,35 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                         Triple("기록을 저장했어요", "확인된 거래를 목록에 반영했어요.", "목록 보기"),
                     )
                     examples.forEachIndexed { i, (title, body, action) ->
-                        MonitStatusPanel(title, body, action, {}, full, busy = i in listOf(1, 3, 4), error = i == 2)
+                        StatusPanelSample(title, body, action, {}, full, busy = i in listOf(1, 3, 4), error = i == 2)
                     }
                 }
                 ComponentFamily.MonthSummary -> {
-                    MonitMonthSummary("이번 달 전체", "수입 30,000원", "지출 60,000원", full)
-                    MonitMonthSummary("이번 달 전체", "수입 0원", "지출 0원", full)
+                    MonthSummarySample("이번 달 전체", "수입 30,000원", "지출 60,000원", full)
+                    MonthSummarySample("이번 달 전체", "수입 0원", "지출 0원", full)
                 }
                 ComponentFamily.BottomNavigation -> repeat(3) { MonitBottomNavigation(listOf("홈", "거래", "계좌"), it, {}, full) }
                 ComponentFamily.BottomSheet -> {
-                    MonitAccountSheetContent(listOf(MonitAccountOption("sample", "생활비", "일반", "", null)),
+                    AccountSheetSample(listOf(AccountOptionSample("sample", "생활비", "일반", "", null)),
                         "sample", {}, {}, {}, {}, full)
-                    MonitAccountSheetContent(emptyList(), null, {}, {}, {}, {}, full)
+                    AccountSheetSample(emptyList(), null, {}, {}, {}, {}, full)
                 }
                 ComponentFamily.Dialog -> {
                     val dialogWidth = Modifier.widthIn(max = 304.dp).fillMaxWidth()
-                    MonitDialogContent("기록을 그만둘까요?", "저장하지 않은 입력 내용은 사라져요.", "계속 입력", "그만두기", {}, {}, dialogWidth)
-                    MonitDialogContent("이 거래를 삭제할까요?", "삭제 기능은 후속 설계예요. 현재 첫 동선에서 제공하지 않아요.",
+                    DialogSample("기록을 그만둘까요?", "저장하지 않은 입력 내용은 사라져요.", "계속 입력", "그만두기", {}, {}, dialogWidth)
+                    DialogSample("이 거래를 삭제할까요?", "삭제 기능은 후속 설계예요. 현재 첫 동선에서 제공하지 않아요.",
                         "삭제 · 미제공", "닫기", {}, {}, dialogWidth, primaryEnabled = false)
                 }
                 ComponentFamily.Snackbar -> {
                     MonitSnackbar("거래 기록을 저장했어요", full)
                     MonitSnackbar("불러오지 못했어요. 다시 시도해주세요.", full)
                 }
-                ComponentFamily.Skeleton -> { MonitSkeleton(full); MonitSkeleton(full, card = true) }
+                ComponentFamily.Skeleton -> { MonitSkeleton(full); MonitSkeleton(full, lineWidths = listOf(210f / 296, 140f / 296, 270f / 296)) }
                 ComponentFamily.CalendarHeader -> MonitCalendarHeader("2026년 11월", {}, {}, full)
                 ComponentFamily.PaymentStatusRow -> {
-                    MonitPaymentStatusRow("보험료", "매월 3일 · 30,000원", "미완료 · 직접 납입 여부를 확인해주세요", full)
-                    MonitPaymentStatusRow("보험료", "매월 3일 · 30,000원", "완료 · 2026.11.03 확인", full, completed = true)
-                    MonitPaymentStatusRow("보험료", "매월 3일 · 30,000원", "이번 달 건너뜀 · 완료와 별도", full)
+                    PaymentStatusRowSample("보험료", "매월 3일 · 30,000원", "미완료 · 직접 납입 여부를 확인해주세요", full)
+                    PaymentStatusRowSample("보험료", "매월 3일 · 30,000원", "완료 · 2026.11.03 확인", full, completed = true)
+                    PaymentStatusRowSample("보험료", "매월 3일 · 30,000원", "이번 달 건너뜀 · 완료와 별도", full)
                 }
                 ComponentFamily.DatePicker -> {
                     MonitDatePicker(YearMonth.of(2026, 11), today, today, {}, {}, full)

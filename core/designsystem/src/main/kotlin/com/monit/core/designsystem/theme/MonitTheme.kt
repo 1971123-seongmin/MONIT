@@ -21,6 +21,7 @@ object MonitSpacing {
 
 @Immutable
 object MonitSizes {
+    val icon = 24.dp
     val touchTarget = 48.dp
     val inputMinHeight = 56.dp
     val rowMinHeight = 72.dp

@@ -5,30 +5,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -36,19 +34,22 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
-import com.monit.core.designsystem.component.MonitAccountOption
-import com.monit.core.designsystem.component.MonitAccountCard
-import com.monit.core.designsystem.component.MonitAccountSheetContent
-import com.monit.core.designsystem.component.MonitDatePicker
-import com.monit.core.designsystem.component.MonitDateCell
-import com.monit.core.designsystem.component.MonitFilterChip
-import com.monit.core.designsystem.component.MonitTopBar
+import androidx.compose.ui.unit.DpSize
+import com.monit.core.designsystem.component.calendar.MonitDateCell
+import com.monit.core.designsystem.component.calendar.MonitDatePicker
+import com.monit.core.designsystem.component.chip.MonitFilterChip
 import com.monit.core.designsystem.component.MonitSegmentedControl
-import com.monit.core.designsystem.component.MonitStatusPanel
-import com.monit.core.designsystem.modifier.ClickCooldown
+import com.monit.core.designsystem.component.MonitTopBar
 import com.monit.core.designsystem.modifier.clickableWithCooldown
 import com.monit.core.designsystem.modifier.clickableWithoutRipple
+import com.monit.core.designsystem.modifier.ClickCooldown
+import com.monit.core.designsystem.preview.AccountCardSample
+import com.monit.core.designsystem.preview.AccountOptionSample
+import com.monit.core.designsystem.preview.AccountSheetSample
+import com.monit.core.designsystem.preview.StatusPanelSample
 import com.monit.core.designsystem.theme.MonitTheme
 import java.time.Duration
 import java.time.LocalDate
@@ -57,11 +58,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Rule
-import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import org.junit.Test
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
 
 /** 실제 Compose 입력/semantics 시험. TalkBack·실기기 접근성 통과를 뜻하지 않는다. */
@@ -148,9 +149,9 @@ class MonitInteractionTest {
     @Test fun accountSheetRequiresExplicitApplyAndPreservesUnknownBalance() {
         var selected by mutableStateOf<String?>(null)
         val applied = mutableListOf<String>()
-        val account = MonitAccountOption("synthetic", "생활비", "일반", "", null)
+        val account = AccountOptionSample("synthetic", "생활비", "일반", "", null)
         compose.setContent {
-            MonitTheme { MonitAccountSheetContent(listOf(account), selected, { selected = it },
+            MonitTheme { AccountSheetSample(listOf(account), selected, { selected = it },
                 { applied += it }, {}, {}) }
         }
         compose.onNodeWithText("이 계좌 사용").assertIsNotEnabled()
@@ -171,7 +172,7 @@ class MonitInteractionTest {
         var loading by mutableStateOf(true)
         var error by mutableStateOf<String?>(null)
         compose.setContent {
-            MonitTheme { MonitAccountSheetContent(emptyList(), null, {}, {}, {}, {}, loading = loading, errorMessage = error) }
+            MonitTheme { AccountSheetSample(emptyList(), null, {}, {}, {}, {}, loading = loading, errorMessage = error) }
         }
         compose.onNodeWithText("등록된 계좌가 없어요.").assertDoesNotExist()
         compose.onNodeWithText("닫기").assertIsNotEnabled()
@@ -214,7 +215,7 @@ class MonitInteractionTest {
     @Test fun checkingPanelLocksActionWithoutClaimingSuccess() {
         var calls = 0
         compose.setContent { MonitTheme {
-            MonitStatusPanel("저장 결과 확인 중", "완료 여부를 확인하고 있어요.", "결과 확인 중…", { calls++ }, busy = true)
+            StatusPanelSample("저장 결과 확인 중", "완료 여부를 확인하고 있어요.", "결과 확인 중…", { calls++ }, busy = true)
         } }
         compose.onNodeWithText("결과 확인 중…").assertIsNotEnabled().performClick()
         compose.onNodeWithText("기록을 저장했어요").assertDoesNotExist()
@@ -231,12 +232,12 @@ class MonitInteractionTest {
         var selected by mutableStateOf(false)
         compose.setContent { MonitTheme { Column {
             MonitTopBar("거래 화면")
-            MonitFilterChip("생활비 필터", selected, { selected = !selected })
+            MonitFilterChip("생활비 필터", selected) { selected = !selected }
         } } }
         compose.onNodeWithText("거래 화면").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
         compose.onNodeWithText("생활비 필터")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
-            .performClick().assertIsSelected()
+            .performClick().assertIsOn()
     }
 
     /** 320dp·200%에서 미확인과 구분되는 긴 확정 잔액을 생략·잘림 없이 표시한다. */
@@ -245,7 +246,7 @@ class MonitInteractionTest {
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 780.dp))) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
-                    MonitTheme { MonitAccountCard("합성 계좌", amount, "확인한 장부 잔액", false, {}) }
+                    MonitTheme { AccountCardSample("합성 계좌", amount, "확인한 장부 잔액", false, {}) }
                 }
             }
         }
