@@ -153,6 +153,21 @@ viewer 주소·포트는 실행 응답을 사용한다. 환경 준비 요청이�
 
 Prevue 정적 첫 캡처:
 
+2026-11-12 Galaxy S23 기본형(`SM-S911N`)의 조회값은 1080×2340px, Android 화면 밀도 480dpi, 글꼴 배율 1.0이다. 1dp=3px이므로 전체 디스플레이에 해당하는 논리 크기는 **360×780dp**다. 앱 창 크기나 시스템 바·IME 여백을 뺀 콘텐츠 영역과는 구분한다.
+
+아래는 이 크기·밀도·글꼴 배율을 적용해 실제 Prevue에서 다시 생성한 **정적 첫 뷰포트**다. 기기의 스크린샷이 아니며 `showSystemUi=false`로 시스템 바를 그리지 않는다. 긴 카탈로그의 화면 밖 내용·스크롤·전체 상태 검증을 뜻하지 않는다.
+
+| 공통 API 사용 예시 · Light 360×780dp | 공통 API 사용 예시 · Dark 360×780dp |
+|---|---|
+| ![Galaxy S23 규격의 Light 조합 첫 뷰포트](docs/prevue-s23-light-usage.png) | ![Galaxy S23 규격의 Dark 조합 첫 뷰포트](docs/prevue-s23-dark-usage.png) |
+
+| Light 버튼 · 360×780dp | Dark 입력 · 360×780dp |
+|---|---|
+| ![Galaxy S23 규격의 버튼 상태 첫 뷰포트](docs/prevue-s23-light-button.png) | ![Galaxy S23 규격의 입력 상태 첫 뷰포트](docs/prevue-s23-dark-field.png) |
+
+<details>
+<summary>기존 카탈로그 크기와 큰 글꼴 예시 · 360dp / 320dp·200%</summary>
+
 | 공통 API 사용 예시 · Light 360dp | 공통 API 사용 예시 · Dark 320dp/200% |
 |---|---|
 | ![타입·슬롯 조합](docs/prevue-light-usage.png) | ![큰 글꼴의 조합](docs/prevue-dark-large-usage.png) |
@@ -160,6 +175,8 @@ Prevue 정적 첫 캡처:
 | Light 버튼 · 360dp | Dark 입력 · 320dp/200% |
 |---|---|
 | ![기본·누름·포커스·비활성·로딩](docs/prevue-light-button.png) | ![기본·포커스·오류·비활성](docs/prevue-dark-large-field.png) |
+
+</details>
 
 호스트 렌더:
 
