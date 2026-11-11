@@ -30,10 +30,12 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], qualifiers = "w360dp-h800dp-mdpi", application = Application::class)
 class MonitReviewRegressionTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule
+    val compose = createComposeRule()
 
     /** 짧은 콘텐츠도 304dp 본문과 좌우 16dp 여백을 사용하는 공개 모달로 표시한다. */
-    @Test fun shortDialogKeepsTheSpecifiedContentWidth() {
+    @Test
+    fun shortDialogKeepsTheSpecifiedContentWidth() {
         compose.setContent {
             MonitTheme {
                 MonitDialog({}, Modifier.testTag("dialog"), title = { Text("제목") }) { Text("본문") }
@@ -48,12 +50,14 @@ class MonitReviewRegressionTest {
      * 절차: 좌측 패딩을 누른 뒤 비활성으로 전환해 같은 위치를 다시 누른다.
      * 기대: 클릭 대상은 하나이며 활성 상태의 첫 터치만 콜백으로 전달된다.
      */
-    @Test fun listItemPaddingRemainsClickableAndDisabledActionStaysLocked() {
+    @Test
+    fun listItemPaddingRemainsClickableAndDisabledActionStaysLocked() {
         var enabled by mutableStateOf(true)
         var calls = 0
         compose.setContent {
             MonitTheme {
-                MonitListItem(headline = { Text("항목") }, modifier = Modifier.testTag("item"),
+                MonitListItem(
+                    headline = { Text("항목") }, modifier = Modifier.testTag("item"),
                     enabled = enabled, onClick = { calls++ })
             }
         }

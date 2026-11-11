@@ -37,7 +37,10 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     val screenshotDir = layout.buildDirectory.dir("reports/designsystem/screenshots/$name")
     outputs.dir(screenshotDir).withPropertyName("monitScreenshots")
     // Test의 기본 작업 디렉터리는 이 모듈이다. 체크아웃 절대 경로를 JVM 입력에 넣지 않는다.
-    systemProperty("monit.screenshot.dir", screenshotDir.get().asFile.relativeTo(projectDir).invariantSeparatorsPath)
+    systemProperty(
+        "monit.screenshot.dir",
+        screenshotDir.get().asFile.relativeTo(projectDir).invariantSeparatorsPath
+    )
     doFirst {
         val buildPath = buildRoot.get().asFile.canonicalFile.toPath()
         val rootPath = screenshotRoot.get().asFile.canonicalFile.toPath()

@@ -37,38 +37,106 @@ import com.monit.core.designsystem.theme.MonitTheme
 @Composable
 internal fun MonitUsageCatalog(modifier: Modifier = Modifier) {
     Surface(modifier, color = MonitTheme.colors.surface) {
-        Column(Modifier.padding(MonitTheme.spacing.content), verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.section)) {
+        Column(
+            Modifier.padding(MonitTheme.spacing.content),
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.section)
+        ) {
             MonitTopBar("공통 컴포넌트", actions = {
                 IconButton({}, Modifier.size(MonitTheme.sizes.touchTarget)) {
-                    Icon(Icons.Filled.Close, contentDescription = "닫기", modifier = Modifier.size(MonitTheme.sizes.icon))
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "닫기",
+                        modifier = Modifier.size(MonitTheme.sizes.icon)
+                    )
                 }
             })
-            MonitButton("확인하고 계속하기", Modifier.fillMaxWidth(), leadingIcon = {
-                Icon(Icons.Filled.Check, null, Modifier.size(MonitTheme.sizes.icon))
-            }, trailingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(MonitTheme.sizes.icon)) }) {}
-            MonitButton("다른 방법 선택", type = MonitButtonType.Secondary, size = MonitButtonSize.Compact,
-                trailingIcon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(MonitTheme.sizes.icon)) }) {}
-            MonitTextField("", {}, label = "검색어", placeholder = { Text("검색할 내용을 입력하세요") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
-                trailingIcon = { IconButton({}, Modifier.size(MonitTheme.sizes.touchTarget)) {
-                    Icon(Icons.Filled.Close, "지우기", Modifier.size(MonitTheme.sizes.icon))
-                } })
+            MonitButton(
+                "확인하고 계속하기",
+                Modifier.fillMaxWidth(),
+                leadingIcon = {
+                    Icon(Icons.Filled.Check, null, Modifier.size(MonitTheme.sizes.icon))
+                },
+                trailingIcon = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        null,
+                        Modifier.size(MonitTheme.sizes.icon)
+                    )
+                }) {}
+            MonitButton(
+                "다른 방법 선택", type = MonitButtonType.Secondary, size = MonitButtonSize.Compact,
+                trailingIcon = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        null,
+                        Modifier.size(MonitTheme.sizes.icon)
+                    )
+                }) {}
+            MonitTextField(
+                "", {}, label = "검색어", placeholder = { Text("검색할 내용을 입력하세요") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Search
+                ),
+                trailingIcon = {
+                    IconButton({}, Modifier.size(MonitTheme.sizes.touchTarget)) {
+                        Icon(Icons.Filled.Close, "지우기", Modifier.size(MonitTheme.sizes.icon))
+                    }
+                })
             MonitFilterChip("필터 적용", true, leadingIcon = { Icon(Icons.Filled.Check, null) }) {}
-            MonitFilterChip("다른 조건", false, type = MonitChipType.Outlined, size = MonitChipSize.Compact) {}
+            MonitFilterChip(
+                "다른 조건",
+                false,
+                type = MonitChipType.Outlined,
+                size = MonitChipSize.Compact
+            ) {}
             MonitCard {
                 Text("직접 구성하는 카드", style = MaterialTheme.typography.labelLarge)
                 Text("문구·데이터·행동은 호출자가 결정합니다.", style = MaterialTheme.typography.bodyMedium)
-                MonitButton("자세히 보기", type = MonitButtonType.Secondary, size = MonitButtonSize.Compact) {}
+                MonitButton(
+                    "자세히 보기",
+                    type = MonitButtonType.Secondary,
+                    size = MonitButtonSize.Compact
+                ) {}
             }
-            MonitListItem(headline = { Text("목록 제목") }, supportingContent = { Text("부가 설명") },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(MonitTheme.sizes.icon)) })
+            MonitListItem(
+                headline = { Text("목록 제목") }, supportingContent = { Text("부가 설명") },
+                trailingContent = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        null,
+                        Modifier.size(MonitTheme.sizes.icon)
+                    )
+                })
         }
     }
 }
 
-@Preview(name = "Usage Light 360", widthDp = 360, heightDp = 1000, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Usage Dark 360", widthDp = 360, heightDp = 1000, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Preview(name = "Usage Light 320 200%", widthDp = 320, heightDp = 1600, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Usage Dark 320 200%", widthDp = 320, heightDp = 1600, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Usage Light 360",
+    widthDp = 360,
+    heightDp = 1000,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Usage Dark 360",
+    widthDp = 360,
+    heightDp = 1000,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
+@Preview(
+    name = "Usage Light 320 200%",
+    widthDp = 320,
+    heightDp = 1600,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Usage Dark 320 200%",
+    widthDp = 320,
+    heightDp = 1600,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 @Composable
 internal fun CustomizationPreview() = MonitTheme { MonitUsageCatalog() }

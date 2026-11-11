@@ -43,26 +43,38 @@ import org.robolectric.RobolectricTestRunner
 @Config(sdk = [28], qualifiers = "w360dp-h6000dp-mdpi", application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MonitCatalogRenderTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule
+    val compose = createComposeRule()
 
     /** Light 360dp에서 19개 family와 각 variant를 검토할 렌더를 만든다. */
-    @Test fun rendersLightAt360dp() = render(false, 360, 1f)
+    @Test
+    fun rendersLightAt360dp() = render(false, 360, 1f)
 
     /** Dark의 기본 폭에서 semantic 색상과 같은 상태 구성을 검토할 렌더를 만든다. */
-    @Test fun rendersDarkAt360dp() = render(true, 360, 1f)
+    @Test
+    fun rendersDarkAt360dp() = render(true, 360, 1f)
 
     /** Light 320dp/200%에서 가변 높이·정확한 금액·오류/빈 상태를 검토할 렌더를 만든다. */
-    @Test fun rendersLightAt320dpWithLargeText() = render(false, 320, 2f)
+    @Test
+    fun rendersLightAt320dpWithLargeText() = render(false, 320, 2f)
 
     /** Dark 320dp/200%에서 같은 확대 조건의 상태 누락과 대비를 검토할 렌더를 만든다. */
-    @Test fun rendersDarkAt320dpWithLargeText() = render(true, 320, 2f)
+    @Test
+    fun rendersDarkAt320dpWithLargeText() = render(true, 320, 2f)
 
     private fun render(dark: Boolean, width: Int, scale: Float) {
         var section by mutableStateOf(ComponentFamily.ActionButton)
         var usage by mutableStateOf(false)
         lateinit var view: View
         compose.setContent {
-            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width.dp, 6000.dp))) {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.ForcedSize(
+                    DpSize(
+                        width.dp,
+                        6000.dp
+                    )
+                )
+            ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(scale)) {
                     MonitTheme(dark) {
                         val currentView = LocalView.current
@@ -85,7 +97,11 @@ class MonitCatalogRenderTest {
             compose.mainClock.advanceTimeBy(500)
             compose.waitForIdle()
             val bounds = compose.onNodeWithTag("catalog").fetchSemanticsNode().boundsInRoot
-            val bitmap = Bitmap.createBitmap(bounds.width.toInt(), bounds.height.toInt(), Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(
+                bounds.width.toInt(),
+                bounds.height.toInt(),
+                Bitmap.Config.ARGB_8888
+            )
             // API 28 호스트의 PixelCopy 비동기 콜백 대신 실제 View를 Native Canvas에 동기 렌더한다.
             compose.runOnIdle {
                 val canvas = Canvas(bitmap)
@@ -93,8 +109,12 @@ class MonitCatalogRenderTest {
                 view.draw(canvas)
             }
             assertTrue(bitmap.width > 0 && bitmap.height > 0)
-            val output = File(directory, "${if (dark) "dark" else "light"}-$width-${scale.toInt()}-${next?.name?.lowercase() ?: "usage"}.png")
-            output.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            val output = File(
+                directory,
+                "${if (dark) "dark" else "light"}-$width-${scale.toInt()}-${next?.name?.lowercase() ?: "usage"}.png"
+            )
+            output.outputStream()
+                .use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
         }
     }
 }

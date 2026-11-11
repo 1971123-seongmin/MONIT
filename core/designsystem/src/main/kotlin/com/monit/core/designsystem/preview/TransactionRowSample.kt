@@ -21,9 +21,22 @@ internal fun TransactionRowSample(
     income: Boolean = false,
 ) {
     val colors = MonitTheme.colors
-    MonitListItem(headline = { Text("$kindLabel · $title", style = MaterialTheme.typography.labelLarge) }, modifier = modifier, onClick = onClick,
+    MonitListItem(
+        headline = {
+            Text(
+                "$kindLabel · $title",
+                style = MaterialTheme.typography.labelLarge
+            )
+        },
+        modifier = modifier,
+        onClick = onClick,
         supportingContent = {
-            Text(amountText, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
-                color = if (income) colors.primary else colors.onSurface)
-        }, detailContent = { Text(accountLabel, style = MaterialTheme.typography.labelSmall) })
+            Text(
+                amountText,
+                Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
+                color = if (income) colors.primary else colors.onSurface
+            )
+        },
+        detailContent = { Text(accountLabel, style = MaterialTheme.typography.labelSmall) })
 }

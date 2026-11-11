@@ -28,8 +28,11 @@ fun MonitDialog(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BasicAlertDialog(onDismissRequest, modifier = modifier, properties = properties) {
-        MonitDialogContent(Modifier.padding(horizontal = MonitTheme.spacing.content).widthIn(max = 304.dp).fillMaxWidth(),
-            title = title, actions = actions, content = content)
+        MonitDialogContent(
+            Modifier.padding(horizontal = MonitTheme.spacing.content).widthIn(max = 304.dp)
+                .fillMaxWidth(),
+            title = title, actions = actions, content = content
+        )
     }
 }
 
@@ -41,9 +44,16 @@ internal fun MonitDialogContent(
     actions: @Composable ColumnScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(modifier, color = MonitTheme.colors.surfaceContainer, contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
-        Column(Modifier.padding(MonitTheme.spacing.content), verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+    Surface(
+        modifier,
+        color = MonitTheme.colors.surfaceContainer,
+        contentColor = MonitTheme.colors.onSurface,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+    ) {
+        Column(
+            Modifier.padding(MonitTheme.spacing.content),
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+        ) {
             title()
             content()
             actions()

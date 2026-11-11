@@ -57,10 +57,22 @@ fun MonitButton(
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
     MonitButtonContent(
-        text = text, onClick = onClick, modifier = modifier, enabled = enabled, loading = loading,
-        interactionSource = interactionSource, loadingText = loadingText, loadingDescription = loadingDescription,
-        pressed = pressed, focused = focused,
-        type = type, size = size, colors = colors, layout = layout, leadingIcon = leadingIcon, trailingIcon = trailingIcon,
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        loading = loading,
+        interactionSource = interactionSource,
+        loadingText = loadingText,
+        loadingDescription = loadingDescription,
+        pressed = pressed,
+        focused = focused,
+        type = type,
+        size = size,
+        colors = colors,
+        layout = layout,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
     )
 }
 
@@ -96,9 +108,14 @@ internal fun MonitButtonContent(
                         val stroke = layout.focusOutlineWidth.toPx()
                         val offset = layout.focusGap.toPx() + stroke / 2
                         drawRoundRect(
-                            color = primary, topLeft = Offset(-offset, -offset),
-                            size = Size(this.size.width + offset * 2, this.size.height + offset * 2),
-                            cornerRadius = CornerRadius(layout.cornerRadius.toPx() + offset), style = Stroke(stroke),
+                            color = primary,
+                            topLeft = Offset(-offset, -offset),
+                            size = Size(
+                                this.size.width + offset * 2,
+                                this.size.height + offset * 2
+                            ),
+                            cornerRadius = CornerRadius(layout.cornerRadius.toPx() + offset),
+                            style = Stroke(stroke),
                         )
                     }
                 }
@@ -117,15 +134,25 @@ internal fun MonitButtonContent(
                 disabledContentColor = if (loading && enabled) colors.content else colors.disabledContent,
             ),
         ) {
-            Row(Modifier.width(IntrinsicSize.Max), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)) {
+            Row(
+                Modifier.width(IntrinsicSize.Max), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)
+            ) {
                 leadingIcon?.let {
-                    Box(Modifier.size(layout.iconSize).clearAndSetSemantics {}, contentAlignment = Alignment.Center) { it() }
+                    Box(
+                        Modifier.size(layout.iconSize).clearAndSetSemantics {},
+                        contentAlignment = Alignment.Center
+                    ) { it() }
                 }
-                Text(if (loading) loadingText else text, Modifier.weight(1f, fill = false),
-                    style = layout.textStyle, textAlign = TextAlign.Center)
+                Text(
+                    if (loading) loadingText else text, Modifier.weight(1f, fill = false),
+                    style = layout.textStyle, textAlign = TextAlign.Center
+                )
                 trailingIcon?.let {
-                    Box(Modifier.size(layout.iconSize).clearAndSetSemantics {}, contentAlignment = Alignment.Center) { it() }
+                    Box(
+                        Modifier.size(layout.iconSize).clearAndSetSemantics {},
+                        contentAlignment = Alignment.Center
+                    ) { it() }
                 }
             }
         }

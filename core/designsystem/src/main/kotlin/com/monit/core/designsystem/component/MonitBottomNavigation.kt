@@ -20,22 +20,45 @@ import com.monit.core.designsystem.theme.MonitTheme
 
 /** 목적지·선택·아이콘을 전달받는다. 실제 navigation과 화면별 항목 구성은 소유자가 처리한다. */
 @Composable
-fun MonitBottomNavigation(labels: List<String>, selectedIndex: Int, onSelected: (Int) -> Unit, modifier: Modifier = Modifier,
-    enabled: Boolean = true, icon: (@Composable (index: Int) -> Unit)? = null) {
+fun MonitBottomNavigation(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: (@Composable (index: Int) -> Unit)? = null
+) {
     require(labels.size in 2..5) { "labels.size must be in 2..5; was ${labels.size}" }
     require(selectedIndex in labels.indices) { "selectedIndex must be in ${labels.indices}; was $selectedIndex" }
     val colors = MonitTheme.colors
-    Surface(modifier, color = colors.surfaceContainer, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
-        Row(Modifier.padding(vertical = MonitTheme.spacing.inline).selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+    Surface(
+        modifier,
+        color = colors.surfaceContainer,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+    ) {
+        Row(
+            Modifier.padding(vertical = MonitTheme.spacing.inline).selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+        ) {
             labels.forEachIndexed { index, label ->
-                Surface(selected = index == selectedIndex, onClick = { onSelected(index) }, enabled = enabled,
-                    modifier = Modifier.weight(1f).heightIn(min = MonitTheme.sizes.touchTarget).semantics { role = Role.Tab },
+                Surface(
+                    selected = index == selectedIndex,
+                    onClick = { onSelected(index) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).heightIn(min = MonitTheme.sizes.touchTarget)
+                        .semantics { role = Role.Tab },
                     shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
                     color = if (index == selectedIndex) colors.surface else colors.surfaceContainer,
-                    contentColor = if (index == selectedIndex) colors.primary else colors.muted) {
-                    Column(Modifier.padding(MonitTheme.spacing.inline), horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.compact, Alignment.CenterVertically)) {
+                    contentColor = if (index == selectedIndex) colors.primary else colors.muted
+                ) {
+                    Column(
+                        Modifier.padding(MonitTheme.spacing.inline),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(
+                            MonitTheme.spacing.compact,
+                            Alignment.CenterVertically
+                        )
+                    ) {
                         icon?.invoke(index)
                         Text(label, style = MaterialTheme.typography.labelLarge)
                     }

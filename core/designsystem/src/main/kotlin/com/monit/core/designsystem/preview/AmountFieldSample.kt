@@ -22,18 +22,51 @@ internal fun AmountFieldSample(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
-    MonitTextField(value, onValueChange, modifier, label, errorMessage, supportingText, enabled, loading,
-        keyboardActions, interactionSource, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-        loadingDescription = stringResource(R.string.monit_saving))
+    MonitTextField(
+        value,
+        onValueChange,
+        modifier,
+        label,
+        errorMessage,
+        supportingText,
+        enabled,
+        loading,
+        keyboardActions,
+        interactionSource,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Decimal,
+            imeAction = ImeAction.Done
+        ),
+        loadingDescription = stringResource(R.string.monit_saving)
+    )
 }
 
 @Composable
 internal fun AmountFieldContentSample(
-    value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier,
-    label: String = stringResource(R.string.monit_amount_label), errorMessage: String? = null,
-    supportingText: String? = null, enabled: Boolean = true, loading: Boolean = false, focused: Boolean = false,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.monit_amount_label),
+    errorMessage: String? = null,
+    supportingText: String? = null,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+    focused: Boolean = false,
 ) {
-    MonitTextFieldContent(value, onValueChange, modifier, label, errorMessage, supportingText, enabled, loading,
-        focused = focused, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-        loadingDescription = stringResource(R.string.monit_saving))
+    MonitTextFieldContent(
+        value,
+        onValueChange,
+        modifier,
+        label,
+        errorMessage,
+        supportingText,
+        enabled,
+        loading,
+        focused = focused,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Decimal,
+            imeAction = ImeAction.Done
+        ),
+        loadingDescription = stringResource(R.string.monit_saving)
+    )
 }

@@ -32,14 +32,30 @@ fun MonitListItem(
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
 ) {
-    Surface(modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, color = MonitTheme.colors.surfaceContainer,
-        contentColor = MonitTheme.colors.onSurface, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
-        Row(Modifier
-            .then(if (onClick != null) Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick) else Modifier)
-            .padding(MonitTheme.spacing.content), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+    Surface(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        color = MonitTheme.colors.surfaceContainer,
+        contentColor = MonitTheme.colors.onSurface,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+    ) {
+        Row(
+            Modifier
+                .then(
+                    if (onClick != null) Modifier.clickable(
+                        enabled = enabled,
+                        role = Role.Button,
+                        onClick = onClick
+                    ) else Modifier
+                )
+                .padding(MonitTheme.spacing.content),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+        ) {
             leadingContent?.invoke()
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            ) {
                 ProvideTextStyle(MaterialTheme.typography.labelLarge, headline)
                 supportingContent?.let { ProvideTextStyle(MaterialTheme.typography.bodyLarge, it) }
                 detailContent?.let {

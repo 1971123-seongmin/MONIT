@@ -76,7 +76,8 @@ import org.robolectric.RobolectricTestRunner
 @Config(sdk = [28], qualifiers = "w390dp-h2400dp-mdpi", application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MonitComponentTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule
+    val compose = createComposeRule()
 
     /** 기기 테마 변경을 추종하고 두 테마에서 일반 글자와 컨트롤의 대비 목표를 지킨다. */
     @Test
@@ -133,14 +134,20 @@ class MonitComponentTest {
         compose.setContent {
             MonitTheme {
                 Column {
-                    MonitButton("저장", Modifier.testTag("save"), loading = loading, loadingDescription = "저장 중") { clicks++; loading = true }
+                    MonitButton(
+                        "저장",
+                        Modifier.testTag("save"),
+                        loading = loading,
+                        loadingDescription = "저장 중"
+                    ) { clicks++; loading = true }
                     MonitButton("잠김", enabled = false) { clicks++ }
                 }
             }
         }
         compose.onNodeWithTag("save").assertHeightIsAtLeast(48.dp).performClick()
         compose.onNodeWithTag("save").assertIsNotEnabled()
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "저장 중")).performClick()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "저장 중"))
+            .performClick()
         compose.onNodeWithText("잠김").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(1, clicks); loading = false }
         compose.onNodeWithTag("save").performClick()
@@ -156,8 +163,14 @@ class MonitComponentTest {
         var loading by mutableStateOf(false)
         compose.setContent {
             MonitTheme {
-                AmountFieldSample(value, { value = it }, Modifier.testTag("amount"), errorMessage = error, loading = loading,
-                    keyboardActions = KeyboardActions(onDone = { submitted = value }))
+                AmountFieldSample(
+                    value,
+                    { value = it },
+                    Modifier.testTag("amount"),
+                    errorMessage = error,
+                    loading = loading,
+                    keyboardActions = KeyboardActions(onDone = { submitted = value })
+                )
             }
         }
         val field = compose.onNode(hasSetTextAction())
@@ -173,7 +186,10 @@ class MonitComponentTest {
         field.assertContentDescriptionEquals("거래 금액 (원)")
         compose.runOnIdle { loading = true }
         compose.onNodeWithTag("amount").assertIsNotEnabled()
-        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText), useUnmergedTree = true)
+        compose.onNode(
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText),
+            useUnmergedTree = true
+        )
             .assertContentDescriptionEquals("거래 금액 (원), 저장 중")
     }
 
@@ -194,7 +210,8 @@ class MonitComponentTest {
         compose.runOnIdle { assertEquals("second", selected) }
         compose.onNode(radio and hasText("잔액 미확인", substring = true))
             .assertTextContains("현재 잔액 합계에서 제외", substring = true)
-        compose.onNode(radio and hasText("0원")).assertIsSelected().assertTextContains("기준일 2026.10.31")
+        compose.onNode(radio and hasText("0원")).assertIsSelected()
+            .assertTextContains("기준일 2026.10.31")
     }
 
     /** 미등록/실패의 콜백은 호출자에게만 전달하며 저장 중에는 추가·재시도 모두 잠근다. */
@@ -206,7 +223,8 @@ class MonitComponentTest {
         var retries = 0
         compose.setContent {
             MonitTheme {
-                AccountPickerSample(emptyList(), null, {}, { additions++ }, loading = loading,
+                AccountPickerSample(
+                    emptyList(), null, {}, { additions++ }, loading = loading,
                     errorMessage = error, onRetry = { retries++ })
             }
         }
@@ -230,15 +248,22 @@ class MonitComponentTest {
         compose.setContent {
             MonitTheme {
                 Column {
-                    MonitDateCell(LocalDate.of(2026, 11, 3), {}, Modifier.testTag("today"), selected = true,
-                        today = true, summary = "수입 3만", accessibilitySummary = "수입 30,000원")
+                    MonitDateCell(
+                        LocalDate.of(2026, 11, 3), {}, Modifier.testTag("today"), selected = true,
+                        today = true, summary = "수입 3만", accessibilitySummary = "수입 30,000원"
+                    )
                     MonitDateCell(null, {}, Modifier.testTag("blank"))
-                    MonitDateCell(LocalDate.of(2027, 1, 1), { futureClicks++ }, Modifier.testTag("future"))
+                    MonitDateCell(
+                        LocalDate.of(2027, 1, 1),
+                        { futureClicks++ },
+                        Modifier.testTag("future")
+                    )
                 }
             }
         }
         compose.onAllNodes(hasClickAction()).assertCountEquals(2)
-        compose.onNodeWithTag("today").assertIsSelected().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        compose.onNodeWithTag("today").assertIsSelected().assertHeightIsAtLeast(48.dp)
+            .assertWidthIsAtLeast(48.dp)
             .assertContentDescriptionEquals("2026년 11월 3일 화요일, 오늘, 수입 30,000원")
         compose.onNodeWithTag("future").performClick()
         compose.runOnIdle { assertEquals(1, futureClicks) }
@@ -251,12 +276,24 @@ class MonitComponentTest {
         val headline = "지출 · 긴 합성 거래 제목을 모두 읽을 수 있습니다"
         val account = "아주 긴 합성 계좌 이름을 다음 줄에서도 정확하게 확인합니다"
         compose.setContent {
-            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 1600.dp))) {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.ForcedSize(
+                    DpSize(
+                        320.dp,
+                        1600.dp
+                    )
+                )
+            ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme {
                         Column(Modifier.fillMaxWidth()) {
                             MonitButton(button, Modifier.fillMaxWidth().testTag("longButton")) {}
-                            TransactionRowSample("지출", "긴 합성 거래 제목을 모두 읽을 수 있습니다", "-999,999,999,999원", account)
+                            TransactionRowSample(
+                                "지출",
+                                "긴 합성 거래 제목을 모두 읽을 수 있습니다",
+                                "-999,999,999,999원",
+                                account
+                            )
                         }
                     }
                 }
@@ -269,7 +306,10 @@ class MonitComponentTest {
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue(layouts.isNotEmpty())
             val layout = layouts.single()
-            assertFalse(layout.hasVisualOverflow, "$text / size=${layout.size}, constraints=${layout.layoutInput.constraints}, lines=${layout.lineCount}, widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}")
+            assertFalse(
+                layout.hasVisualOverflow,
+                "$text / size=${layout.size}, constraints=${layout.layoutInput.constraints}, lines=${layout.lineCount}, widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}"
+            )
         }
     }
 
@@ -278,7 +318,13 @@ class MonitComponentTest {
     fun smallerFontNeverShrinksDateTouchTarget() {
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(0.8f)) {
-                MonitTheme { MonitDateCell(LocalDate.of(2026, 11, 3), {}, Modifier.testTag("small")) }
+                MonitTheme {
+                    MonitDateCell(
+                        LocalDate.of(2026, 11, 3),
+                        {},
+                        Modifier.testTag("small")
+                    )
+                }
             }
         }
         compose.onNodeWithTag("small").assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)

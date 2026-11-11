@@ -34,12 +34,20 @@ fun MonitBottomSheet(
 ) {
     val canDismiss by rememberUpdatedState(dismissEnabled)
     val state = androidx.compose.material3.rememberModalBottomSheetState(
-        skipPartiallyExpanded = true, confirmValueChange = { canDismiss || it != SheetValue.Hidden },
+        skipPartiallyExpanded = true,
+        confirmValueChange = { canDismiss || it != SheetValue.Hidden },
     )
-    ModalBottomSheet(onDismissRequest = { if (canDismiss) onDismissRequest() }, sheetState = state,
+    ModalBottomSheet(
+        onDismissRequest = { if (canDismiss) onDismissRequest() }, sheetState = state,
         dragHandle = null, containerColor = MonitTheme.colors.surfaceContainer,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius), modifier = modifier) {
-        MonitBottomSheetContent(title = title, actions = actions, scrollContent = scrollContent, content = content)
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius), modifier = modifier
+    ) {
+        MonitBottomSheetContent(
+            title = title,
+            actions = actions,
+            scrollContent = scrollContent,
+            content = content
+        )
     }
 }
 
@@ -52,15 +60,25 @@ fun MonitBottomSheetContent(
     scrollContent: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val maxHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() * .9f }
-    Surface(modifier, color = MonitTheme.colors.surfaceContainer, contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
-        Column(Modifier.heightIn(max = maxHeight).padding(MonitTheme.spacing.content),
-            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+    val maxHeight =
+        with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() * .9f }
+    Surface(
+        modifier,
+        color = MonitTheme.colors.surfaceContainer,
+        contentColor = MonitTheme.colors.onSurface,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+    ) {
+        Column(
+            Modifier.heightIn(max = maxHeight).padding(MonitTheme.spacing.content),
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+        ) {
             title()
-            Column(Modifier.weight(1f, fill = false)
-                .then(if (scrollContent) Modifier.verticalScroll(rememberScrollState()) else Modifier),
-                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline), content = content)
+            Column(
+                Modifier.weight(1f, fill = false)
+                    .then(if (scrollContent) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
+                content = content
+            )
             actions()
         }
     }

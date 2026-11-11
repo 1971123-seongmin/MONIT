@@ -35,7 +35,8 @@ import org.robolectric.RobolectricTestRunner
 @Config(sdk = [28], qualifiers = "w360dp-h800dp-mdpi", application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MonitRuntimeVisualStateTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule
+    val compose = createComposeRule()
 
     /**
      * 목적: 정적 Preview 본문 분리 후에도 공개 컴포넌트가 입력 상태 변화를 반영한다.
@@ -43,7 +44,8 @@ class MonitRuntimeVisualStateTest {
      * 절차: 구독 준비 뒤 누름/포커스와 해제 이벤트를 보내고 Native Canvas의 배경·테두리를 읽는다.
      * 기대: 버튼은 primary→pressed→primary, 필드는 outline→primary→outline으로 복귀한다.
      */
-    @Test fun publicComponentsReflectAndReleaseRuntimeInteractions() {
+    @Test
+    fun publicComponentsReflectAndReleaseRuntimeInteractions() {
         val buttonSource = MutableInteractionSource()
         val fieldSource = MutableInteractionSource()
         lateinit var view: View
@@ -52,8 +54,17 @@ class MonitRuntimeVisualStateTest {
             SideEffect { view = current }
             MonitTheme(false) {
                 Column(Modifier.padding(16.dp)) {
-                    MonitButton("계속하기", Modifier.fillMaxWidth().testTag("button"), interactionSource = buttonSource) {}
-                    AmountFieldSample("30000", {}, Modifier.testTag("field"), interactionSource = fieldSource)
+                    MonitButton(
+                        "계속하기",
+                        Modifier.fillMaxWidth().testTag("button"),
+                        interactionSource = buttonSource
+                    ) {}
+                    AmountFieldSample(
+                        "30000",
+                        {},
+                        Modifier.testTag("field"),
+                        interactionSource = fieldSource
+                    )
                 }
             }
         }

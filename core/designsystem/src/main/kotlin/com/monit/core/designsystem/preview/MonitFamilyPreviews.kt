@@ -35,20 +35,64 @@ internal enum class ComponentFamily {
 
 @Preview(name = "Light 360", widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_NO)
 @Preview(name = "Dark 360", widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Preview(name = "Light 320 200%", widthDp = 320, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Dark 320 200%", widthDp = 320, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Light 320 200%",
+    widthDp = 320,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Dark 320 200%",
+    widthDp = 320,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 private annotation class FamilyPreview
 
-@Preview(name = "Light 360", widthDp = 360, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Dark 360", widthDp = 360, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Preview(name = "Light 320 200%", widthDp = 320, heightDp = 1900, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Dark 320 200%", widthDp = 320, heightDp = 1900, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Light 360",
+    widthDp = 360,
+    heightDp = 1200,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Dark 360",
+    widthDp = 360,
+    heightDp = 1200,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
+@Preview(
+    name = "Light 320 200%",
+    widthDp = 320,
+    heightDp = 1900,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Dark 320 200%",
+    widthDp = 320,
+    heightDp = 1900,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 private annotation class StatusPanelPreviewSize
 
 @Preview(name = "Light 360", widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_NO)
 @Preview(name = "Dark 360", widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Preview(name = "Light 320 200%", widthDp = 320, heightDp = 1440, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Dark 320 200%", widthDp = 320, heightDp = 1440, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(
+    name = "Light 320 200%",
+    widthDp = 320,
+    heightDp = 1440,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_NO
+)
+@Preview(
+    name = "Dark 320 200%",
+    widthDp = 320,
+    heightDp = 1440,
+    fontScale = 2f,
+    uiMode = Configuration.UI_MODE_NIGHT_YES
+)
 private annotation class DatePickerPreviewSize
 
 @Composable
@@ -56,9 +100,12 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
     val today = LocalDate.of(2026, 11, 3)
     val full = Modifier.fillMaxWidth()
     Surface(modifier.fillMaxWidth(), color = MonitTheme.colors.surface) {
-        val horizontalPadding = if (family == ComponentFamily.DatePicker || family == ComponentFamily.CalendarHeader) 12.dp else MonitTheme.spacing.content
-        Column(Modifier.padding(horizontal = horizontalPadding, vertical = MonitTheme.spacing.content),
-            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.section)) {
+        val horizontalPadding =
+            if (family == ComponentFamily.DatePicker || family == ComponentFamily.CalendarHeader) 12.dp else MonitTheme.spacing.content
+        Column(
+            Modifier.padding(horizontal = horizontalPadding, vertical = MonitTheme.spacing.content),
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.section)
+        ) {
             when (family) {
                 ComponentFamily.ActionButton -> {
                     MonitButtonContent("계속하기", {}, full)
@@ -67,23 +114,41 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     MonitButtonContent("계속하기", {}, full, enabled = false)
                     MonitButtonContent("계속하기", {}, full, loading = true)
                 }
+
                 ComponentFamily.Field -> {
                     AmountFieldContentSample("30,000", {})
                     AmountFieldContentSample("30,000", {}, focused = true)
                     AmountFieldContentSample("0", {}, errorMessage = "0원보다 큰 금액을 입력해주세요.")
                     AmountFieldContentSample("30,000", {}, enabled = false)
                 }
+
                 ComponentFamily.AccountCard -> {
                     AccountCardSample("생활비 · 일반", null, "현재 잔액 합계에서 제외", false, {})
                     AccountCardSample("생활비 · 일반", null, "선택됨 · 현재 잔액 합계에서 제외", true, {})
-                    AccountCardSample("생활비 · 일반", null, "", false, {}, disabledReason = "이체의 반대편 계좌로 선택할 수 없어요")
+                    AccountCardSample(
+                        "생활비 · 일반",
+                        null,
+                        "",
+                        false,
+                        {},
+                        disabledReason = "이체의 반대편 계좌로 선택할 수 없어요"
+                    )
                     AccountCardSample("생활비 · 일반", "250,000원", "사용자 확인 장부 잔액 · 후속 설계", false, {})
                 }
+
                 ComponentFamily.TransactionRow -> {
-                    TransactionRowSample("수입", "중고 판매", "+20,000원", "생활비 · 2026.11.03", full, income = true)
+                    TransactionRowSample(
+                        "수입",
+                        "중고 판매",
+                        "+20,000원",
+                        "생활비 · 2026.11.03",
+                        full,
+                        income = true
+                    )
                     TransactionRowSample("지출", "점심", "−20,000원", "생활비 · 2026.11.03", full)
                     TransactionRowSample("이체", "저축으로", "20,000원", "생활비 → 저축", full)
                 }
+
                 ComponentFamily.CalendarCell -> {
                     MonitDateCell(today.minusDays(1), {})
                     MonitDateCell(today, {}, today = true)
@@ -92,6 +157,7 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     MonitDateCell(null, {})
                     MonitDateCell(today, {}, selected = true, enabled = false)
                 }
+
                 ComponentFamily.Badge -> MonitBadgeTone.entries.forEach { tone ->
                     val label = when (tone) {
                         MonitBadgeTone.Neutral -> "미확인"
@@ -101,20 +167,29 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     }
                     MonitBadge(label, Modifier.widthIn(min = 132.dp), tone = tone)
                 }
+
                 ComponentFamily.FilterChip -> {
                     MonitFilterChip("전체 계좌", false, Modifier.widthIn(min = 154.dp)) {}
                     MonitFilterChip("생활비 계좌", true, Modifier.widthIn(min = 154.dp)) {}
-                    MonitFilterChip("선택 불가", false, Modifier.widthIn(min = 154.dp), enabled = false) {}
+                    MonitFilterChip(
+                        "선택 불가",
+                        false,
+                        Modifier.widthIn(min = 154.dp),
+                        enabled = false
+                    ) {}
                 }
+
                 ComponentFamily.TopBar -> {
                     TopBarSample("거래", full)
                     TopBarSample("거래 기록", full, NavigationActionSample.Back)
                     TopBarSample("계좌 선택", full, NavigationActionSample.Close)
                 }
+
                 ComponentFamily.SegmentedControl -> {
                     repeat(3) { MonitSegmentedControl(listOf("지출", "수입", "이체"), it, {}, full) }
                     repeat(2) { MonitSegmentedControl(listOf("달력", "목록"), it, {}, full) }
                 }
+
                 ComponentFamily.StatusPanel -> {
                     val examples = listOf(
                         Triple("아직 기록이 없어요", "첫 거래를 기록해보세요.", "거래 기록"),
@@ -126,62 +201,159 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                         Triple("기록을 저장했어요", "확인된 거래를 목록에 반영했어요.", "목록 보기"),
                     )
                     examples.forEachIndexed { i, (title, body, action) ->
-                        StatusPanelSample(title, body, action, {}, full, busy = i in listOf(1, 3, 4), error = i == 2)
+                        StatusPanelSample(
+                            title,
+                            body,
+                            action,
+                            {},
+                            full,
+                            busy = i in listOf(1, 3, 4),
+                            error = i == 2
+                        )
                     }
                 }
+
                 ComponentFamily.MonthSummary -> {
                     MonthSummarySample("이번 달 전체", "수입 30,000원", "지출 60,000원", full)
                     MonthSummarySample("이번 달 전체", "수입 0원", "지출 0원", full)
                 }
-                ComponentFamily.BottomNavigation -> repeat(3) { MonitBottomNavigation(listOf("홈", "거래", "계좌"), it, {}, full) }
+
+                ComponentFamily.BottomNavigation -> repeat(3) {
+                    MonitBottomNavigation(
+                        listOf(
+                            "홈",
+                            "거래",
+                            "계좌"
+                        ), it, {}, full
+                    )
+                }
+
                 ComponentFamily.BottomSheet -> {
-                    AccountSheetSample(listOf(AccountOptionSample("sample", "생활비", "일반", "", null)),
-                        "sample", {}, {}, {}, {}, full)
+                    AccountSheetSample(
+                        listOf(AccountOptionSample("sample", "생활비", "일반", "", null)),
+                        "sample", {}, {}, {}, {}, full
+                    )
                     AccountSheetSample(emptyList(), null, {}, {}, {}, {}, full)
                 }
+
                 ComponentFamily.Dialog -> {
                     val dialogWidth = Modifier.widthIn(max = 304.dp).fillMaxWidth()
-                    DialogSample("기록을 그만둘까요?", "저장하지 않은 입력 내용은 사라져요.", "계속 입력", "그만두기", {}, {}, dialogWidth)
-                    DialogSample("이 거래를 삭제할까요?", "삭제 기능은 후속 설계예요. 현재 첫 동선에서 제공하지 않아요.",
-                        "삭제 · 미제공", "닫기", {}, {}, dialogWidth, primaryEnabled = false)
+                    DialogSample(
+                        "기록을 그만둘까요?",
+                        "저장하지 않은 입력 내용은 사라져요.",
+                        "계속 입력",
+                        "그만두기",
+                        {},
+                        {},
+                        dialogWidth
+                    )
+                    DialogSample(
+                        "이 거래를 삭제할까요?", "삭제 기능은 후속 설계예요. 현재 첫 동선에서 제공하지 않아요.",
+                        "삭제 · 미제공", "닫기", {}, {}, dialogWidth, primaryEnabled = false
+                    )
                 }
+
                 ComponentFamily.Snackbar -> {
                     MonitSnackbar("거래 기록을 저장했어요", full)
                     MonitSnackbar("불러오지 못했어요. 다시 시도해주세요.", full)
                 }
-                ComponentFamily.Skeleton -> { MonitSkeleton(full); MonitSkeleton(full, lineWidths = listOf(210f / 296, 140f / 296, 270f / 296)) }
+
+                ComponentFamily.Skeleton -> {
+                    MonitSkeleton(full); MonitSkeleton(
+                        full,
+                        lineWidths = listOf(210f / 296, 140f / 296, 270f / 296)
+                    )
+                }
+
                 ComponentFamily.CalendarHeader -> MonitCalendarHeader("2026년 11월", {}, {}, full)
                 ComponentFamily.PaymentStatusRow -> {
                     PaymentStatusRowSample("보험료", "매월 3일 · 30,000원", "미완료 · 직접 납입 여부를 확인해주세요", full)
-                    PaymentStatusRowSample("보험료", "매월 3일 · 30,000원", "완료 · 2026.11.03 확인", full, completed = true)
+                    PaymentStatusRowSample(
+                        "보험료",
+                        "매월 3일 · 30,000원",
+                        "완료 · 2026.11.03 확인",
+                        full,
+                        completed = true
+                    )
                     PaymentStatusRowSample("보험료", "매월 3일 · 30,000원", "이번 달 건너뜀 · 완료와 별도", full)
                 }
+
                 ComponentFamily.DatePicker -> {
                     MonitDatePicker(YearMonth.of(2026, 11), today, today, {}, {}, full)
-                    MonitDatePicker(YearMonth.of(2026, 11), today, today, {}, {}, full,
-                        errorMessage = "선택 가능한 날짜를 확인해주세요.")
+                    MonitDatePicker(
+                        YearMonth.of(2026, 11), today, today, {}, {}, full,
+                        errorMessage = "선택 가능한 날짜를 확인해주세요."
+                    )
                 }
             }
         }
     }
 }
 
-@FamilyPreview @Composable internal fun ActionButtonPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.ActionButton) }
-@FamilyPreview @Composable internal fun FieldPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Field) }
-@FamilyPreview @Composable internal fun AccountCardPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.AccountCard) }
-@FamilyPreview @Composable internal fun TransactionRowPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.TransactionRow) }
-@FamilyPreview @Composable internal fun CalendarCellPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.CalendarCell) }
-@FamilyPreview @Composable internal fun BadgePreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Badge) }
-@FamilyPreview @Composable internal fun FilterChipPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.FilterChip) }
-@FamilyPreview @Composable internal fun TopBarPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.TopBar) }
-@FamilyPreview @Composable internal fun SegmentedControlPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.SegmentedControl) }
-@StatusPanelPreviewSize @Composable internal fun StatusPanelPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.StatusPanel) }
-@FamilyPreview @Composable internal fun MonthSummaryPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.MonthSummary) }
-@FamilyPreview @Composable internal fun BottomNavigationPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.BottomNavigation) }
-@FamilyPreview @Composable internal fun BottomSheetPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.BottomSheet) }
-@FamilyPreview @Composable internal fun DialogPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Dialog) }
-@FamilyPreview @Composable internal fun SnackbarPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Snackbar) }
-@FamilyPreview @Composable internal fun SkeletonPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Skeleton) }
-@FamilyPreview @Composable internal fun CalendarHeaderPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.CalendarHeader) }
-@FamilyPreview @Composable internal fun PaymentStatusRowPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.PaymentStatusRow) }
-@DatePickerPreviewSize @Composable internal fun DatePickerPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.DatePicker) }
+@FamilyPreview
+@Composable
+internal fun ActionButtonPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.ActionButton) }
+@FamilyPreview
+@Composable
+internal fun FieldPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Field) }
+@FamilyPreview
+@Composable
+internal fun AccountCardPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.AccountCard) }
+@FamilyPreview
+@Composable
+internal fun TransactionRowPreview() =
+    MonitTheme { MonitFamilyCatalog(ComponentFamily.TransactionRow) }
+
+@FamilyPreview
+@Composable
+internal fun CalendarCellPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.CalendarCell) }
+@FamilyPreview
+@Composable
+internal fun BadgePreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Badge) }
+@FamilyPreview
+@Composable
+internal fun FilterChipPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.FilterChip) }
+@FamilyPreview
+@Composable
+internal fun TopBarPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.TopBar) }
+@FamilyPreview
+@Composable
+internal fun SegmentedControlPreview() =
+    MonitTheme { MonitFamilyCatalog(ComponentFamily.SegmentedControl) }
+
+@StatusPanelPreviewSize
+@Composable
+internal fun StatusPanelPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.StatusPanel) }
+@FamilyPreview
+@Composable
+internal fun MonthSummaryPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.MonthSummary) }
+@FamilyPreview
+@Composable
+internal fun BottomNavigationPreview() =
+    MonitTheme { MonitFamilyCatalog(ComponentFamily.BottomNavigation) }
+
+@FamilyPreview
+@Composable
+internal fun BottomSheetPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.BottomSheet) }
+@FamilyPreview
+@Composable
+internal fun DialogPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Dialog) }
+@FamilyPreview
+@Composable
+internal fun SnackbarPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Snackbar) }
+@FamilyPreview
+@Composable
+internal fun SkeletonPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Skeleton) }
+@FamilyPreview
+@Composable
+internal fun CalendarHeaderPreview() =
+    MonitTheme { MonitFamilyCatalog(ComponentFamily.CalendarHeader) }
+
+@FamilyPreview
+@Composable
+internal fun PaymentStatusRowPreview() =
+    MonitTheme { MonitFamilyCatalog(ComponentFamily.PaymentStatusRow) }
+
+@DatePickerPreviewSize
+@Composable
+internal fun DatePickerPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.DatePicker) }

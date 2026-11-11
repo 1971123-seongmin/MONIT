@@ -34,6 +34,7 @@ internal fun MonitComponentCatalog(section: CatalogSection, modifier: Modifier =
                     MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), enabled = false)
                     MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), loading = true)
                 }
+
                 CatalogSection.Amounts -> {
                     Text("금액 입력", style = MaterialTheme.typography.titleLarge)
                     AmountFieldContentSample("", {}, supportingText = "금액을 입력해주세요.")
@@ -43,6 +44,7 @@ internal fun MonitComponentCatalog(section: CatalogSection, modifier: Modifier =
                     AmountFieldContentSample("-", {}, label = "기준 잔액", supportingText = "편집 중인 문자열")
                     AmountFieldContentSample("30000", {}, loading = true)
                 }
+
                 CatalogSection.Accounts -> {
                     Text("계좌 선택", style = MaterialTheme.typography.titleLarge)
                     val accounts = listOf(
@@ -51,15 +53,33 @@ internal fun MonitComponentCatalog(section: CatalogSection, modifier: Modifier =
                     )
                     AccountPickerSample(accounts, "synthetic-1", {}, {})
                     AccountPickerSample(emptyList(), null, {}, {})
-                    AccountPickerSample(emptyList(), null, {}, {}, errorMessage = "계좌를 불러오지 못했어요.", onRetry = {})
+                    AccountPickerSample(
+                        emptyList(),
+                        null,
+                        {},
+                        {},
+                        errorMessage = "계좌를 불러오지 못했어요.",
+                        onRetry = {})
                 }
+
                 CatalogSection.Records -> {
                     Text("거래 행 · 날짜 셀", style = MaterialTheme.typography.titleLarge)
                     TransactionRowSample("수입", "합성 예시", "+20,000원", "일반 계좌 · 기타 수입")
-                    TransactionRowSample("지출", "아주 긴 합성 거래 제목도 생략하지 않고 표시합니다", "-999,999,999,999원", "긴 계좌 이름도 다음 줄로 이어서 표시하는 합성 예시")
+                    TransactionRowSample(
+                        "지출",
+                        "아주 긴 합성 거래 제목도 생략하지 않고 표시합니다",
+                        "-999,999,999,999원",
+                        "긴 계좌 이름도 다음 줄로 이어서 표시하는 합성 예시"
+                    )
                     MonitDateCell(LocalDate.of(2026, 11, 2), {})
                     MonitDateCell(LocalDate.of(2026, 11, 3), {}, today = true)
-                    MonitDateCell(LocalDate.of(2026, 11, 3), {}, selected = true, summary = "수입 3만 · 지출 6만 · 이체 1건", accessibilitySummary = "수입 30,000원, 지출 60,000원, 이체 1건")
+                    MonitDateCell(
+                        LocalDate.of(2026, 11, 3),
+                        {},
+                        selected = true,
+                        summary = "수입 3만 · 지출 6만 · 이체 1건",
+                        accessibilitySummary = "수입 30,000원, 지출 60,000원, 이체 1건"
+                    )
                 }
             }
         }

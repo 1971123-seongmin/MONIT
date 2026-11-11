@@ -54,7 +54,8 @@ fun MonitTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable 
                 medium = RoundedCornerShape(MonitSizes.controlRadius),
                 large = RoundedCornerShape(MonitSizes.controlRadius),
                 extraLarge = RoundedCornerShape(MonitSizes.controlRadius),
-            ), content = content,
+            ),
+            content = content,
         )
     }
 }

@@ -57,12 +57,27 @@ fun MonitTextField(
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     MonitTextFieldContent(
-        value = value, onValueChange = onValueChange, modifier = modifier, label = label,
-        errorMessage = errorMessage, supportingText = supportingText, enabled = enabled, loading = loading,
-        keyboardActions = keyboardActions, interactionSource = interactionSource, focused = focused,
-        keyboardOptions = keyboardOptions, readOnly = readOnly, singleLine = singleLine, maxLines = maxLines,
-        loadingDescription = loadingDescription, colors = colors, layout = layout,
-        leadingIcon = leadingIcon, trailingIcon = trailingIcon, placeholder = placeholder,
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        label = label,
+        errorMessage = errorMessage,
+        supportingText = supportingText,
+        enabled = enabled,
+        loading = loading,
+        keyboardActions = keyboardActions,
+        interactionSource = interactionSource,
+        focused = focused,
+        keyboardOptions = keyboardOptions,
+        readOnly = readOnly,
+        singleLine = singleLine,
+        maxLines = maxLines,
+        loadingDescription = loadingDescription,
+        colors = colors,
+        layout = layout,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        placeholder = placeholder,
     )
 }
 
@@ -98,7 +113,8 @@ internal fun MonitTextFieldContent(
         focused -> colors.focusedOutline
         else -> colors.outline
     }
-    val borderWidth = if (active && (focused || errorMessage != null)) layout.focusedOutlineWidth else layout.outlineWidth
+    val borderWidth =
+        if (active && (focused || errorMessage != null)) layout.focusedOutlineWidth else layout.outlineWidth
     Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) {
         if (!active) disabled()
     }, verticalArrangement = Arrangement.spacedBy(layout.supportingSpacing)) {
@@ -108,11 +124,17 @@ internal fun MonitTextFieldContent(
             border = BorderStroke(borderWidth, borderColor),
         ) {
             BasicTextField(
-                value, onValueChange, enabled = active, readOnly = readOnly, singleLine = singleLine, maxLines = maxLines,
+                value,
+                onValueChange,
+                enabled = active,
+                readOnly = readOnly,
+                singleLine = singleLine,
+                maxLines = maxLines,
                 textStyle = layout.textStyle.copy(color = if (active) colors.text else colors.disabledText),
                 cursorBrush = SolidColor(if (errorMessage != null) colors.error else colors.focusedOutline),
                 keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions, interactionSource = interactionSource,
+                keyboardActions = keyboardActions,
+                interactionSource = interactionSource,
                 modifier = Modifier.fillMaxWidth().heightIn(min = layout.minHeight)
                     .padding(layout.contentPadding)
                     .semantics {
@@ -120,11 +142,19 @@ internal fun MonitTextFieldContent(
                         errorMessage?.let { error(it) }
                     },
                 decorationBox = { input ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)
+                    ) {
                         CompositionLocalProvider(LocalContentColor provides colors.label) { leadingIcon?.invoke() }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(layout.labelSpacing)) {
-                            Text(label, Modifier.clearAndSetSemantics {}, style = layout.labelStyle,
-                                color = if (errorMessage != null && active) colors.error else colors.label)
+                        Column(
+                            Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(layout.labelSpacing)
+                        ) {
+                            Text(
+                                label, Modifier.clearAndSetSemantics {}, style = layout.labelStyle,
+                                color = if (errorMessage != null && active) colors.error else colors.label
+                            )
                             Box {
                                 if (value.isEmpty()) CompositionLocalProvider(LocalContentColor provides colors.label) { placeholder?.invoke() }
                                 input()
@@ -136,7 +166,11 @@ internal fun MonitTextFieldContent(
             )
         }
         (errorMessage ?: supportingText)?.let {
-            Text(it, color = if (errorMessage != null) colors.error else colors.label, style = layout.supportingStyle)
+            Text(
+                it,
+                color = if (errorMessage != null) colors.error else colors.label,
+                style = layout.supportingStyle
+            )
         }
     }
 }

@@ -49,7 +49,9 @@ fun MonitDateCell(
     val minSize = MonitTheme.sizes.touchTarget * scale
     val indicatorSize = MonitTheme.sizes.dateIndicator * scale
     if (date == null) {
-        Spacer(modifier.defaultMinSize(minWidth = minSize, minHeight = minSize).clearAndSetSemantics {})
+        Spacer(
+            modifier.defaultMinSize(minWidth = minSize, minHeight = minSize)
+                .clearAndSetSemantics {})
         return
     }
     val colors = MonitTheme.colors
@@ -65,25 +67,44 @@ fun MonitDateCell(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.compact),
     ) {
-        Box(Modifier.sizeIn(minWidth = minSize, minHeight = minSize), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.sizeIn(minWidth = minSize, minHeight = minSize),
+            contentAlignment = Alignment.Center
+        ) {
             Surface(
                 shape = CircleShape,
-                color = when { !enabled && selected -> colors.disabledBackground; selected -> colors.primary; else -> Color.Transparent },
-                contentColor = when { !enabled -> colors.disabledText; selected -> colors.onPrimary; future -> colors.muted; else -> colors.onSurface },
-                border = if ((selected && !enabled) || (today && !selected)) BorderStroke(MonitTheme.sizes.outline, colors.primary) else null,
+                color = when {
+                    !enabled && selected -> colors.disabledBackground; selected -> colors.primary; else -> Color.Transparent
+                },
+                contentColor = when {
+                    !enabled -> colors.disabledText; selected -> colors.onPrimary; future -> colors.muted; else -> colors.onSurface
+                },
+                border = if ((selected && !enabled) || (today && !selected)) BorderStroke(
+                    MonitTheme.sizes.outline,
+                    colors.primary
+                ) else null,
                 modifier = Modifier.clearAndSetSemantics {},
             ) {
-                Box(Modifier.sizeIn(minWidth = indicatorSize, minHeight = indicatorSize), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.sizeIn(minWidth = indicatorSize, minHeight = indicatorSize),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
         if (showStateLabel && (today || selected)) Text(
-            listOf(if (today) todayLabel else "", if (selected) selectedLabel else "").filter { it.isNotBlank() }.joinToString(" · "),
-            modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall,
+            listOf(
+                if (today) todayLabel else "",
+                if (selected) selectedLabel else ""
+            ).filter { it.isNotBlank() }.joinToString(" · "),
+            modifier = Modifier.clearAndSetSemantics {},
+            style = MaterialTheme.typography.labelSmall,
         )
         if (summary.isNotBlank()) Text(
-            summary, modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall,
+            summary,
+            modifier = Modifier.clearAndSetSemantics {},
+            style = MaterialTheme.typography.labelSmall,
         )
     }
 }

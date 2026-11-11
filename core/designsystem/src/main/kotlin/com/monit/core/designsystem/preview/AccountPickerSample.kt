@@ -43,25 +43,45 @@ internal fun AccountPickerSample(
     val colors = MonitTheme.colors
     val saving = stringResource(R.string.monit_saving)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
-        if (loading) Text(saving, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        if (loading) Text(
+            saving,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         if (errorMessage != null) {
             Text(errorMessage, color = colors.error, style = MaterialTheme.typography.bodyMedium)
             if (onRetry != null) MonitButton(
-                stringResource(R.string.monit_retry), Modifier.fillMaxWidth(), enabled = enabled && !loading, onClick = onRetry,
+                stringResource(R.string.monit_retry),
+                Modifier.fillMaxWidth(),
+                enabled = enabled && !loading,
+                onClick = onRetry,
             )
         }
         if (accounts.isEmpty() && errorMessage == null && !loading) {
-            Text(stringResource(R.string.monit_no_accounts), style = MaterialTheme.typography.bodyMedium)
-            MonitButton(stringResource(R.string.monit_add_account), Modifier.fillMaxWidth(), enabled = enabled && !loading, onClick = onAddAccount)
+            Text(
+                stringResource(R.string.monit_no_accounts),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            MonitButton(
+                stringResource(R.string.monit_add_account),
+                Modifier.fillMaxWidth(),
+                enabled = enabled && !loading,
+                onClick = onAddAccount
+            )
         } else if (accounts.isNotEmpty()) {
             if (accounts.none { it.id == selectedId }) Text(
                 stringResource(R.string.monit_choose_account), color = colors.muted,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+            Column(
+                Modifier.selectableGroup(),
+                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            ) {
                 for (account in accounts) {
                     key(account.id) {
-                        MonitAccountRow(account, account.id == selectedId, enabled && !loading) { onSelect(account.id) }
+                        MonitAccountRow(
+                            account,
+                            account.id == selectedId,
+                            enabled && !loading
+                        ) { onSelect(account.id) }
                     }
                 }
             }
@@ -70,13 +90,23 @@ internal fun AccountPickerSample(
 }
 
 @Composable
-private fun MonitAccountRow(account: AccountOptionSample, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun MonitAccountRow(
+    account: AccountOptionSample,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
     AccountCardSample(
         name = "${account.name} · ${account.kindLabel}",
         balanceText = account.balanceText,
-        description = listOf(account.baselineLabel,
-            if (account.balanceText == null) stringResource(R.string.monit_balance_excluded) else "")
+        description = listOf(
+            account.baselineLabel,
+            if (account.balanceText == null) stringResource(R.string.monit_balance_excluded) else ""
+        )
             .filter { it.isNotBlank() }.joinToString(" · "),
-        selected = selected, onClick = onClick, enabled = enabled, disabledReason = account.disabledReason,
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        disabledReason = account.disabledReason,
     )
 }

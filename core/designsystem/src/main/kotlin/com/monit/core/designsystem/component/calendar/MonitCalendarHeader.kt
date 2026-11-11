@@ -23,17 +23,43 @@ import com.monit.core.designsystem.theme.MonitTheme
 
 /** 월 이동 정책과 응답 순서는 소유자가 관리한다. RTL에서도 이전/다음 행동 의미는 유지한다. */
 @Composable
-fun MonitCalendarHeader(monthLabel: String, onPrevious: () -> Unit, onNext: () -> Unit,
-    modifier: Modifier = Modifier, previousEnabled: Boolean = true, nextEnabled: Boolean = true) {
-    Surface(modifier, color = MonitTheme.colors.surfaceContainer, contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
-            IconButton(onPrevious, Modifier.size(MonitTheme.sizes.touchTarget), enabled = previousEnabled) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.monit_previous_month), Modifier.size(24.dp))
+fun MonitCalendarHeader(
+    monthLabel: String, onPrevious: () -> Unit, onNext: () -> Unit,
+    modifier: Modifier = Modifier, previousEnabled: Boolean = true, nextEnabled: Boolean = true
+) {
+    Surface(
+        modifier,
+        color = MonitTheme.colors.surfaceContainer,
+        contentColor = MonitTheme.colors.onSurface,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+        ) {
+            IconButton(
+                onPrevious,
+                Modifier.size(MonitTheme.sizes.touchTarget),
+                enabled = previousEnabled
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    stringResource(R.string.monit_previous_month),
+                    Modifier.size(24.dp)
+                )
             }
-            Text(monthLabel, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+            Text(
+                monthLabel,
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center
+            )
             IconButton(onNext, Modifier.size(MonitTheme.sizes.touchTarget), enabled = nextEnabled) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, stringResource(R.string.monit_next_month), Modifier.size(24.dp))
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    stringResource(R.string.monit_next_month),
+                    Modifier.size(24.dp)
+                )
             }
         }
     }

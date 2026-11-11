@@ -18,8 +18,10 @@ fun Modifier.clickableWithoutRipple(
     role: Role? = null,
     interactionSource: MutableInteractionSource? = null,
     onClick: () -> Unit,
-): Modifier = clickable(interactionSource = interactionSource, indication = null,
-    enabled = enabled, onClickLabel = onClickLabel, role = role, onClick = onClick)
+): Modifier = clickable(
+    interactionSource = interactionSource, indication = null,
+    enabled = enabled, onClickLabel = onClickLabel, role = role, onClick = onClick
+)
 
 /**
  * 첫 클릭은 즉시 전달하고 수락한 클릭부터 간격을 센다. 억제된 클릭은 간격을 늘리지 않는다.
@@ -39,9 +41,11 @@ fun Modifier.clickableWithCooldown(
     require(cooldownMillis >= 0)
     val gate = remember { ClickCooldown() }
     val latestAction by rememberUpdatedState(onClick)
-    return clickable(interactionSource = interactionSource,
+    return clickable(
+        interactionSource = interactionSource,
         indication = if (withoutRipple) null else LocalIndication.current,
-        enabled = enabled, onClickLabel = onClickLabel, role = role) {
+        enabled = enabled, onClickLabel = onClickLabel, role = role
+    ) {
         if (gate.accept(SystemClock.uptimeMillis(), cooldownMillis)) latestAction()
     }
 }

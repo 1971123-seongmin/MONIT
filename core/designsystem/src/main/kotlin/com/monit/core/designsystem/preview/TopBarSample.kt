@@ -16,13 +16,19 @@ import com.monit.core.designsystem.theme.MonitTheme
 internal enum class NavigationActionSample { Back, Close }
 
 @Composable
-internal fun TopBarSample(title: String, modifier: Modifier = Modifier, action: NavigationActionSample? = null) {
+internal fun TopBarSample(
+    title: String,
+    modifier: Modifier = Modifier,
+    action: NavigationActionSample? = null
+) {
     MonitTopBar(title, modifier, navigationIcon = action?.let { navigation ->
         {
             IconButton({}, Modifier.size(MonitTheme.sizes.touchTarget)) {
-                Icon(if (navigation == NavigationActionSample.Back) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Close,
+                Icon(
+                    if (navigation == NavigationActionSample.Back) Icons.AutoMirrored.Filled.ArrowBack else Icons.Filled.Close,
                     contentDescription = stringResource(if (navigation == NavigationActionSample.Back) R.string.monit_back else R.string.monit_close),
-                    modifier = Modifier.size(MonitTheme.sizes.icon))
+                    modifier = Modifier.size(MonitTheme.sizes.icon)
+                )
             }
         }
     })

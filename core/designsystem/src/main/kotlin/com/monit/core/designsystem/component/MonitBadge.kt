@@ -13,17 +13,28 @@ enum class MonitBadgeTone { Neutral, Selected, Error, Disabled }
 
 /** 장식용 상태 배지다. 비활성도 별도의 텍스트로 전달하며 클릭 대상을 만들지 않는다. */
 @Composable
-fun MonitBadge(text: String, modifier: Modifier = Modifier, tone: MonitBadgeTone = MonitBadgeTone.Neutral) {
+fun MonitBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    tone: MonitBadgeTone = MonitBadgeTone.Neutral
+) {
     val colors = MonitTheme.colors
-    Surface(modifier, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius), color = when (tone) {
-        MonitBadgeTone.Selected -> colors.primary
-        MonitBadgeTone.Disabled -> colors.disabledBackground
-        else -> colors.surface
-    }) {
-        Text(text, Modifier.padding(MonitTheme.spacing.content), style = MaterialTheme.typography.labelSmall, color = when (tone) {
-            MonitBadgeTone.Selected -> colors.onPrimary
-            MonitBadgeTone.Error -> colors.error
-            else -> colors.muted
-        })
+    Surface(
+        modifier, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius), color = when (tone) {
+            MonitBadgeTone.Selected -> colors.primary
+            MonitBadgeTone.Disabled -> colors.disabledBackground
+            else -> colors.surface
+        }
+    ) {
+        Text(
+            text,
+            Modifier.padding(MonitTheme.spacing.content),
+            style = MaterialTheme.typography.labelSmall,
+            color = when (tone) {
+                MonitBadgeTone.Selected -> colors.onPrimary
+                MonitBadgeTone.Error -> colors.error
+                else -> colors.muted
+            }
+        )
     }
 }

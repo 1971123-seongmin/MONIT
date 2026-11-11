@@ -26,12 +26,17 @@ internal fun AccountCardSample(
 ) {
     val colors = MonitTheme.colors
     val unknown = stringResource(R.string.monit_balance_unknown)
-    MonitSelectableCard(selected, onClick, modifier, enabled = enabled && disabledReason == null,
-        stateDescription = disabledReason) {
+    MonitSelectableCard(
+        selected, onClick, modifier, enabled = enabled && disabledReason == null,
+        stateDescription = disabledReason
+    ) {
         Text(name, style = MaterialTheme.typography.labelLarge)
-        Text(balanceText ?: unknown, Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph))
-        Text(disabledReason ?: description,
+        Text(
+            balanceText ?: unknown, Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph)
+        )
+        Text(
+            disabledReason ?: description,
             modifier = if (disabledReason != null) Modifier.clearAndSetSemantics {} else Modifier,
             style = MaterialTheme.typography.labelSmall, color = colors.muted)
     }

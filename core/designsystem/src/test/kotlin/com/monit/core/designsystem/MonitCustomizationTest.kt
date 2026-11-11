@@ -78,10 +78,12 @@ import org.robolectric.RobolectricTestRunner
 @Config(sdk = [28], qualifiers = "w360dp-h2400dp-mdpi", application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MonitCustomizationTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule
+    val compose = createComposeRule()
 
     /** 스타일·밀도·앞뒤 장식이 다른 버튼도 하나의 클릭 대상과 최소 터치 높이, loading 잠금을 유지한다. */
-    @Test fun buttonPresetsAndIconSlotsRetainOneActionAndLock() {
+    @Test
+    fun buttonPresetsAndIconSlotsRetainOneActionAndLock() {
         var loading by mutableStateOf(false)
         val clicked = mutableListOf<String>()
         compose.setContent {
@@ -89,8 +91,14 @@ class MonitCustomizationTest {
                 Column {
                     for (type in MonitButtonType.entries) for (size in MonitButtonSize.entries) {
                         val tag = "$type-$size"
-                        MonitButton("계속", Modifier.testTag(tag), type = type, size = size, loading = loading,
-                            leadingIcon = { Text("+") }, trailingIcon = { Text("→") }) { clicked += tag }
+                        MonitButton(
+                            "계속",
+                            Modifier.testTag(tag),
+                            type = type,
+                            size = size,
+                            loading = loading,
+                            leadingIcon = { Text("+") },
+                            trailingIcon = { Text("→") }) { clicked += tag }
                     }
                 }
             }
@@ -105,21 +113,33 @@ class MonitCustomizationTest {
             assertTrue(compact.fetchSemanticsNode().boundsInRoot.width < regular.fetchSemanticsNode().boundsInRoot.width)
             compact.performClick()
         }
-        compose.runOnIdle { assertEquals(listOf("Primary-Compact", "Secondary-Compact"), clicked); loading = true }
+        compose.runOnIdle {
+            assertEquals(
+                listOf("Primary-Compact", "Secondary-Compact"),
+                clicked
+            ); loading = true
+        }
         compose.onNodeWithTag("Secondary-Compact").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(2, clicked.size) }
     }
 
     /** 기본값 공급자·앱 테마 없이도 명시적으로 전달한 버튼 색상/배치와 콜백으로 동작한다. */
-    @Test fun buttonAcceptsResolvedValuesWithoutMonitTheme() {
-        val colors = MonitButtonColors(Color.Black, Color.White, Color.DarkGray, Color.White,
-            Color.Gray, Color.White, Color.Blue)
-        val layout = MonitButtonLayout(PaddingValues(12.dp), TextStyle(fontSize = 14.sp),
-            48.dp, 8.dp, 16.dp, 4.dp, 2.dp, 2.dp)
+    @Test
+    fun buttonAcceptsResolvedValuesWithoutMonitTheme() {
+        val colors = MonitButtonColors(
+            Color.Black, Color.White, Color.DarkGray, Color.White,
+            Color.Gray, Color.White, Color.Blue
+        )
+        val layout = MonitButtonLayout(
+            PaddingValues(12.dp), TextStyle(fontSize = 14.sp),
+            48.dp, 8.dp, 16.dp, 4.dp, 2.dp, 2.dp
+        )
         var calls = 0
         compose.setContent {
-            MonitButton("독립 버튼", colors = colors, layout = layout,
-                loadingText = "처리", loadingDescription = "진행") { calls++ }
+            MonitButton(
+                "독립 버튼", colors = colors, layout = layout,
+                loadingText = "처리", loadingDescription = "진행"
+            ) { calls++ }
         }
         compose.onNodeWithText("독립 버튼").assertHeightIsAtLeast(48.dp).performClick()
         compose.runOnIdle { assertEquals(1, calls) }
@@ -131,23 +151,33 @@ class MonitCustomizationTest {
      * 절차: 두 스타일/밀도를 모두 선택한 뒤 전체 비활성으로 바꿔 다시 클릭한다.
      * 기대: 체크 상태·최소 터치가 유지되고 비활성 중 콜백이 발생하지 않는다.
      */
-    @Test fun chipPresetsKeepCheckedStateAndDisabledActions() {
+    @Test
+    fun chipPresetsKeepCheckedStateAndDisabledActions() {
         var enabled by mutableStateOf(true)
         val selected = androidx.compose.runtime.mutableStateMapOf<String, Boolean>()
         var calls = 0
         compose.setContent {
-            MonitTheme { Column {
-                for (type in MonitChipType.entries) for (size in MonitChipSize.entries) {
-                    val tag = "$type-$size"
-                    MonitFilterChip(tag, selected[tag] == true, enabled = enabled, type = type, size = size) {
-                        calls++
-                        selected[tag] = selected[tag] != true
+            MonitTheme {
+                Column {
+                    for (type in MonitChipType.entries) for (size in MonitChipSize.entries) {
+                        val tag = "$type-$size"
+                        MonitFilterChip(
+                            tag,
+                            selected[tag] == true,
+                            enabled = enabled,
+                            type = type,
+                            size = size
+                        ) {
+                            calls++
+                            selected[tag] = selected[tag] != true
+                        }
                     }
                 }
-            } }
+            }
         }
         for (type in MonitChipType.entries) for (size in MonitChipSize.entries) {
-            compose.onNodeWithText("$type-$size").assertIsOff().assertHeightIsAtLeast(48.dp).performClick().assertIsOn()
+            compose.onNodeWithText("$type-$size").assertIsOff().assertHeightIsAtLeast(48.dp)
+                .performClick().assertIsOn()
         }
         compose.runOnIdle { assertEquals(4, calls); enabled = false }
         compose.onNodeWithText("Outlined-Compact").assertIsNotEnabled().performClick().assertIsOn()
@@ -156,15 +186,28 @@ class MonitCustomizationTest {
 
     /** 320dp/200%에서도 앞뒤 아이콘이 긴 버튼 라벨의 공간을 침범하지 않고 네 조합 모두 줄바꿈한다. */
     @OptIn(ExperimentalTestApi::class)
-    @Test fun largeButtonLabelsWrapBetweenIconSlots() {
+    @Test
+    fun largeButtonLabelsWrapBetweenIconSlots() {
         val label = "설정을 확인하고 계속 진행하기"
         compose.setContent {
-            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 2000.dp))) {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.ForcedSize(
+                    DpSize(
+                        320.dp,
+                        2000.dp
+                    )
+                )
+            ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme {
                         Column {
                             for (type in MonitButtonType.entries) for (size in MonitButtonSize.entries) {
-                                MonitButton(label, type = type, size = size, leadingIcon = { Text("+") }, trailingIcon = { Text("→") }) {}
+                                MonitButton(
+                                    label,
+                                    type = type,
+                                    size = size,
+                                    leadingIcon = { Text("+") },
+                                    trailingIcon = { Text("→") }) {}
                             }
                         }
                     }
@@ -177,8 +220,14 @@ class MonitCustomizationTest {
             val layouts = mutableListOf<TextLayoutResult>()
             labels[index].performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             val layout = layouts.single()
-            assertTrue(layout.lineCount > 1, "버튼 $index: size=${layout.size}, font=${layout.layoutInput.style.fontSize}")
-            assertFalse(layout.hasVisualOverflow, "버튼 $index: size=${layout.size}, constraints=${layout.layoutInput.constraints}")
+            assertTrue(
+                layout.lineCount > 1,
+                "버튼 $index: size=${layout.size}, font=${layout.layoutInput.style.fontSize}"
+            )
+            assertFalse(
+                layout.hasVisualOverflow,
+                "버튼 $index: size=${layout.size}, constraints=${layout.layoutInput.constraints}"
+            )
         }
     }
 
@@ -188,17 +237,27 @@ class MonitCustomizationTest {
      * 절차: 편집→IME→지우기→readOnly 전환 순서로 호출한다.
      * 기대: 값 변환 없이 최신 검색어가 전달되며 readOnly에서는 편집과 호출자가 잠근 지우기가 비활성이다.
      */
-    @Test fun textFieldSupportsCallerKeyboardAndIndependentTrailingAction() {
+    @Test
+    fun textFieldSupportsCallerKeyboardAndIndependentTrailingAction() {
         var value by mutableStateOf("abc")
         var readOnly by mutableStateOf(false)
         var submitted = ""
         compose.setContent {
             MonitTheme {
-                MonitTextField(value, { value = it }, label = "검색어", readOnly = readOnly,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Search),
+                MonitTextField(
+                    value, { value = it }, label = "검색어", readOnly = readOnly,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Search
+                    ),
                     keyboardActions = KeyboardActions(onSearch = { submitted = value }),
                     leadingIcon = { Text("⌕") }, trailingIcon = {
-                        IconButton({ value = "" }, enabled = !readOnly, modifier = Modifier.semantics { contentDescription = "지우기" }) { Text("×") }
+                        IconButton(
+                            { value = "" },
+                            enabled = !readOnly,
+                            modifier = Modifier.semantics {
+                                contentDescription = "지우기"
+                            }) { Text("×") }
                     })
             }
         }
@@ -208,13 +267,17 @@ class MonitCustomizationTest {
         compose.runOnIdle { assertEquals("Monit 검색", submitted) }
         compose.onNodeWithContentDescription("지우기").performClick()
         compose.runOnIdle { assertEquals("", value); readOnly = true }
-        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText), useUnmergedTree = true)
+        compose.onNode(
+            SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText),
+            useUnmergedTree = true
+        )
             .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText))
         compose.onNodeWithContentDescription("지우기").assertIsNotEnabled()
     }
 
     /** 카드·상태·모달·시트의 슬롯은 임의 콘텐츠와 호출자가 제공한 행동만 표시하며 선택/적용을 추정하지 않는다. */
-    @Test fun containersRenderCallerContentAndOnlySuppliedActions() {
+    @Test
+    fun containersRenderCallerContentAndOnlySuppliedActions() {
         var dialogs = 0
         var sheets = 0
         compose.setContent {
@@ -240,13 +303,18 @@ class MonitCustomizationTest {
     }
 
     /** 두 개·다섯 개 목적지와 아이콘 슬롯을 허용하며 선택과 비활성 동작을 소유자에게 전달한다. */
-    @Test fun navigationAcceptsCallerDestinationsAndLocksActions() {
+    @Test
+    fun navigationAcceptsCallerDestinationsAndLocksActions() {
         var count by mutableStateOf(2)
         var selected by mutableStateOf(0)
         var enabled by mutableStateOf(true)
         compose.setContent {
             MonitTheme {
-                MonitBottomNavigation((1..count).map { "목적지 $it" }, selected, { selected = it }, enabled = enabled,
+                MonitBottomNavigation(
+                    (1..count).map { "목적지 $it" },
+                    selected,
+                    { selected = it },
+                    enabled = enabled,
                     icon = { Text("◇") })
             }
         }

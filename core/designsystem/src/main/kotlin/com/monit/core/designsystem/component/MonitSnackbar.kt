@@ -19,13 +19,28 @@ import com.monit.core.designsystem.theme.MonitTheme
 
 /** SnackbarHost의 snackbar 슬롯에 사용한다. 표시·닫기 수명은 Host가 관리한다. */
 @Composable
-fun MonitSnackbar(message: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
-    Surface(modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = MonitTheme.colors.onSurface,
-        contentColor = MonitTheme.colors.surfaceContainer, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)) {
-        Row(Modifier.fillMaxWidth().padding(MonitTheme.spacing.content), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
+fun MonitSnackbar(
+    message: String,
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null
+) {
+    Surface(
+        modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        color = MonitTheme.colors.onSurface,
+        contentColor = MonitTheme.colors.surfaceContainer,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(MonitTheme.spacing.content),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+        ) {
             Box(Modifier.weight(1f)) {
-                Text(message, style = MaterialTheme.typography.bodyMedium, color = MonitTheme.colors.surfaceContainer)
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MonitTheme.colors.surfaceContainer
+                )
             }
             action?.invoke()
         }
