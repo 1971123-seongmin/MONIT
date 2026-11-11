@@ -7,17 +7,17 @@ plugins {
 
 android {
     namespace = "com.monit.app"
-    compileSdk = MonitAndroidConfig.compileSdk
+    compileSdk = libs.versions.androidCompileSdk.get().toInt()
     defaultConfig {
         applicationId = "com.monit.app"
-        minSdk = MonitAndroidConfig.minSdk
+        minSdk = libs.versions.androidMinSdk.get().toInt()
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
     }
     compileOptions {
-        sourceCompatibility = MonitAndroidConfig.javaVersion
-        targetCompatibility = MonitAndroidConfig.javaVersion
+        sourceCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
+        targetCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
     }
     buildFeatures {
         compose = true

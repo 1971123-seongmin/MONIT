@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "com.monit.core.data"
-    compileSdk = MonitAndroidConfig.compileSdk
-    defaultConfig { minSdk = MonitAndroidConfig.minSdk }
+    compileSdk = libs.versions.androidCompileSdk.get().toInt()
+    defaultConfig { minSdk = libs.versions.androidMinSdk.get().toInt() }
     compileOptions {
-        sourceCompatibility = MonitAndroidConfig.javaVersion
-        targetCompatibility = MonitAndroidConfig.javaVersion
+        sourceCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
+        targetCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
     }
     testOptions { unitTests.isIncludeAndroidResources = true }
 }
