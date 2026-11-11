@@ -21,7 +21,7 @@
 - `(ledgerId, operationId)`의 같은 요청은 원래 receipt를 반환한다. 새 명령으로 간주하거나 revision을 다시 올리지 않는다. 다른 요청은 `DUPLICATE_REQUEST` 충돌이다.
 - `receipt`로 성공 결과를 조회하고 `pendingWrites`·`retryPending`으로 캡처한 미확정 요청을 복구한다. 제출 의도는 성공 결과도, 입력 폼의 전체 초안도 아니다. API 예외만으로 성공 여부를 추정하지 않는다.
 - UI 소비자는 `pendingRecovery(context)`로 검증된 계좌 등록 값과 행의 `operationId`를 조회한다. context 확인과 제출 조회는 같은 트랜잭션이며 쓰기·소비·실행 예약은 하지 않는다. 원문/hash는 공개 결과에 노출하지 않는다. 알 수 없는 version/kind와 현재 미지원인 거래 종류는 미지원 항목, 잘못된 UUID/hash/context와 지원 형식의 비정규 원문은 손상 항목으로 남긴다. ID 자체가 잘못되면 재시도 키는 null이다. 정상 조회에 항목이 없을 때만 빈 목록을 반환한다. 조회 후 소비·세대 변경은 기존 `receipt`·`retryPending`에서 다시 확인해야 한다.
-- 호출 context가 없거나 세대가 다르면 기존 `LedgerConflictException`으로 조회 전체를 거부한다. 항목의 `CONTEXT_MISMATCH`는 조회 context와 캡처 원문이 다른 경우다. 행 ID → hash → version → context → kind → 지원 payload 순으로 검사하며 미지원 항목도 행 ID와 hash는 검증한다. 검증된 항목도 실행 가능성을 보장하지 않으므로 선택 후 `receipt`로 결과를 확인하고, 결과가 없을 때 사용자가 재시도를 선택하면 같은 ID로 `retryPending`한다. 해당 API들이 최신 상태를 다시 확인한다.
+- 호출 context가 없거나 세대가 다르면 기존 `LedgerConflictException`으로 조회 전체를 거부한다. 항목의 `CONTEXT_MISMATCH`는 외부 행의 장부 귀속 또는 지원 형식의 내부 context가 호출 context와 다른 경우다. 행 ID → hash → 외부 ledgerId → version → 지원 v1의 내부 context → kind → 지원 payload 순으로 검사한다. 미지원 버전도 행 ID·hash·외부 귀속은 검증하되 내부 필드를 v1 형식으로 해석하지 않는다. 검증된 항목도 실행 가능성을 보장하지 않으므로 선택 후 `receipt`로 결과를 확인하고, 결과가 없을 때 사용자가 재시도를 선택하면 같은 ID로 `retryPending`한다. 해당 API들이 최신 상태를 다시 확인한다.
 - context의 세대가 다르면 거부한다. ledger revision의 조건부 증가가 0행이면 금융 변경 전체를 롤백한다.
 
 내부 요청 v1은 `version`, `ledgerId`, `expectedStorageGeneration`, `kind`, `targetId`, `expectedRevision`, `value`를 고정 순서로 캡처한다. 신규 명령의 `expectedRevision`은 null이며 종류는 `UPDATE_ACCOUNT` 또는 `CREATE_TRANSACTION`이다. 금액은 정수 문자열로 쓰고, 정확한 요청 UTF-8 bytes의 SHA-256을 보존한다. 이 형식은 서버 DTO·백업 포맷이 아니다. 성공 결과의 ledger revision과 참조 객체의 revision은 서로 구분한다.

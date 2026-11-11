@@ -18,6 +18,7 @@ internal fun SubmissionEntity.toRecoveryItem(context: LedgerContext): PendingRec
     }
     fun corrupted(reason: CorruptedSubmission) = PendingRecoveryItem.Corrupted(operationId, reason)
     if (requestHash(requestJson) != requestSha256) return corrupted(CorruptedSubmission.HASH_MISMATCH)
+    if (ledgerId != context.ledgerId) return corrupted(CorruptedSubmission.CONTEXT_MISMATCH)
     return try {
         val json = JSONObject(requestJson)
         // getInt는 문자열·소수를 강제 변환하므로 저장 형식의 정수 타입도 확인한다.
@@ -26,7 +27,7 @@ internal fun SubmissionEntity.toRecoveryItem(context: LedgerContext): PendingRec
         if ((version as Number).toLong() != 1L) {
             return PendingRecoveryItem.Unsupported(operationId, UnsupportedSubmission.VERSION)
         }
-        if (ledgerId != context.ledgerId || json.get("ledgerId") != context.ledgerId ||
+        if (json.get("ledgerId") != context.ledgerId ||
             json.get("expectedStorageGeneration") != context.storageGeneration
         ) return corrupted(CorruptedSubmission.CONTEXT_MISMATCH)
         val kind = json.get("kind")
