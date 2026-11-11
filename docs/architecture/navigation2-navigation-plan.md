@@ -1,7 +1,7 @@
 # Navigation 2 화면 이동 설계안
 
 - 상태: 검토용 제안. 제품 코드·모듈·의존성 추가와 구현 승인을 포함하지 않는다.
-- MONIT 기준: main `3c5e434509a4c5b7605d3bd8c92c795a82f1ca3e` (#15 병합). 관련 작업은 [#28](https://github.com/1971123-seongmin/MONIT/issues/28)이다.
+- MONIT 기준: main `43ba391a3801f502321052c62032bf7e2d4488fc` (#15·#24 병합). 관련 작업은 [#28](https://github.com/1971123-seongmin/MONIT/issues/28)이다.
 - 목적: 기존 3탭과 거래 입력·계좌 선택/등록의 이동·복귀·복원 책임을 정한다. #24 수정, 납입 API, 새 딥링크, Navigation 3, SDK 출판은 별도 범위다.
 
 ## 1. 조사 기준과 현재 구현
@@ -16,11 +16,11 @@
 | [ForYouNavigation](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/feature/foryou/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/foryou/navigation/ForYouNavigation.kt), [InterestsNavigation](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/feature/interests/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/interests/navigation/InterestsNavigation.kt), [TopicNavigation](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/feature/topic/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/topic/navigation/TopicNavigation.kt) | 작은 직렬화 인자와 타입이 있는 목적지, feature 소유의 진입 함수를 확인했다. 샘플의 딥링크·화면 구성을 복제하지 않는다. |
 | [Version Catalog](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/gradle/libs.versions.toml) | 해당 기준의 Navigation은 **2.8.5**다. MONIT의 도입 버전을 이 값으로 확정한 것은 아니다. |
 
-현재 MONIT의 [MainActivity](../../app/src/main/java/com/monit/app/MainActivity.kt)는 Theme를 적용한 실행 확인 화면이다. [settings](../../settings.gradle.kts)에는 app·core:common·core:model·core:data·core:designsystem·feature:accounts가 있다. #15에서 계좌 등록 ViewModel·순수 표시 UiState·진행 State·공통 코루틴 DI가 반영됐지만, 탐색 의존성과 제품 화면 연결은 없다. #24의 장부 재열기·복구 조회 제안은 아직 미병합이며 현재 main 구현과 구분한다. 이 문서는 [기존 모듈·DI·UI 제안](monit-modules-di-ui-plan.md)의 탐색 부분을 구체화하며 그 문서의 모듈 이동을 승인하지 않는다.
+현재 MONIT의 [MainActivity](../../app/src/main/java/com/monit/app/MainActivity.kt)는 Theme를 적용한 실행 확인 화면이다. [settings](../../settings.gradle.kts)에는 app·core:common·core:model·core:data·core:designsystem·feature:accounts가 있다. #15에서 계좌 등록 ViewModel·순수 표시 UiState·진행 State·공통 코루틴 DI, #24에서 장부 진입·읽기 전용 제출 복구 조회가 반영됐다. 탐색 의존성·제품 화면·ViewModel의 새 복구 API 소비 연결은 아직 없다. 이 문서는 [기존 모듈·DI·UI 제안](monit-modules-di-ui-plan.md)의 탐색 부분을 구체화하며 그 문서의 모듈 이동을 승인하지 않는다.
 
 승인된 D1은 로그인/서버 연결 없이 Room 단일 기기에서 기록·계산을 완결하는 범위다. Supabase 인증·다중 기기 동기화는 첫 탐색/화면 구현의 선행 조건이 아니다. 목표 스택의 존재를 원격 연결 승인으로 해석하지 않는다.
 
-전체 아키텍처 검토와도 구분한다. 현재 [Repository 계약](../../core/model/src/main/kotlin/com/monit/core/model/LedgerModels.kt)은 core:model, [Room 구현](../../core/data/README.md)은 core:data에 있다. `data:ledger` 이동·Repository 경계 재편은 기존 설계 제안이며 미적용이다. 현재 `initialize`는 호출자가 context를 제공하므로, 안정적인 bootstrap/context 재사용·복구 진입 계약도 별도로 확정해야 한다. 탐색 복원이나 NavHost 생성에서 UUID를 만들어 이 공백을 메우지 않는다.
+전체 아키텍처 검토와도 구분한다. 현재 [Repository 계약](../../core/model/src/main/kotlin/com/monit/core/model/LedgerModels.kt)은 core:model, [Room 구현](../../core/data/README.md)은 core:data에 있다. `data:ledger` 이동·Repository 경계 재편은 기존 설계 제안이며 미적용이다. 장부 context는 `openLedger()`의 `Ready` 결과를 사용한다. 메타 누락·손상·복수 장부와 유효 단일 메타에 공존하는 고아 업무 행은 원본 보존 후 `RecoveryRequired`로 처리한다. 빈 저장소의 최초 생성은 Repository가 담당하며, 탐색 복원이나 NavHost 생성에서 UUID를 만들지 않는다. 이 결과를 앱 진입·feature에 공급하는 연결과 아래의 영속 제출 발견 계약은 후속 작업이다.
 
 ## 2. 제품 계약과 설계 기본안
 
@@ -117,7 +117,7 @@ NavController는 목적지/stack, 각 feature의 SavedStateHandle·saveable 상�
 
 영속 입력폼 초안과 금융 제출 복구는 별도 저장소 계약이다. SavedStateHandle을 그 구현으로 간주하지 않는다. 복수 pending은 기존 대상 선택·확인 후 한 건만 조회/재시도하며, pending/확정 ID가 없다는 이유만으로 실패나 새 제출을 만들지 않는다. 조회 실패 재시도는 읽기, T09/A10의 명시적 같은 제출 재시도는 쓰기로 구분한다.
 
-기준 main의 성공 commit은 pending 행을 소비하고 영수증을 남기지만, `receipt(context, operationId)`에는 원래 제출 ID가 필요하다. UI 이탈로 ID를 잃으면 pending 조회만으로 이미 성공한 제출을 찾아낼 수 없다. 따라서 이탈 후의 복구 발견 참조는 아래 미정 데이터 계약으로 구분하며, 그 계약 없이 재진입 결과 확인을 구현 완료로 표시하지 않는다.
+기준 main의 `pendingRecovery(context)`는 미확정 제출의 읽기 전용 투영이다. 성공 commit은 pending 행을 소비하고 영수증을 남기지만, `receipt(context, operationId)`에는 원래 제출 ID가 필요하다. UI 이탈로 ID를 잃으면 새 pending 조회 API만으로도 이미 성공한 제출을 찾아낼 수 없다. 따라서 이탈 후의 복구 발견 참조는 아래 미정 데이터 계약으로 구분하며, 그 계약 없이 재진입 결과 확인을 구현 완료로 표시하지 않는다.
 
 ## 6. 구현 시 수용 기준
 
@@ -145,6 +145,6 @@ NavController는 목적지/stack, 각 feature의 SavedStateHandle·saveable 상�
 
 1. **이탈 후 제출 발견 참조의 소유·수명:** data 계층이 원래 장부 context·operationId를 영속적으로 다시 발견/조회할 계약을 제공하고, feature가 위의 UI 반환 문맥을 별도로 소유하는 안을 Backend와 확정해야 한다. 발견 참조는 최초 쓰기 전달 전부터 확보하고 화면 pop·task 유실·pending 소비 후에도 해당 제출의 결과 확인과 명시적인 복구 종료까지 유지하는 최소 수명이 필요하다. 구체 저장 위치·조회 API·보존/정리 정책은 미확정이며 NavController/SavedStateHandle로 대체하지 않는다. UI 효과 소비 확인만으로 영수증/pending/발견 참조를 삭제하지 않는다. 이는 새 테이블·구현 승인이 아니다.
 2. **도입 버전·정확한 파일 목록:** 구현 승인 시 MONIT 도구 체계와 공식 Navigation 2 안정판의 호환성을 확인하고, app/navigation·각 feature 진입 파일·시험 범위를 해당 이슈에 고정한다. 이번 설계는 버전·모듈/API 분할을 미리 추가하지 않는다.
-3. **제품 진입과 데이터 경계:** 실제 금융 화면 연결 전 안정적인 장부 context 제공·재열기·복구 계약을 확인한다. #24의 `openLedger`·`pendingRecovery`는 미병합 제안으로, 반영 후 실제 계약을 대조한다. pending 목록만으로 이미 성공한 제출을 다시 발견할 수 있다는 보장은 추가하지 않는다. Repository 위치 변경이나 bootstrap API를 이 문서로 확정하지 않는다. 원격 서버 연결을 그 대신 선행시키지 않는다.
+3. **제품 진입과 데이터 경계:** 구현된 `openLedger`·`pendingRecovery`를 앱 진입/feature에 연결할 때 `RecoveryRequired`·조회 오류·세대 불일치를 처리하고, 선택한 제출은 기존 `receipt`·`retryPending`에서 최신 상태를 재확인한다. pending 목록만으로 이미 성공한 제출을 다시 발견할 수 있다는 보장은 추가하지 않는다. Repository 위치 변경이나 새 bootstrap API를 이 문서로 확정하지 않는다. 원격 서버 연결을 그 대신 선행시키지 않는다.
 
 첫 단계는 이 설계의 검토와 별도 구현 승인이다. 그 뒤 필요한 feature의 Route/Screen·ViewModel 경계를 연결한다. 현재 main에 없는 실제 화면, 금융 제출 복구, 실기기 동작을 구현 완료로 보고하지 않는다.
