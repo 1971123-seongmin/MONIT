@@ -38,6 +38,8 @@ TopBar·CalendarHeader의 24dp 아이콘은 Design에서 원본 key가 Material 
 
 Dark Skeleton은 원본의 `surfaceContainer`와 `disabledBackground`가 같은 색이어서 바가 보이지 않는다. Design 확인에 따라 Skeleton 내부의 바에만 기존 `surface`를 대응한다. Light와 전역 disabled 토큰·Figma는 유지하며, 이 차이는 로딩 자리 표시의 식별성 보완이다.
 
+선택된 날짜가 새 정책으로 비활성이 되면 기존 disabled 배경/글자와 primary 선택 외곽선을 사용한다. Design 확인에 따른 복합 상태 보완이며 활성 선택 색은 유지한다. CalendarCell 카탈로그에는 Figma 5상태 외에 이 조합을 추가해 렌더와 클릭 차단을 확인한다. 계좌 선택기는 잔액 null을 Card까지 보존하며 기준일 라벨은 별도 설명에 표시한다.
+
 ## 사용 계약
 
 - `MonitButton`의 disabled/loading은 입력을 잠근다. 처리 문구와 접근성 안내를 지정할 수 있다. 이 버튼만 직접 누름 색상·외부 포커스 링을 제공하므로 ripple을 조정하며, 다른 M3 컴포넌트의 ripple은 유지한다. 주변 4dp를 clip하지 않는다.

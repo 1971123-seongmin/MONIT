@@ -68,9 +68,9 @@ fun MonitDateCell(
         Box(Modifier.sizeIn(minWidth = minSize, minHeight = minSize), contentAlignment = Alignment.Center) {
             Surface(
                 shape = CircleShape,
-                color = if (selected) colors.primary else Color.Transparent,
+                color = when { !enabled && selected -> colors.disabledBackground; selected -> colors.primary; else -> Color.Transparent },
                 contentColor = when { !enabled -> colors.disabledText; selected -> colors.onPrimary; future -> colors.muted; else -> colors.onSurface },
-                border = if (today && !selected) BorderStroke(MonitTheme.sizes.outline, colors.primary) else null,
+                border = if ((selected && !enabled) || (today && !selected)) BorderStroke(MonitTheme.sizes.outline, colors.primary) else null,
                 modifier = Modifier.clearAndSetSemantics {},
             ) {
                 Box(Modifier.sizeIn(minWidth = indicatorSize, minHeight = indicatorSize), contentAlignment = Alignment.Center) {

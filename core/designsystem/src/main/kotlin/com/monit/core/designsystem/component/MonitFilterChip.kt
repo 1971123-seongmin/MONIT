@@ -9,6 +9,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.monit.core.designsystem.theme.MonitTheme
 
@@ -18,7 +21,8 @@ fun MonitFilterChip(label: String, selected: Boolean, onClick: () -> Unit,
     modifier: Modifier = Modifier, enabled: Boolean = true) {
     val colors = MonitTheme.colors
     Surface(selected = selected, onClick = onClick, enabled = enabled,
-        modifier = modifier.widthIn(min = 154.dp).heightIn(min = MonitTheme.sizes.touchTarget),
+        modifier = modifier.widthIn(min = 154.dp).heightIn(min = MonitTheme.sizes.touchTarget)
+            .semantics { role = Role.Checkbox },
         shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
         color = when { !enabled -> colors.disabledBackground; selected -> colors.primary; else -> colors.surface },
         contentColor = when { !enabled -> colors.disabledText; selected -> colors.onPrimary; else -> colors.onSurface }) {

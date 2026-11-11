@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.LineBreak
 import com.monit.core.designsystem.R
 import com.monit.core.designsystem.theme.MonitTheme
 
@@ -44,7 +45,8 @@ fun MonitAccountCard(
         color = if (selected) colors.surface else colors.surfaceContainer, contentColor = colors.onSurface) {
         Column(Modifier.padding(MonitTheme.spacing.content), verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
             Text(name, style = MaterialTheme.typography.labelLarge)
-            Text(balanceText ?: unknown, style = MaterialTheme.typography.bodyLarge)
+            Text(balanceText ?: unknown, Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph))
             Text(disabledReason ?: description,
                 modifier = if (disabledReason != null) Modifier.clearAndSetSemantics {} else Modifier,
                 style = MaterialTheme.typography.labelSmall, color = colors.muted)

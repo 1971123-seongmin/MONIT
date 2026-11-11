@@ -13,6 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import com.monit.core.designsystem.theme.MonitTheme
 
 /** 2~4개 상호 배타 선택. 목적지 전환은 BottomNavigation에서 구분한다. */
@@ -26,7 +29,8 @@ fun MonitSegmentedControl(labels: List<String>, selectedIndex: Int, onSelected: 
             horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
             labels.forEachIndexed { index, label ->
                 Surface(selected = index == selectedIndex, onClick = { onSelected(index) }, enabled = enabled,
-                    modifier = Modifier.weight(1f).heightIn(min = MonitTheme.sizes.touchTarget),
+                    modifier = Modifier.weight(1f).heightIn(min = MonitTheme.sizes.touchTarget)
+                        .semantics { role = Role.RadioButton },
                     shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
                     color = if (index == selectedIndex) colors.surfaceContainer else colors.surface,
                     contentColor = when { !enabled -> colors.disabledText; index == selectedIndex -> colors.primary; else -> colors.muted }) {

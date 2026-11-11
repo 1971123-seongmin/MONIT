@@ -70,11 +70,12 @@ fun MonitAccountPicker(
 
 @Composable
 private fun MonitAccountRow(account: MonitAccountOption, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val balance = account.balanceText ?: stringResource(R.string.monit_balance_unknown)
     MonitAccountCard(
         name = "${account.name} · ${account.kindLabel}",
-        balanceText = listOf(account.baselineLabel, balance).filter { it.isNotBlank() }.joinToString(" · "),
-        description = if (account.balanceText == null) stringResource(R.string.monit_balance_excluded) else account.baselineLabel,
+        balanceText = account.balanceText,
+        description = listOf(account.baselineLabel,
+            if (account.balanceText == null) stringResource(R.string.monit_balance_excluded) else "")
+            .filter { it.isNotBlank() }.joinToString(" · "),
         selected = selected, onClick = onClick, enabled = enabled, disabledReason = account.disabledReason,
     )
 }

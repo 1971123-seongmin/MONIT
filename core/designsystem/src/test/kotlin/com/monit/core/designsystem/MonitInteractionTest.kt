@@ -21,6 +21,12 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.FontScale
+import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -32,8 +38,12 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
 import com.monit.core.designsystem.component.MonitAccountOption
+import com.monit.core.designsystem.component.MonitAccountCard
 import com.monit.core.designsystem.component.MonitAccountSheetContent
 import com.monit.core.designsystem.component.MonitDatePicker
+import com.monit.core.designsystem.component.MonitDateCell
+import com.monit.core.designsystem.component.MonitFilterChip
+import com.monit.core.designsystem.component.MonitTopBar
 import com.monit.core.designsystem.component.MonitSegmentedControl
 import com.monit.core.designsystem.component.MonitStatusPanel
 import com.monit.core.designsystem.modifier.ClickCooldown
@@ -180,6 +190,7 @@ class MonitInteractionTest {
         var selected by mutableStateOf(0)
         compose.setContent { MonitTheme { MonitSegmentedControl(listOf("달력", "목록"), selected, { selected = it }) } }
         compose.onNodeWithText("달력").assertIsSelected()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
         compose.onNodeWithText("목록").performClick().assertIsSelected()
         compose.runOnIdle { assertEquals(1, selected) }
     }
@@ -208,5 +219,55 @@ class MonitInteractionTest {
         compose.onNodeWithText("결과 확인 중…").assertIsNotEnabled().performClick()
         compose.onNodeWithText("기록을 저장했어요").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, calls) }
+    }
+
+    /**
+     * 목적: 제목 탐색과 독립 선택 칩의 역할·동작을 노출한다.
+     * 조건: 제목과 미선택 필터 하나를 실제 Compose에 올린다.
+     * 절차: Heading·Checkbox 역할을 확인하고 필터를 클릭한다.
+     * 기대: 제목 탐색 의미가 있으며 필터 선택이 소유자 상태와 함께 바뀐다.
+     */
+    @Test fun topBarHeadingAndFilterChipRolesAreExposed() {
+        var selected by mutableStateOf(false)
+        compose.setContent { MonitTheme { Column {
+            MonitTopBar("거래 화면")
+            MonitFilterChip("생활비 필터", selected, { selected = !selected })
+        } } }
+        compose.onNodeWithText("거래 화면").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+        compose.onNodeWithText("생활비 필터")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
+            .performClick().assertIsSelected()
+    }
+
+    /** 320dp·200%에서 미확인과 구분되는 긴 확정 잔액을 생략·잘림 없이 표시한다. */
+    @Test fun longConfirmedAccountBalanceWrapsAtLargeFont() {
+        val amount = "−999,999,999,999원"
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 780.dp))) {
+                DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
+                    MonitTheme { MonitAccountCard("합성 계좌", amount, "확인한 장부 잔액", false, {}) }
+                }
+            }
+        }
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNode(hasText(amount), useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertFalse(layouts.single().hasVisualOverflow)
+        compose.onNodeWithText("잔액 미확인").assertDoesNotExist()
+    }
+
+    /** 선택된 비활성 날짜의 선택 의미와 클릭 차단을 확인한다. 대비는 같은 상태의 렌더로 대조한다. */
+    @Test fun disabledSelectedDateRetainsSelectionAndBlocksClickInBothThemes() {
+        var clicks = 0
+        compose.setContent { Column {
+            listOf(false, true).forEachIndexed { index, dark ->
+                MonitTheme(dark) { MonitDateCell(LocalDate.of(2026, 11, 3), { clicks++ },
+                    Modifier.testTag("date$index"), selected = true, enabled = false) }
+            }
+        } }
+        repeat(2) { index ->
+            compose.onNodeWithTag("date$index").assertIsSelected().assertIsNotEnabled().performClick()
+        }
+        compose.runOnIdle { assertEquals(0, clicks) }
     }
 }

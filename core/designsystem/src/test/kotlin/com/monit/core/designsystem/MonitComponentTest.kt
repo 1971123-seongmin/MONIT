@@ -192,8 +192,8 @@ class MonitComponentTest {
         compose.onNode(radio and hasText("동명 계좌 · 저축")).performClick().assertIsSelected()
         compose.runOnIdle { assertEquals("second", selected) }
         compose.onNode(radio and hasText("잔액 미확인", substring = true))
-            .assertTextContains("현재 잔액 합계에서 제외")
-        compose.onNode(radio and hasText("기준일 2026.10.31 · 0원")).assertIsSelected()
+            .assertTextContains("현재 잔액 합계에서 제외", substring = true)
+        compose.onNode(radio and hasText("0원")).assertIsSelected().assertTextContains("기준일 2026.10.31")
     }
 
     /** 미등록/실패의 콜백은 호출자에게만 전달하며 저장 중에는 추가·재시도 모두 잠근다. */

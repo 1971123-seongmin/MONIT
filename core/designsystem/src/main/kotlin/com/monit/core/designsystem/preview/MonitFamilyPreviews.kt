@@ -105,6 +105,7 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
                     MonitDateCell(today, {}, selected = true)
                     MonitDateCell(today.plusDays(1), {}, future = true)
                     MonitDateCell(null, {})
+                    MonitDateCell(today, {}, selected = true, enabled = false)
                 }
                 ComponentFamily.Badge -> MonitBadgeTone.entries.forEachIndexed { i, tone ->
                     MonitBadge(listOf("미확인", "선택됨", "확인 필요", "미제공")[i], tone = tone)
