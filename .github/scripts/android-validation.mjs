@@ -20,7 +20,8 @@ export function runAndroidValidation(scope, run = execFileSync, { heap, gcLog } 
   if (gcLog && (!heap || !path.isAbsolute(gcLog) || /[\s:]/.test(gcLog))) throw new Error('Invalid GC log path');
   const jvm = heap ? [`-Dorg.gradle.jvmargs=-Xmx${heap} -Dfile.encoding=UTF-8${gcLog ? ` -Xlog:gc*:file=${gcLog}:uptime,level,tags` : ''}`,
     '-Pkotlin.daemon.jvmargs=-Xmx2g'] : [];
-  run('bash', ['./gradlew', ...tasks, '--parallel', '--max-workers=2', '--console=plain', ...jvm], { stdio: 'inherit' });
+  const workers = scope === 'assemble' ? 4 : 2;
+  run('bash', ['./gradlew', ...tasks, '--parallel', `--max-workers=${workers}`, '--console=plain', ...jvm], { stdio: 'inherit' });
   return tasks;
 }
 

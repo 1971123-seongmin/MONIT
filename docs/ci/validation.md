@@ -30,7 +30,7 @@ PR은 이벤트의 base/head와 실제 checkout merge 부모를 확인하고 **b
 
 main push의 단위 테스트 job 하나만 GitHub가 허용한 ref 범위에 캐시를 쓴다. 다른 job·모든 PR·일반 수동 실행은 캐시를 읽기만 한다. PR의 새 작업 결과는 병합 전까지 후속 PR 실행의 캐시에 축적되지 않는 절충이 있다. fork의 캐시를 main으로 가져오는 별도 키나 외부 저장소를 만들지 않는다. 인증정보·서명키·기기 데이터·원격 build cache는 추가하지 않는다. [GitHub 캐시 접근 경계](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)와 [setup-gradle](https://github.com/gradle/actions/blob/v4/setup-gradle/action.yml)을 따른다.
 
-일반 Android 단계는 `--parallel --max-workers=2`, Gradle heap 4GB·Kotlin daemon 2GB로 제한한다. 로컬 `gradle.properties`와 독립 컴파일의 2GB 설정은 유지하고, 독립 컴파일 3개를 동시에 띄우지 않는다. KSP·고정 버전·정적 debug 값·멀티모듈은 기존 적용 사항이다. AGP 기본 non-transitive/non-constant R와 debug PNG crunch 비활성은 새 개선 성과로 계산하지 않는다.
+일반 Android 단계는 `--parallel`을 사용하며 앱 빌드는 `--max-workers=4`, 단위 테스트·Lint는 `--max-workers=2`로 제한한다. 일반 검증의 Gradle heap은 4GB, Kotlin daemon은 2GB다. 로컬 `gradle.properties`와 독립 컴파일의 2GB 설정은 유지하고, 독립 컴파일 3개를 동시에 띄우지 않는다. KSP·고정 버전·정적 debug 값·멀티모듈은 기존 적용 사항이다. AGP 기본 non-transitive/non-constant R와 debug PNG crunch 비활성은 새 개선 성과로 계산하지 않는다.
 
 configuration cache는 이번 변경에서 활성화하지 않는다. 구성 단계가 실제 병목으로 남을 때 플러그인·독립 컴파일 init-script 호환성을 확인하고 `Reusing configuration cache` 로그로 따로 검증한다. 새 flavor·runner·유료 서비스·도구 버전 전환·리소스 제거도 포함하지 않는다.
 

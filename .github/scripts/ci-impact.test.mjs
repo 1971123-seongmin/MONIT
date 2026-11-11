@@ -114,12 +114,12 @@ test('parallel scopes build the app and preserve all-module unit tests and lint'
 });
 
 test('each Android scope uses fixed arguments and preserves bounded workers', () => {
-  for (const scope of ['assemble', 'tests', 'lint']) {
+  for (const [scope, workerArgument] of [['assemble', '--max-workers=4'], ['tests', '--max-workers=2'], ['lint', '--max-workers=2']]) {
     const calls = [];
     runAndroidValidation(scope, (...args) => calls.push(args));
     assert.equal(calls.length, 1);
     assert.equal(calls[0][0], 'bash');
-    assert.deepEqual(calls[0][1], ['./gradlew', ...validationTasks(scope), '--parallel', '--max-workers=2', '--console=plain']);
+    assert.deepEqual(calls[0][1], ['./gradlew', ...validationTasks(scope), '--parallel', workerArgument, '--console=plain']);
   }
 });
 
