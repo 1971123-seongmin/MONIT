@@ -493,6 +493,128 @@ class SubmissionRecoveryTest {
     }
 
     @Test
+    fun missingAccountBlocksDiscoveryAndFinishWithoutErasingReference() = runTest {
+        repository.initialize(context)
+        repository.createAccount(context, id(100), account())
+        removeTarget("accounts", id(1))
+        assertMissingTargetIsBlocked(id(100))
+    }
+
+    /** 과거 영수증은 현재 객체의 revision·보관 상태를 덮어쓰거나 같다고 요구하지 않는다. */
+    @Test
+    fun laterEntityRevisionsPreserveTheHistoricalReceiptAndCurrentRows() = runTest {
+        repository.initialize(context)
+        val receipt = repository.createAccount(context, id(100), account())
+        sql.execSQL("UPDATE accounts SET revision=2, status='ARCHIVED'")
+        sql.execSQL("UPDATE anchors SET revision=2")
+        sql.execSQL("UPDATE ledgers SET revision=3")
+        val before = rows()
+        val item =
+            repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Committed
+        assertEquals(receipt, item.receipt)
+        assertEquals(receipt, repository.createAccount(context, id(100), account()))
+        assertEquals(before, rows())
+        assertEquals(
+            FinishSubmissionRecoveryResult.Finished,
+            repository.finishSubmissionRecovery(context, id(100))
+        )
+        assertEquals(before.take(6), rows().take(6))
+    }
+
+    @Test
+    fun missingAnchorBlocksDiscoveryAndFinishWithoutErasingReference() = runTest {
+        repository.initialize(context)
+        repository.createAccount(context, id(100), account())
+        removeTarget("anchors", id(2))
+        assertMissingTargetIsBlocked(id(100))
+    }
+
+    @Test
+    fun missingTransactionBlocksDiscoveryAndFinishWithoutErasingReference() = runTest {
+        repository.initialize(context)
+        repository.createAccount(context, id(100), account())
+        repository.createTransaction(
+            context, id(101), CreateTransaction(
+                id(5), TransactionKind.INCOME,
+                LocalDate.of(2026, 11, 1), 15, creditAccountId = id(1)
+            )
+        )
+        removeTarget("transactions", id(5))
+        assertMissingTargetIsBlocked(id(101))
+    }
+
+    /**
+     * 목적: 종료 재요청의 AlreadyInactive도 검증된 성공이 있을 때만 반환한다.
+     * 조건: 정상 종료 후 실제 금융 대상 행이 유실된 합성 손상 DB다.
+     * 절차: 종료를 재요청하고 성공 명령도 같은 ID로 재전달한다.
+     * 기대: NotReady(CORRUPTED)와 예외이며 참조 부활이나 다른 행 변경이 없다.
+     */
+    @Test
+    fun inactiveReferenceWithMissingTargetIsNotAcknowledgedAsSuccess() = runTest {
+        repository.initialize(context)
+        repository.createAccount(context, id(100), account())
+        assertEquals(
+            FinishSubmissionRecoveryResult.Finished,
+            repository.finishSubmissionRecovery(context, id(100))
+        )
+        removeTarget("anchors", id(2))
+        val before = rows()
+        assertEquals(
+            FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.CORRUPTED),
+            repository.finishSubmissionRecovery(context, id(100))
+        )
+        assertFailsWith<IllegalStateException> {
+            repository.createAccount(
+                context,
+                id(100),
+                account()
+            )
+        }
+        assertEquals(before, rows())
+    }
+
+    /** 실제 파일의 선택 대상만 제거하는 손상 fixture이며 제품 삭제 API가 아니다. */
+    private fun removeTarget(table: String, targetId: String) {
+        database.close()
+        SQLiteDatabase.openDatabase(
+            application.getDatabasePath("discovery.db").path, null,
+            SQLiteDatabase.OPEN_READWRITE
+        ).use {
+            it.execSQL("PRAGMA foreign_keys=OFF")
+            it.execSQL(
+                "DELETE FROM $table WHERE ledgerId=? AND id=?",
+                arrayOf(context.ledgerId, targetId)
+            )
+        }
+        reopen()
+    }
+
+    /** 재조회·종료·직접 영수증 확인·재시도 모두 손상을 숨기지 않으며 일곱 테이블을 보존한다. */
+    private suspend fun assertMissingTargetIsBlocked(operationId: String) {
+        val before = rows()
+        val item = repository.submissionRecovery(context).items.single {
+            when (it) {
+                is SubmissionRecoveryItem.Committed -> it.reference.operationId == operationId
+                is SubmissionRecoveryItem.Blocked -> it.reference?.operationId == operationId
+                else -> false
+            }
+        }
+        assertEquals(
+            SubmissionRecoveryItem.Blocked(
+                SubmissionReference(context, operationId),
+                SubmissionRecoveryProblem.CORRUPTED
+            ), item
+        )
+        assertEquals(
+            FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.CORRUPTED),
+            repository.finishSubmissionRecovery(context, operationId)
+        )
+        assertFailsWith<IllegalStateException> { repository.receipt(context, operationId) }
+        assertFailsWith<IllegalStateException> { repository.retryPending(context, operationId) }
+        assertEquals(before, rows())
+    }
+
+    @Test
     fun orphanReferencePreventsBootstrapWithOrWithoutOtherValidMetadata() = runTest {
         rows()
         database.close()

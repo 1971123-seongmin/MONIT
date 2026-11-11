@@ -97,13 +97,13 @@ internal class RoomLedgerRepository @Inject constructor(
             val activeIds = references.mapTo(mutableSetOf()) { it.operationId }
             val items = references.map { reference ->
                 currentCoroutineContext().ensureActive()
-                submissionRecoveryItem(
+                recoveryItem(
                     context, ledger.revision, reference, pending[reference.operationId],
                     dao.operation(context.ledgerId, reference.operationId)
                 )
             } + pending.values.filter { it.operationId !in activeIds }.map { submission ->
                 currentCoroutineContext().ensureActive()
-                submissionRecoveryItem(
+                recoveryItem(
                     context, ledger.revision, null, submission,
                     dao.operation(context.ledgerId, submission.operationId)
                 )
@@ -119,7 +119,7 @@ internal class RoomLedgerRepository @Inject constructor(
         val ledger = requireContext(context)
         val reference = dao.submissionReference(context.ledgerId, operationId)
         val operation = dao.operation(context.ledgerId, operationId)
-        val item = submissionRecoveryItem(
+        val item = recoveryItem(
             context, ledger.revision,
             reference ?: operation?.let {
                 SubmissionReferenceEntity(
@@ -445,12 +445,37 @@ internal class RoomLedgerRepository @Inject constructor(
                 operation.operationId,
                 operation.storageGeneration
             )
-        val item = submissionRecoveryItem(
+        val item = recoveryItem(
             context, ledger.revision, reference,
             dao.submission(context.ledgerId, operation.operationId), operation
         )
         check(item is SubmissionRecoveryItem.Committed) { "Stored submission is not a verified success" }
         return item.receipt
+    }
+
+    /** 호출자의 트랜잭션 안에서 대상 행도 확인한다. 현재 revision을 과거 receipt 값으로 맞추지 않는다. */
+    private suspend fun recoveryItem(
+        context: LedgerContext,
+        ledgerRevision: Long,
+        reference: SubmissionReferenceEntity?,
+        pending: SubmissionEntity?,
+        operation: OperationEntity?,
+    ): SubmissionRecoveryItem {
+        val item = submissionRecoveryItem(context, ledgerRevision, reference, pending, operation)
+        if (item !is SubmissionRecoveryItem.Committed) return item
+        for (entity in item.receipt.entities) {
+            val present = when (entity.collection) {
+                "accounts" -> dao.account(context.ledgerId, entity.id) != null
+                "anchors" -> dao.anchor(context.ledgerId, entity.id) != null
+                "transactions" -> dao.transaction(context.ledgerId, entity.id) != null
+                else -> false
+            }
+            if (!present) return SubmissionRecoveryItem.Blocked(
+                item.reference,
+                SubmissionRecoveryProblem.CORRUPTED
+            )
+        }
+        return item
     }
 
     private fun requireSameRequest(
