@@ -10,7 +10,7 @@ on:
         description: '일반 검증 Gradle heap 비교 (Kotlin daemon은 2GB 유지)'
         type: choice
         options: ['2g', '4g']
-        default: '2g'
+        default: '4g'
       cold_cache:
         description: '캐시 복원·저장 없이 전체 검증'
         type: boolean
@@ -42,14 +42,14 @@ jobs:
         continue-on-error: true
         run: node .github/scripts/ci-impact.mjs
       - name: Check documentation
-        if: matrix.scope == 'assemble'
+        if: matrix.scope == 'independent'
         shell: pwsh
         run: ./scripts/Test-AiDocs.ps1
       - name: Check diff whitespace
-        if: matrix.scope == 'assemble'
+        if: matrix.scope == 'independent'
         run: node .github/scripts/ci-impact.mjs --check-diff
       - name: Test validation classifier
-        if: matrix.scope == 'assemble' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')
+        if: matrix.scope == 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')
         run: node --test .github/scripts/ci-impact.test.mjs
       - name: Prepare empty Gradle User Home
         if: github.event_name == 'workflow_dispatch' && inputs.cold_cache
@@ -78,7 +78,7 @@ jobs:
         if: matrix.scope != 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.android != 'false')
         env:
           MONIT_VALIDATION_SCOPE: ${{ matrix.scope }}
-          MONIT_GRADLE_HEAP: ${{ inputs.gradle_heap || '2g' }}
+          MONIT_GRADLE_HEAP: ${{ inputs.gradle_heap || '4g' }}
           MONIT_GC_DIAGNOSTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
         run: node .github/scripts/android-validation.mjs
       - name: Report classifier fallback

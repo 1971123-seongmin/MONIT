@@ -158,7 +158,7 @@ test('required build waits for every matrix result and only accepts success', ()
 test('a classifier failure overrides even a previously written false output', () => {
   const workflow = fs.readFileSync(new URL('../workflows/android-ci.yml', import.meta.url), 'utf8');
   assert(workflow.includes("if: matrix.scope != 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.android != 'false')"));
-  assert(workflow.includes("if: matrix.scope == 'assemble' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')"));
+  assert(workflow.includes("if: matrix.scope == 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')"));
 });
 
 const base = 'a'.repeat(40), head = 'b'.repeat(40), merge = 'c'.repeat(40);
