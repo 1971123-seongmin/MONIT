@@ -11,6 +11,9 @@ import com.monit.app.navigation.topLevelDestination
 
 /** 상태를 읽는 UI 범위에만 관찰을 등록한다. 명령·별도 back stack·금융 구독은 없다. */
 class MonitAppState internal constructor(private val entry: State<NavBackStackEntry?>) {
+    internal val currentEntry: NavBackStackEntry?
+        get() = entry.value
+
     val currentTopLevelDestination: TopLevelDestination?
         get() = entry.value?.topLevelDestination()
 

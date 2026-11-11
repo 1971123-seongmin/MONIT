@@ -14,22 +14,22 @@ import com.monit.feature.transactions.navigation.TransactionEntryDestination
 import com.monit.feature.transactions.navigation.transactionEntryScreen
 import com.monit.feature.transactions.navigation.transactionsScreen
 
-/** 제품 내용은 필수 인자다. 탐색 기반을 위해 가짜/빈 기본 화면을 제공하지 않는다. */
+/** 루트 내용은 필수다. 후속 입력/등록은 실제 화면을 전달한 경우에만 graph에 추가한다. */
 @Composable
 fun MonitNavHost(
     controller: NavHostController,
     home: @Composable (NavBackStackEntry) -> Unit,
     transactions: @Composable (NavBackStackEntry) -> Unit,
     accounts: @Composable (NavBackStackEntry) -> Unit,
-    transactionEntry: @Composable (NavBackStackEntry, TransactionEntryDestination) -> Unit,
-    accountRegistration: @Composable (NavBackStackEntry, AccountRegistrationDestination) -> Unit,
     modifier: Modifier = Modifier,
+    transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination) -> Unit)? = null,
+    accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination) -> Unit)? = null,
 ) {
     NavHost(controller, startDestination = HomeDestination, modifier = modifier) {
         homeScreen(home)
         transactionsScreen(transactions)
         accountsScreen(accounts)
-        transactionEntryScreen(transactionEntry)
-        accountRegistrationScreen(accountRegistration)
+        transactionEntry?.let { transactionEntryScreen(it) }
+        accountRegistration?.let { accountRegistrationScreen(it) }
     }
 }
