@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  MONIT_PRODUCT_SHA: 43ba391a3801f502321052c62032bf7e2d4488fc
+  MONIT_PRODUCT_SHA: 13b7a1b2d2b0ac4d03fba76227112314d4d82740
   MONIT_WORKERS: ${{ inputs.workers }}
 
 defaults:
@@ -48,7 +48,7 @@ jobs:
           path: harness
       - uses: actions/checkout@v4
         with:
-          ref: 43ba391a3801f502321052c62032bf7e2d4488fc
+          ref: 13b7a1b2d2b0ac4d03fba76227112314d4d82740
           path: product
           fetch-depth: 0
       - name: Verify fixed product revision
