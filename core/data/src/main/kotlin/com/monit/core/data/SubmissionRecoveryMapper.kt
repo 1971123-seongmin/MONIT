@@ -23,7 +23,7 @@ internal fun submissionRecoveryItem(
     val key = if (reference == null) null else try {
         SubmissionReference(
             LedgerContext(reference.ledgerId, reference.storageGeneration),
-            reference.operationId
+            reference.operationId,
         )
     } catch (_: IllegalArgumentException) {
         return SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
@@ -45,6 +45,7 @@ internal fun submissionRecoveryItem(
         }
 
         is PendingRecoveryItem.Unsupported -> blocked(SubmissionRecoveryProblem.UNSUPPORTED)
+
         is PendingRecoveryItem.Corrupted -> blocked(
             if (item.reason == CorruptedSubmission.CONTEXT_MISMATCH) SubmissionRecoveryProblem.GENERATION_MISMATCH
             else SubmissionRecoveryProblem.CORRUPTED,
@@ -57,8 +58,7 @@ private fun validateCommitted(
     ledgerRevision: Long,
     operation: OperationEntity,
 ): SubmissionRecoveryItem {
-    fun blocked(reason: SubmissionRecoveryProblem) =
-        SubmissionRecoveryItem.Blocked(reference, reason)
+    fun blocked(reason: SubmissionRecoveryProblem) = SubmissionRecoveryItem.Blocked(reference, reason)
     if (operation.ledgerId != reference.context.ledgerId || operation.operationId != reference.operationId ||
         requestHash(operation.requestJson) != operation.requestSha256
     ) return blocked(SubmissionRecoveryProblem.CORRUPTED)
@@ -90,8 +90,8 @@ private fun validateCommitted(
                     EntityRef(
                         "transactions",
                         command.value.id,
-                        1
-                    )
+                        1,
+                    ),
                 )
             }
         Instant.parse(operation.committedAt)

@@ -8,16 +8,26 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.monit.core.model.LedgerContext
 
 @Composable
-fun TransactionsRoute(context: LedgerContext, viewModel: TransactionsViewModel = hiltViewModel()) {
+fun TransactionsRoute(
+    context: LedgerContext,
+    viewModel: TransactionsViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
     LifecycleResumeEffect(context) {
         viewModel.refresh(context)
+
         onPauseOrDispose {}
     }
+
     TransactionsScreen(
-        state = state, onRetry = viewModel::refresh, onMonthChange = viewModel::changeMonth,
-        onDateSelected = viewModel::selectDate, onToday = viewModel::goToToday,
-        onCalendarSelected = viewModel::selectCalendar, onKindSelected = viewModel::selectKind,
+        state = state,
+        onRetry = viewModel::refresh,
+        onMonthChange = viewModel::changeMonth,
+        onDateSelected = viewModel::selectDate,
+        onToday = viewModel::goToToday,
+        onCalendarSelected = viewModel::selectCalendar,
+        onKindSelected = viewModel::selectKind,
         onAccountSelected = viewModel::selectAccount,
     )
 }

@@ -5,21 +5,27 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.DarkMode
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.FontScale
+import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
@@ -29,11 +35,6 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertWidthIsAtLeast
-import androidx.compose.ui.test.DarkMode
-import androidx.compose.ui.test.DeviceConfigurationOverride
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.FontScale
-import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -45,10 +46,9 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.component.calendar.MonitDateCell
 import com.monit.core.designsystem.preview.AccountOptionSample
@@ -64,11 +64,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Rule
-import org.junit.runner.RunWith
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import org.robolectric.RobolectricTestRunner
 
 /** 실제 Compose semantics/레이아웃을 실행하는 호스트 시험이다. TalkBack·실기기 시험은 아니다. */
 @OptIn(ExperimentalTestApi::class)
@@ -111,9 +111,12 @@ class MonitComponentTest {
             compose.waitForIdle()
             assertEquals(if (night) Color(0xFF93C5FD) else Color(0xFF2563EB), colors.primary)
             val textPairs = listOf(
-                colors.onPrimary to colors.primary, colors.onPrimary to colors.pressed,
-                colors.onSurface to colors.surface, colors.onSurface to colors.surfaceContainer,
-                colors.muted to colors.surface, colors.muted to colors.surfaceContainer,
+                colors.onPrimary to colors.primary,
+                colors.onPrimary to colors.pressed,
+                colors.onSurface to colors.surface,
+                colors.onSurface to colors.surfaceContainer,
+                colors.muted to colors.surface,
+                colors.muted to colors.surfaceContainer,
                 colors.error to colors.surfaceContainer,
             )
             for ((text, background) in textPairs) assertTrue(contrast(text, background) >= 4.5)
@@ -138,8 +141,11 @@ class MonitComponentTest {
                         "저장",
                         Modifier.testTag("save"),
                         loading = loading,
-                        loadingDescription = "저장 중"
-                    ) { clicks++; loading = true }
+                        loadingDescription = "저장 중",
+                    ) {
+                        clicks++
+                        loading = true
+                    }
                     MonitButton("잠김", enabled = false) { clicks++ }
                 }
             }
@@ -149,7 +155,10 @@ class MonitComponentTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "저장 중"))
             .performClick()
         compose.onNodeWithText("잠김").assertIsNotEnabled().performClick()
-        compose.runOnIdle { assertEquals(1, clicks); loading = false }
+        compose.runOnIdle {
+            assertEquals(1, clicks)
+            loading = false
+        }
         compose.onNodeWithTag("save").performClick()
         compose.runOnIdle { assertEquals(2, clicks) }
     }
@@ -169,7 +178,7 @@ class MonitComponentTest {
                     Modifier.testTag("amount"),
                     errorMessage = error,
                     loading = loading,
-                    keyboardActions = KeyboardActions(onDone = { submitted = value })
+                    keyboardActions = KeyboardActions(onDone = { submitted = value }),
                 )
             }
         }
@@ -188,7 +197,7 @@ class MonitComponentTest {
         compose.onNodeWithTag("amount").assertIsNotEnabled()
         compose.onNode(
             SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText),
-            useUnmergedTree = true
+            useUnmergedTree = true,
         )
             .assertContentDescriptionEquals("거래 금액 (원), 저장 중")
     }
@@ -224,8 +233,14 @@ class MonitComponentTest {
         compose.setContent {
             MonitTheme {
                 AccountPickerSample(
-                    emptyList(), null, {}, { additions++ }, loading = loading,
-                    errorMessage = error, onRetry = { retries++ })
+                    emptyList(),
+                    null,
+                    {},
+                    { additions++ },
+                    loading = loading,
+                    errorMessage = error,
+                    onRetry = { retries++ },
+                )
             }
         }
         compose.onNodeWithText("등록된 계좌가 없어요.").assertDoesNotExist()
@@ -238,7 +253,10 @@ class MonitComponentTest {
         compose.onNodeWithText("등록된 계좌가 없어요.").assertDoesNotExist()
         compose.runOnIdle { error = "목록을 불러오지 못했어요." }
         compose.onNodeWithText("다시 시도").assertIsNotEnabled().performClick()
-        compose.runOnIdle { assertEquals(1, retries); assertEquals(1, additions) }
+        compose.runOnIdle {
+            assertEquals(1, retries)
+            assertEquals(1, additions)
+        }
     }
 
     /** 연도·요일·오늘·선택·정확한 요약을 전달하고 빈칸은 선택 대상에서 제외, 미래 조회는 허용한다. */
@@ -249,14 +267,19 @@ class MonitComponentTest {
             MonitTheme {
                 Column {
                     MonitDateCell(
-                        LocalDate.of(2026, 11, 3), {}, Modifier.testTag("today"), selected = true,
-                        today = true, summary = "수입 3만", accessibilitySummary = "수입 30,000원"
+                        LocalDate.of(2026, 11, 3),
+                        {},
+                        Modifier.testTag("today"),
+                        selected = true,
+                        today = true,
+                        summary = "수입 3만",
+                        accessibilitySummary = "수입 30,000원",
                     )
                     MonitDateCell(null, {}, Modifier.testTag("blank"))
                     MonitDateCell(
                         LocalDate.of(2027, 1, 1),
                         { futureClicks++ },
-                        Modifier.testTag("future")
+                        Modifier.testTag("future"),
                     )
                 }
             }
@@ -280,9 +303,9 @@ class MonitComponentTest {
                 DeviceConfigurationOverride.ForcedSize(
                     DpSize(
                         320.dp,
-                        1600.dp
-                    )
-                )
+                        1600.dp,
+                    ),
+                ),
             ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme {
@@ -292,7 +315,7 @@ class MonitComponentTest {
                                 "지출",
                                 "긴 합성 거래 제목을 모두 읽을 수 있습니다",
                                 "-999,999,999,999원",
-                                account
+                                account,
                             )
                         }
                     }
@@ -308,7 +331,7 @@ class MonitComponentTest {
             val layout = layouts.single()
             assertFalse(
                 layout.hasVisualOverflow,
-                "$text / size=${layout.size}, constraints=${layout.layoutInput.constraints}, lines=${layout.lineCount}, widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}"
+                "$text / size=${layout.size}, constraints=${layout.layoutInput.constraints}, lines=${layout.lineCount}, widthOverflow=${layout.didOverflowWidth}, heightOverflow=${layout.didOverflowHeight}",
             )
         }
     }
@@ -322,7 +345,7 @@ class MonitComponentTest {
                     MonitDateCell(
                         LocalDate.of(2026, 11, 3),
                         {},
-                        Modifier.testTag("small")
+                        Modifier.testTag("small"),
                     )
                 }
             }
@@ -350,6 +373,5 @@ class MonitComponentTest {
         compose.runOnIdle { assertEquals(1, clicks) }
     }
 
-    private fun contrast(a: Color, b: Color): Double =
-        (max(a.luminance(), b.luminance()) + 0.05) / (min(a.luminance(), b.luminance()) + 0.05)
+    private fun contrast(a: Color, b: Color): Double = (max(a.luminance(), b.luminance()) + 0.05) / (min(a.luminance(), b.luminance()) + 0.05)
 }

@@ -1,7 +1,7 @@
 package com.monit.core.model
 
-import java.nio.charset.CodingErrorAction
 import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -72,10 +72,13 @@ data class CreateTransaction(
         require(
             when (kind) {
                 TransactionKind.INCOME -> debitAccountId == null && creditAccountId != null
+
                 TransactionKind.EXPENSE -> debitAccountId != null && creditAccountId == null
-                TransactionKind.TRANSFER -> debitAccountId != null && creditAccountId != null &&
+
+                TransactionKind.TRANSFER ->
+                    debitAccountId != null && creditAccountId != null &&
                         debitAccountId != creditAccountId
-            }
+            },
         ) { "Transaction accounts do not match its kind" }
     }
 }
@@ -126,7 +129,7 @@ data class EntityRef(val collection: String, val id: String, val revision: Long)
 data class WriteReceipt(
     val operationId: String,
     val ledgerRevision: Long,
-    val entities: List<EntityRef>
+    val entities: List<EntityRef>,
 )
 
 data class PendingWrite(val operationId: String, val requestJson: String)
@@ -142,12 +145,15 @@ data class LedgerSnapshot(
 )
 
 enum class LedgerConflict {
-    STALE_GENERATION, DUPLICATE_REQUEST, DUPLICATE_ENTITY, MISSING_REFERENCE, ARCHIVED_ACCOUNT,
+    STALE_GENERATION,
+    DUPLICATE_REQUEST,
+    DUPLICATE_ENTITY,
+    MISSING_REFERENCE,
+    ARCHIVED_ACCOUNT,
     STALE_REVISION,
 }
 
-class LedgerConflictException(val conflict: LedgerConflict) :
-    IllegalStateException("Ledger conflict: $conflict")
+class LedgerConflictException(val conflict: LedgerConflict) : IllegalStateException("Ledger conflict: $conflict")
 
 /** 계좌/거래 신규 저장 경계. 편집·삭제·납입·복원은 별도 구현 전 공개하지 않는다. */
 interface LedgerRepository {
@@ -163,20 +169,20 @@ interface LedgerRepository {
     /** 명시적인 결과 확인 후 선택한 성공 참조만 종료한다. 금융 원장은 보존한다. */
     suspend fun finishSubmissionRecovery(
         context: LedgerContext,
-        operationId: String
+        operationId: String,
     ): FinishSubmissionRecoveryResult
 
     suspend fun initialize(context: LedgerContext)
     suspend fun createAccount(
         context: LedgerContext,
         operationId: String,
-        value: CreateAccount
+        value: CreateAccount,
     ): WriteReceipt
 
     suspend fun createTransaction(
         context: LedgerContext,
         operationId: String,
-        value: CreateTransaction
+        value: CreateTransaction,
     ): WriteReceipt
 
     suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt?

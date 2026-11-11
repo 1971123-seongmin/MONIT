@@ -24,5 +24,11 @@ class MonitAppState internal constructor(private val entry: State<NavBackStackEn
 @Composable
 fun rememberMonitAppState(controller: NavHostController): MonitAppState {
     val entry = controller.currentBackStackEntryAsState()
-    return remember(controller, entry) { MonitAppState(entry) }
+
+    return remember(
+        controller,
+        entry,
+    ) {
+        MonitAppState(entry)
+    }
 }

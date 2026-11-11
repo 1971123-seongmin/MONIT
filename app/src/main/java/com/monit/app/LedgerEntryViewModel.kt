@@ -14,8 +14,7 @@ import kotlinx.coroutines.launch
 
 /** 저장소 원본이 확인된 경우만 제품 host를 연다. 복구 필요를 빈 신규 장부로 바꾸지 않는다. */
 @HiltViewModel
-class LedgerEntryViewModel @Inject constructor(private val repository: LedgerRepository) :
-    ViewModel() {
+class LedgerEntryViewModel @Inject constructor(private val repository: LedgerRepository) : ViewModel() {
     private val mutableState = MutableStateFlow<LedgerEntryState>(LedgerEntryState.Loading)
     val state = mutableState.asStateFlow()
     private var readJob: Job? = null

@@ -36,18 +36,25 @@ object MonitSizes {
 private val LocalMonitColors = staticCompositionLocalOf { LightMonitColors }
 
 object MonitTheme {
-    val colors: MonitColors @Composable @ReadOnlyComposable get() = LocalMonitColors.current
+    val colors: MonitColors
+        @Composable @ReadOnlyComposable
+        get() = LocalMonitColors.current
     val spacing: MonitSpacing get() = MonitSpacing
     val sizes: MonitSizes get() = MonitSizes
 }
 
 /** 기본값은 기기 테마를 따른다. 동적 색상은 사용하지 않으며 명시적 인자는 Preview/테스트에도 쓴다. */
 @Composable
-fun MonitTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun MonitTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
     val colors = if (darkTheme) DarkMonitColors else LightMonitColors
+
     CompositionLocalProvider(LocalMonitColors provides colors) {
         MaterialTheme(
-            colorScheme = colors.materialScheme(darkTheme), typography = MonitTypography,
+            colorScheme = colors.materialScheme(darkTheme),
+            typography = MonitTypography,
             shapes = Shapes(
                 extraSmall = RoundedCornerShape(MonitSizes.fieldRadius),
                 small = RoundedCornerShape(MonitSizes.controlRadius),

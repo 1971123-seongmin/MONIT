@@ -16,43 +16,74 @@ import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.theme.MonitTheme
 
 @Composable
-fun AccountsScreen(state: AccountsState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+fun AccountsScreen(
+    state: AccountsState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
     ) {
-        item("title") { MonitTopBar("계좌") }
+        item("title") {
+            MonitTopBar("계좌")
+        }
+
         when (state) {
             AccountsState.Loading -> item("loading") {
-                MonitStatusPanel("불러오는 중", "계좌와 장부 잔액을 확인하고 있어요.", Modifier.fillMaxWidth())
+                MonitStatusPanel(
+                    "불러오는 중",
+                    "계좌와 장부 잔액을 확인하고 있어요.",
+                    Modifier.fillMaxWidth(),
+                )
             }
 
             AccountsState.Failed -> item("error") {
                 MonitStatusPanel(
-                    "조회하지 못했어요", "기존 계좌는 그대로 보존됩니다. 다시 확인해 주세요.",
-                    Modifier.fillMaxWidth(), error = true,
-                    action = { MonitButton("다시 불러오기", onClick = onRetry) })
+                    "조회하지 못했어요",
+                    "기존 계좌는 그대로 보존됩니다. 다시 확인해 주세요.",
+                    Modifier.fillMaxWidth(),
+                    error = true,
+                    action = {
+                        MonitButton(
+                            "다시 불러오기",
+                            onClick = onRetry,
+                        )
+                    },
+                )
             }
 
             is AccountsState.Ready -> {
                 item("summary") {
-                    Text(state.ui.balanceSummary, style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        state.ui.balanceSummary,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
+
                 if (state.ui.accounts.isEmpty()) item("empty") {
                     MonitStatusPanel(
                         "등록된 계좌가 없어요",
                         "계좌가 등록되면 이곳에서 장부 잔액을 확인할 수 있어요.",
-                        Modifier.fillMaxWidth()
+                        Modifier.fillMaxWidth(),
                     )
                 }
+
                 items(
                     state.ui.accounts,
                     key = { "account:" + it.id },
-                    contentType = { "account" }) { account ->
+                    contentType = { "account" },
+                ) { account ->
                     MonitListItem(
-                        headline = { Text(account.title) },
-                        supportingContent = { Text(account.balance) },
-                        detailContent = { Text(account.description) },
+                        headline = {
+                            Text(account.title)
+                        },
+                        supportingContent = {
+                            Text(account.balance)
+                        },
+                        detailContent = {
+                            Text(account.description)
+                        },
                     )
                 }
             }

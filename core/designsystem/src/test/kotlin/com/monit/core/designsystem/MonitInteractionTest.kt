@@ -5,27 +5,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -34,18 +35,17 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import com.monit.core.designsystem.component.MonitSegmentedControl
+import com.monit.core.designsystem.component.MonitTopBar
 import com.monit.core.designsystem.component.calendar.MonitDateCell
 import com.monit.core.designsystem.component.calendar.MonitDatePicker
 import com.monit.core.designsystem.component.chip.MonitFilterChip
-import com.monit.core.designsystem.component.MonitSegmentedControl
-import com.monit.core.designsystem.component.MonitTopBar
+import com.monit.core.designsystem.modifier.ClickCooldown
 import com.monit.core.designsystem.modifier.clickableWithCooldown
 import com.monit.core.designsystem.modifier.clickableWithoutRipple
-import com.monit.core.designsystem.modifier.ClickCooldown
 import com.monit.core.designsystem.preview.AccountCardSample
 import com.monit.core.designsystem.preview.AccountOptionSample
 import com.monit.core.designsystem.preview.AccountSheetSample
@@ -58,11 +58,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Rule
-import org.junit.runner.RunWith
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
 
 /** 실제 Compose 입력/semantics 시험. TalkBack·실기기 접근성 통과를 뜻하지 않는다. */
@@ -106,12 +106,16 @@ class MonitInteractionTest {
             Column {
                 Box(
                     Modifier.size(48.dp).testTag("a").clickableWithCooldown(
-                        60_000, enabled,
-                        onClickLabel = "실행", role = Role.Button
-                    ) { received += "a$callbackVersion" })
+                        60_000,
+                        enabled,
+                        onClickLabel = "실행",
+                        role = Role.Button,
+                    ) { received += "a$callbackVersion" },
+                )
                 Box(
                     Modifier.size(48.dp).testTag("b")
-                        .clickableWithCooldown(60_000) { received += "b" })
+                        .clickableWithCooldown(60_000) { received += "b" },
+                )
             }
         }
         compose.onNodeWithTag("a").performClick().performClick()
@@ -137,8 +141,10 @@ class MonitInteractionTest {
             val current = LocalInputModeManager.current
             SideEffect { inputMode = current }
             Text(
-                "실행", Modifier.size(48.dp).testTag("target")
-                    .clickableWithoutRipple(enabled, "결과 확인", Role.Button) { calls++ })
+                "실행",
+                Modifier.size(48.dp).testTag("target")
+                    .clickableWithoutRipple(enabled, "결과 확인", Role.Button) { calls++ },
+            )
         }
         compose.onNodeWithTag("target")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
@@ -146,8 +152,14 @@ class MonitInteractionTest {
         compose.runOnIdle { inputMode.requestInputMode(InputMode.Keyboard) }
         compose.onNodeWithTag("target")
             .performSemanticsAction(SemanticsActions.RequestFocus) { assertTrue(it()) }
-        compose.onNodeWithTag("target").performKeyInput { keyDown(Key.Enter); keyUp(Key.Enter) }
-        compose.runOnIdle { assertEquals(1, calls); enabled = false }
+        compose.onNodeWithTag("target").performKeyInput {
+            keyDown(Key.Enter)
+            keyUp(Key.Enter)
+        }
+        compose.runOnIdle {
+            assertEquals(1, calls)
+            enabled = false
+        }
         compose.onNodeWithTag("target").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(1, calls) }
     }
@@ -166,8 +178,13 @@ class MonitInteractionTest {
         compose.setContent {
             MonitTheme {
                 AccountSheetSample(
-                    listOf(account), selected, { selected = it },
-                    { applied += it }, {}, {})
+                    listOf(account),
+                    selected,
+                    { selected = it },
+                    { applied += it },
+                    {},
+                    {},
+                )
             }
         }
         compose.onNodeWithText("이 계좌 사용").assertIsNotEnabled()
@@ -198,13 +215,16 @@ class MonitInteractionTest {
                     {},
                     {},
                     loading = loading,
-                    errorMessage = error
+                    errorMessage = error,
                 )
             }
         }
         compose.onNodeWithText("등록된 계좌가 없어요.").assertDoesNotExist()
         compose.onNodeWithText("닫기").assertIsNotEnabled()
-        compose.runOnIdle { loading = false; error = "조회 실패" }
+        compose.runOnIdle {
+            loading = false
+            error = "조회 실패"
+        }
         compose.onNodeWithText("등록된 계좌가 없어요.").assertDoesNotExist()
         compose.onNodeWithText("조회 실패").assertExists()
     }
@@ -223,7 +243,8 @@ class MonitInteractionTest {
                 MonitSegmentedControl(
                     listOf("달력", "목록"),
                     selected,
-                    { selected = it })
+                    { selected = it },
+                )
             }
         }
         compose.onNodeWithText("달력").assertIsSelected()
@@ -246,18 +267,21 @@ class MonitInteractionTest {
                     today,
                     { months += it },
                     { dates += it },
-                    selectableDate = { !it.isAfter(today) })
+                    selectableDate = { !it.isAfter(today) },
+                )
             }
         }
         compose.onNodeWithContentDescription("2026년 11월 4일 수요일").assertIsNotEnabled().performClick()
         compose.onNodeWithContentDescription("2026년 11월 2일 월요일").performClick()
         compose.onNodeWithContentDescription("다음 달").performClick()
         compose.runOnIdle {
-            assertEquals(listOf(today.minusDays(1)), dates); assertEquals(
-            listOf(
-                YearMonth.of(2026, 12)
-            ), months
-        )
+            assertEquals(listOf(today.minusDays(1)), dates)
+            assertEquals(
+                listOf(
+                    YearMonth.of(2026, 12),
+                ),
+                months,
+            )
         }
     }
 
@@ -272,7 +296,7 @@ class MonitInteractionTest {
                     "완료 여부를 확인하고 있어요.",
                     "결과 확인 중…",
                     { calls++ },
-                    busy = true
+                    busy = true,
                 )
             }
         }
@@ -314,9 +338,9 @@ class MonitInteractionTest {
                 DeviceConfigurationOverride.ForcedSize(
                     DpSize(
                         320.dp,
-                        780.dp
-                    )
-                )
+                        780.dp,
+                    ),
+                ),
             ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme { AccountCardSample("합성 계좌", amount, "확인한 장부 잔액", false, {}) }
@@ -339,8 +363,11 @@ class MonitInteractionTest {
                 listOf(false, true).forEachIndexed { index, dark ->
                     MonitTheme(dark) {
                         MonitDateCell(
-                            LocalDate.of(2026, 11, 3), { clicks++ },
-                            Modifier.testTag("date$index"), selected = true, enabled = false
+                            LocalDate.of(2026, 11, 3),
+                            { clicks++ },
+                            Modifier.testTag("date$index"),
+                            selected = true,
+                            enabled = false,
                         )
                     }
                 }

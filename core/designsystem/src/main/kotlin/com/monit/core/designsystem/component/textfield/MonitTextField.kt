@@ -1,15 +1,15 @@
 package com.monit.core.designsystem.component.textfield
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,8 +21,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -56,6 +56,7 @@ fun MonitTextField(
     placeholder: (@Composable () -> Unit)? = null,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
+
     MonitTextFieldContent(
         value = value,
         onValueChange = onValueChange,
@@ -115,13 +116,22 @@ internal fun MonitTextFieldContent(
     }
     val borderWidth =
         if (active && (focused || errorMessage != null)) layout.focusedOutlineWidth else layout.outlineWidth
-    Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-        if (!active) disabled()
-    }, verticalArrangement = Arrangement.spacedBy(layout.supportingSpacing)) {
+
+    Column(
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                if (!active) disabled()
+            },
+        verticalArrangement = Arrangement.spacedBy(layout.supportingSpacing),
+    ) {
         Surface(
             shape = layout.shape,
             color = if (active) colors.container else colors.disabledContainer,
-            border = BorderStroke(borderWidth, borderColor),
+            border = BorderStroke(
+                borderWidth,
+                borderColor,
+            ),
         ) {
             BasicTextField(
                 value,
@@ -135,41 +145,51 @@ internal fun MonitTextFieldContent(
                 keyboardOptions = keyboardOptions,
                 keyboardActions = keyboardActions,
                 interactionSource = interactionSource,
-                modifier = Modifier.fillMaxWidth().heightIn(min = layout.minHeight)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = layout.minHeight)
                     .padding(layout.contentPadding)
                     .semantics {
                         contentDescription = if (loading) "$label, $loadingDescription" else label
+
                         errorMessage?.let { error(it) }
                     },
                 decorationBox = { input ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)
+                        horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing),
                     ) {
                         CompositionLocalProvider(LocalContentColor provides colors.label) { leadingIcon?.invoke() }
+
                         Column(
                             Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(layout.labelSpacing)
+                            verticalArrangement = Arrangement.spacedBy(layout.labelSpacing),
                         ) {
                             Text(
-                                label, Modifier.clearAndSetSemantics {}, style = layout.labelStyle,
-                                color = if (errorMessage != null && active) colors.error else colors.label
+                                label,
+                                Modifier.clearAndSetSemantics {},
+                                style = layout.labelStyle,
+                                color = if (errorMessage != null && active) colors.error else colors.label,
                             )
+
                             Box {
                                 if (value.isEmpty()) CompositionLocalProvider(LocalContentColor provides colors.label) { placeholder?.invoke() }
+
                                 input()
                             }
                         }
+
                         CompositionLocalProvider(LocalContentColor provides colors.label) { trailingIcon?.invoke() }
                     }
                 },
             )
         }
+
         (errorMessage ?: supportingText)?.let {
             Text(
                 it,
                 color = if (errorMessage != null) colors.error else colors.label,
-                style = layout.supportingStyle
+                style = layout.supportingStyle,
             )
         }
     }

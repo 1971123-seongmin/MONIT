@@ -19,8 +19,12 @@ fun Modifier.clickableWithoutRipple(
     interactionSource: MutableInteractionSource? = null,
     onClick: () -> Unit,
 ): Modifier = clickable(
-    interactionSource = interactionSource, indication = null,
-    enabled = enabled, onClickLabel = onClickLabel, role = role, onClick = onClick
+    interactionSource = interactionSource,
+    indication = null,
+    enabled = enabled,
+    onClickLabel = onClickLabel,
+    role = role,
+    onClick = onClick,
 )
 
 /**
@@ -39,14 +43,24 @@ fun Modifier.clickableWithCooldown(
     onClick: () -> Unit,
 ): Modifier {
     require(cooldownMillis >= 0)
-    val gate = remember { ClickCooldown() }
+
+    val gate = remember {
+        ClickCooldown()
+    }
     val latestAction by rememberUpdatedState(onClick)
+
     return clickable(
         interactionSource = interactionSource,
         indication = if (withoutRipple) null else LocalIndication.current,
-        enabled = enabled, onClickLabel = onClickLabel, role = role
+        enabled = enabled,
+        onClickLabel = onClickLabel,
+        role = role,
     ) {
-        if (gate.accept(SystemClock.uptimeMillis(), cooldownMillis)) latestAction()
+        if (gate.accept(
+                SystemClock.uptimeMillis(),
+                cooldownMillis,
+            )
+        ) latestAction()
     }
 }
 

@@ -6,11 +6,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import com.monit.core.designsystem.R
 import com.monit.core.designsystem.component.MonitBottomSheetContent
 import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.component.button.MonitButtonSize
 import com.monit.core.designsystem.component.button.MonitButtonType
-import com.monit.core.designsystem.R
 import com.monit.core.designsystem.theme.MonitTheme
 
 /** 합성 계좌 선택 조합 예시. 제품 화면에서는 feature가 선택·검증·적용 정책을 구현한다. */
@@ -29,12 +29,13 @@ internal fun AccountSheetSample(
 ) {
     val selectable = accounts.singleOrNull { it.id == selectedId && it.disabledReason == null }
     val empty = accounts.isEmpty() && !loading && errorMessage == null
+
     MonitBottomSheetContent(
         modifier,
         title = {
             Text(
                 stringResource(R.string.monit_account_picker_title),
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
             )
         },
         actions = {
@@ -44,26 +45,35 @@ internal fun AccountSheetSample(
                 enabled = selectable != null && errorMessage == null,
                 loading = loading,
                 loadingDescription = stringResource(R.string.monit_saving),
-                onClick = { selectable?.let { onApply(it.id) } })
+                onClick = { selectable?.let { onApply(it.id) } },
+            )
+
             MonitButton(
                 stringResource(R.string.monit_close),
                 Modifier.fillMaxWidth(),
                 enabled = !loading,
                 type = MonitButtonType.Secondary,
                 size = MonitButtonSize.Compact,
-                onClick = onDismiss
+                onClick = onDismiss,
             )
-        }) {
+        },
+    ) {
         if (!empty && !loading && errorMessage == null && accounts.any { it.id == selectedId }) {
             Text(
                 stringResource(R.string.monit_choose_account),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MonitTheme.colors.muted
+                color = MonitTheme.colors.muted,
             )
         }
+
         AccountPickerSample(
-            accounts, selectedId, onSelect, onAddAccount,
-            loading = loading, errorMessage = errorMessage, onRetry = onRetry
+            accounts,
+            selectedId,
+            onSelect,
+            onAddAccount,
+            loading = loading,
+            errorMessage = errorMessage,
+            onRetry = onRetry,
         )
     }
 }

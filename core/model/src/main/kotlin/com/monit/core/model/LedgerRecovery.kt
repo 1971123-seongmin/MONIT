@@ -16,18 +16,14 @@ sealed interface PendingRecoveryItem {
         val operationId: String
     }
 
-    data class AccountRegistration(override val operationId: String, val value: CreateAccount) :
-        TypedSubmission
+    data class AccountRegistration(override val operationId: String, val value: CreateAccount) : TypedSubmission
 
-    data class TransactionCreation(override val operationId: String, val value: CreateTransaction) :
-        TypedSubmission
+    data class TransactionCreation(override val operationId: String, val value: CreateTransaction) : TypedSubmission
 
-    data class Unsupported(val operationId: String, val reason: UnsupportedSubmission) :
-        PendingRecoveryItem
+    data class Unsupported(val operationId: String, val reason: UnsupportedSubmission) : PendingRecoveryItem
 
     /** ID 자체가 잘못된 경우 유효한 재시도 키를 제공하지 않는다. 원본 행은 보존된다. */
-    data class Corrupted(val operationId: String?, val reason: CorruptedSubmission) :
-        PendingRecoveryItem
+    data class Corrupted(val operationId: String?, val reason: CorruptedSubmission) : PendingRecoveryItem
 }
 
 enum class UnsupportedSubmission { VERSION, KIND }

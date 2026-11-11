@@ -1,0 +1,22 @@
+root = true
+
+[*.{kt,kts}]
+charset = utf-8
+indent_style = space
+indent_size = 4
+max_line_length = 120
+insert_final_newline = true
+ktlint_code_style = android_studio
+ktlint_function_naming_ignore_when_annotated_with = Composable
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ij_kotlin_keep_line_breaks = true
+ktlint_standard_no-wildcard-imports = disabled
+ktlint_standard_string-template = disabled
+ktlint_standard_string-template-indent = disabled
+ktlint_standard_kdoc = disabled
+ktlint_standard_kdoc-wrapping = disabled
+ktlint_standard_no-unused-imports = disabled
+ktlint_standard_multiline-if-else = disabled
+ktlint_standard_multiline-loop = disabled
+ktlint_standard_max-line-length = disabled

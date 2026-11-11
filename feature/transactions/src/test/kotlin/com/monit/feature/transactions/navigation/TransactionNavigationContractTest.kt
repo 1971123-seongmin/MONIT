@@ -20,9 +20,12 @@ class TransactionNavigationContractTest {
     fun entryAcceptsOptionalIsoDateAndRejectsInvalidArguments() {
         assertNull(TransactionEntryDestination("entry", TransactionEntryKind.EXPENSE).initialDate)
         assertEquals(
-            "2028-02-29", TransactionEntryDestination(
-                "entry", TransactionEntryKind.INCOME, "2028-02-29",
-            ).initialDate
+            "2028-02-29",
+            TransactionEntryDestination(
+                "entry",
+                TransactionEntryKind.INCOME,
+                "2028-02-29",
+            ).initialDate,
         )
         assertFailsWith<IllegalArgumentException> {
             TransactionEntryDestination(" ", TransactionEntryKind.TRANSFER)
@@ -42,7 +45,7 @@ class TransactionNavigationContractTest {
         assertEquals(result, RegisteredAccountResult.fromBundle(result.toBundle()))
         assertNotEquals(
             RegisteredAccountResult.key("request-one"),
-            RegisteredAccountResult.key("request-two")
+            RegisteredAccountResult.key("request-two"),
         )
     }
 
@@ -50,14 +53,22 @@ class TransactionNavigationContractTest {
     @Test
     fun malformedBundleDoesNotProduceCandidate() {
         assertNull(RegisteredAccountResult.fromBundle(Bundle()))
-        assertNull(RegisteredAccountResult.fromBundle(Bundle().apply {
-            putString("selectionRequestId", "request")
-            putString("accountId", " ")
-        }))
-        assertNull(RegisteredAccountResult.fromBundle(Bundle().apply {
-            putString("selectionRequestId", "request")
-            putInt("accountId", 7)
-        }))
+        assertNull(
+            RegisteredAccountResult.fromBundle(
+                Bundle().apply {
+                    putString("selectionRequestId", "request")
+                    putString("accountId", " ")
+                },
+            ),
+        )
+        assertNull(
+            RegisteredAccountResult.fromBundle(
+                Bundle().apply {
+                    putString("selectionRequestId", "request")
+                    putInt("accountId", 7)
+                },
+            ),
+        )
         assertFailsWith<IllegalArgumentException> { RegisteredAccountResult("", "account") }
         assertFailsWith<IllegalArgumentException> { RegisteredAccountResult("request", "") }
         assertFailsWith<IllegalArgumentException> { RegisteredAccountResult.key(" ") }

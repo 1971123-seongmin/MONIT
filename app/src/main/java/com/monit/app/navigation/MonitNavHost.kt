@@ -25,11 +25,19 @@ fun MonitNavHost(
     transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination) -> Unit)? = null,
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination) -> Unit)? = null,
 ) {
-    NavHost(controller, startDestination = HomeDestination, modifier = modifier) {
+    NavHost(
+        controller,
+        startDestination = HomeDestination,
+        modifier = modifier,
+    ) {
         homeScreen(home)
+
         transactionsScreen(transactions)
+
         accountsScreen(accounts)
+
         transactionEntry?.let { transactionEntryScreen(it) }
+
         accountRegistration?.let { accountRegistrationScreen(it) }
     }
 }

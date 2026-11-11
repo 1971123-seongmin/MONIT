@@ -4,17 +4,17 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.monit.core.designsystem.theme.MonitTheme
@@ -30,11 +30,16 @@ fun MonitCard(
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(MonitTheme.spacing.inline),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(modifier, color = color, contentColor = contentColor, shape = shape) {
+    Surface(
+        modifier,
+        color = color,
+        contentColor = contentColor,
+        shape = shape,
+    ) {
         Column(
             Modifier.padding(contentPadding),
             verticalArrangement = verticalArrangement,
-            content = content
+            content = content,
         )
     }
 }
@@ -52,23 +57,32 @@ fun MonitSelectableCard(
     contentColor: Color = MonitTheme.colors.onSurface,
     border: BorderStroke? = if (selected) BorderStroke(
         MonitTheme.sizes.focusOutline,
-        MonitTheme.colors.primary
+        MonitTheme.colors.primary,
     ) else null,
     shape: Shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     contentPadding: PaddingValues = PaddingValues(MonitTheme.spacing.content),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
-        selected = selected, onClick = onClick, enabled = enabled,
-        modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) {
-            this.role = role
-            stateDescription?.let { this.stateDescription = it }
-        }, color = color, contentColor = contentColor, border = border, shape = shape
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                this.role = role
+
+                stateDescription?.let { this.stateDescription = it }
+            },
+        color = color,
+        contentColor = contentColor,
+        border = border,
+        shape = shape,
     ) {
         Column(
             Modifier.padding(contentPadding),
             verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
-            content = content
+            content = content,
         )
     }
 }

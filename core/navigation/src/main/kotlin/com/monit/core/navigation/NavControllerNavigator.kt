@@ -8,7 +8,9 @@ import androidx.navigation.NavController
 import androidx.navigation.NavOptionsBuilder
 
 /** 닫힌 UI의 controller 참조를 해제하며 이전 host의 요청을 다시 실행하지 않는다. */
-class NavControllerNavigator(controller: NavController) : Navigator, AutoCloseable {
+class NavControllerNavigator(controller: NavController) :
+    Navigator,
+    AutoCloseable {
     private var controller: NavController? = controller
 
     override fun <T : Any> navigate(

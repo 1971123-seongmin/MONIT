@@ -35,12 +35,14 @@ class TransactionsViewModel @Inject constructor(
     private val mutableState = MutableStateFlow(
         TransactionsState(
             TransactionsUiState(
-                YearMonth.from(restoredDate), restoredDate, today(),
+                YearMonth.from(restoredDate),
+                restoredDate,
+                today(),
                 calendar = savedState["calendar"] ?: true,
                 selectedKindIndex = (savedState.get<Int>("kind") ?: 0).coerceIn(0, 3),
                 selectedAccountId = savedState["account"],
-            )
-        )
+            ),
+        ),
     )
     val state = mutableState.asStateFlow()
     private var context: LedgerContext? = null
@@ -66,7 +68,7 @@ class TransactionsViewModel @Inject constructor(
             income = "",
             expense = "",
             dates = emptyList(),
-            rows = emptyList()
+            rows = emptyList(),
         )
         val cached = cachedSnapshot.takeIf { useCache && cachedMonth == selection.month }
         if (!useCache) cachedSnapshot = null
@@ -75,7 +77,7 @@ class TransactionsViewModel @Inject constructor(
             try {
                 val snapshot = cached ?: repository.snapshot(
                     ledger,
-                    minOf(selection.month.atEndOfMonth(), selection.today)
+                    minOf(selection.month.atEndOfMonth(), selection.today),
                 )
                 val content =
                     withContext(contexts.default) { snapshot.toTransactionsUiState(selection) }
@@ -100,8 +102,8 @@ class TransactionsViewModel @Inject constructor(
         mutableState.value = state.value.copy(
             ui = state.value.ui.copy(
                 month = YearMonth.from(date),
-                selectedDate = date
-            )
+                selectedDate = date,
+            ),
         )
         load(useCache = true)
     }
@@ -112,9 +114,9 @@ class TransactionsViewModel @Inject constructor(
             month.atDay(
                 minOf(
                     state.value.ui.selectedDate.dayOfMonth,
-                    month.lengthOfMonth()
-                )
-            )
+                    month.lengthOfMonth(),
+                ),
+            ),
         )
     }
 

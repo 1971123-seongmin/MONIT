@@ -16,15 +16,18 @@ enum class MonitBadgeTone { Neutral, Selected, Error, Disabled }
 fun MonitBadge(
     text: String,
     modifier: Modifier = Modifier,
-    tone: MonitBadgeTone = MonitBadgeTone.Neutral
+    tone: MonitBadgeTone = MonitBadgeTone.Neutral,
 ) {
     val colors = MonitTheme.colors
+
     Surface(
-        modifier, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius), color = when (tone) {
+        modifier,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
+        color = when (tone) {
             MonitBadgeTone.Selected -> colors.primary
             MonitBadgeTone.Disabled -> colors.disabledBackground
             else -> colors.surface
-        }
+        },
     ) {
         Text(
             text,
@@ -34,7 +37,7 @@ fun MonitBadge(
                 MonitBadgeTone.Selected -> colors.onPrimary
                 MonitBadgeTone.Error -> colors.error
                 else -> colors.muted
-            }
+            },
         )
     }
 }

@@ -21,38 +21,52 @@ import com.monit.core.designsystem.theme.MonitTheme
 /** 2~4개 상호 배타 선택. 목적지 전환은 BottomNavigation에서 구분한다. */
 @Composable
 fun MonitSegmentedControl(
-    labels: List<String>, selectedIndex: Int, onSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier, enabled: Boolean = true
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     require(labels.size in 2..4 && selectedIndex in labels.indices)
+
     val colors = MonitTheme.colors
+
     Surface(
         modifier,
         color = colors.surface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     ) {
         Row(
-            Modifier.padding(MonitTheme.spacing.compact).selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            Modifier
+                .padding(MonitTheme.spacing.compact)
+                .selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
         ) {
             labels.forEachIndexed { index, label ->
                 Surface(
                     selected = index == selectedIndex,
                     onClick = { onSelected(index) },
                     enabled = enabled,
-                    modifier = Modifier.weight(1f).heightIn(min = MonitTheme.sizes.touchTarget)
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = MonitTheme.sizes.touchTarget)
                         .semantics { role = Role.RadioButton },
                     shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
                     color = if (index == selectedIndex) colors.surfaceContainer else colors.surface,
                     contentColor = when {
-                        !enabled -> colors.disabledText; index == selectedIndex -> colors.primary; else -> colors.muted
-                    }
+                        !enabled -> colors.disabledText
+                        index == selectedIndex -> colors.primary
+                        else -> colors.muted
+                    },
                 ) {
                     Box(
                         Modifier.padding(MonitTheme.spacing.inline),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Text(label, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 }
             }

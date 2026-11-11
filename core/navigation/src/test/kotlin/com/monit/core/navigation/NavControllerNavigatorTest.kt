@@ -5,8 +5,8 @@ import android.os.Bundle
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.toRoute
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -98,13 +98,13 @@ class NavControllerNavigatorTest {
         val result = Bundle().apply { putString("value", "new") }
         assertEquals(
             NavigationResult.EXECUTED,
-            fixture.navigator.returnWithResult(source, { it === caller }, "result", result)
+            fixture.navigator.returnWithResult(source, { it === caller }, "result", result),
         )
         assertSame(caller, fixture.current)
         assertEquals("new", caller.savedStateHandle.get<Bundle>("result")?.getString("value"))
         assertEquals(
             NavigationResult.IGNORED,
-            fixture.navigator.returnWithResult(source, { it === caller }, "result", result)
+            fixture.navigator.returnWithResult(source, { it === caller }, "result", result),
         )
         assertSame(caller, fixture.current)
     }
@@ -120,7 +120,7 @@ class NavControllerNavigatorTest {
         val source = fixture.current
         assertEquals(
             NavigationResult.UNAVAILABLE,
-            fixture.navigator.returnWithResult(source, { it === first }, "result", Bundle())
+            fixture.navigator.returnWithResult(source, { it === first }, "result", Bundle()),
         )
         assertSame(source, fixture.current)
         assertFalse(first.savedStateHandle.contains("result"))
@@ -137,7 +137,7 @@ class NavControllerNavigatorTest {
         fixture.probe.refusePop = true
         assertEquals(
             NavigationResult.UNAVAILABLE,
-            fixture.navigator.returnWithResult(source, { it === caller }, "result", Bundle())
+            fixture.navigator.returnWithResult(source, { it === caller }, "result", Bundle()),
         )
         assertFalse(caller.savedStateHandle.contains("result"))
         assertSame(source, fixture.current)
@@ -157,8 +157,8 @@ class NavControllerNavigatorTest {
                 fixture.current,
                 { it === caller },
                 "result",
-                Bundle()
-            )
+                Bundle(),
+            ),
         )
         assertEquals("previous", caller.savedStateHandle.get<String>("result"))
     }

@@ -22,7 +22,7 @@ data class AccountFilterUiState(val id: String, val name: String)
 data class TransactionDateUiState(
     val date: LocalDate,
     val summary: String,
-    val spokenSummary: String
+    val spokenSummary: String,
 )
 
 data class TransactionRowUiState(

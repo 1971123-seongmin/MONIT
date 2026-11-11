@@ -2,30 +2,30 @@ package com.monit.core.designsystem
 
 import android.app.Application
 import android.view.View
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.SemanticsMatcher
 import com.monit.core.designsystem.component.textfield.MonitTextField
 import com.monit.core.designsystem.theme.MonitTheme
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import org.junit.Rule
-import org.junit.runner.RunWith
 import org.junit.Test
-import org.robolectric.annotation.Config
+import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /** 라벨·진행 안내 semantics와 Android 편집 노드의 오류·활성 정보를 구분해 확인한다. */
 @RunWith(RobolectricTestRunner::class)
@@ -50,22 +50,28 @@ class MonitFieldAccessibilityTest {
             SideEffect { view = current }
             MonitTheme {
                 MonitTextField(
-                    "30000", {}, Modifier.testTag("container"), label = "합성 금액", loading = loading,
-                    enabled = enabled, errorMessage = "합성 오류", loadingDescription = "저장 중"
+                    "30000",
+                    {},
+                    Modifier.testTag("container"),
+                    label = "합성 금액",
+                    loading = loading,
+                    enabled = enabled,
+                    errorMessage = "합성 오류",
+                    loadingDescription = "저장 중",
                 )
             }
         }
         val field = compose.onNode(
             SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText),
-            useUnmergedTree = true
+            useUnmergedTree = true,
         )
 
         fun androidNode() = field.fetchSemanticsNode().id.let { id ->
             compose.runOnIdle {
                 assertNotNull(
                     view.accessibilityNodeProvider.createAccessibilityNodeInfo(
-                        id
-                    )
+                        id,
+                    ),
                 )
             }
         }
@@ -74,8 +80,9 @@ class MonitFieldAccessibilityTest {
         compose.onAllNodes(
             SemanticsMatcher.expectValue(
                 SemanticsProperties.ContentDescription,
-                listOf("합성 금액, 저장 중")
-            ), useUnmergedTree = true
+                listOf("합성 금액, 저장 중"),
+            ),
+            useUnmergedTree = true,
         ).assertCountEquals(1)
         field.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
         compose.onNodeWithTag("container", useUnmergedTree = true)
@@ -85,7 +92,10 @@ class MonitFieldAccessibilityTest {
             assertEquals("30000", it.text?.toString())
             assertFalse(it.isEnabled)
         }
-        compose.runOnIdle { loading = false; enabled = false }
+        compose.runOnIdle {
+            loading = false
+            enabled = false
+        }
         field.assertContentDescriptionEquals("합성 금액")
         assertFalse(androidNode().isEnabled)
         compose.runOnIdle { enabled = true }

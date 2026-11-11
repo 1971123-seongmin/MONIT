@@ -19,9 +19,9 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import org.junit.After
@@ -44,15 +44,15 @@ class HomeViewModelTest {
     private val clock = Clock.fixed(Instant.parse("2026-11-10T16:00:00Z"), ZoneOffset.UTC)
     private val context = LedgerContext(id(1), id(2))
     private val store = ViewModelStore()
-    private fun viewModel(repo: HomeRepository) =
-        HomeViewModel(repo, clock, contexts).also { store.put("home", it) }
+    private fun viewModel(repo: HomeRepository) = HomeViewModel(repo, clock, contexts).also { store.put("home", it) }
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After
     fun tearDown() {
-        store.clear(); Dispatchers.resetMain()
+        store.clear()
+        Dispatchers.resetMain()
     }
 
     /**
@@ -122,7 +122,8 @@ class HomeViewModelTest {
         val repo = HomeRepository().apply {
             onSnapshot = {
                 try {
-                    entered.complete(Unit); awaitCancellation()
+                    entered.complete(Unit)
+                    awaitCancellation()
                 } finally {
                     exited.complete(Unit)
                 }
@@ -140,14 +141,12 @@ class HomeViewModelTest {
 }
 
 private class HomeRepository : LedgerRepository {
-    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot =
-        error("이 테스트는 제출 발견을 호출하지 않는다")
+    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot = error("이 테스트는 제출 발견을 호출하지 않는다")
 
     override suspend fun finishSubmissionRecovery(
         context: LedgerContext,
-        operationId: String
-    ): com.monit.core.model.FinishSubmissionRecoveryResult =
-        error("이 테스트는 제출 종료를 호출하지 않는다")
+        operationId: String,
+    ): com.monit.core.model.FinishSubmissionRecoveryResult = error("이 테스트는 제출 종료를 호출하지 않는다")
 
     val dates = mutableListOf<LocalDate>()
     var onSnapshot: suspend () -> LedgerSnapshot = { snapshot(0) }
@@ -161,34 +160,34 @@ private class HomeRepository : LedgerRepository {
     override suspend fun createAccount(
         context: LedgerContext,
         operationId: String,
-        value: CreateAccount
+        value: CreateAccount,
     ): WriteReceipt = error("읽기 전용")
 
     override suspend fun createTransaction(
         context: LedgerContext,
         operationId: String,
-        value: CreateTransaction
+        value: CreateTransaction,
     ): WriteReceipt = error("읽기 전용")
 
-    override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? =
-        error("후속 복구 범위")
+    override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? = error("후속 복구 범위")
 
-    override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> =
-        error("후속 복구 범위")
+    override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> = error("후속 복구 범위")
 
-    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot =
-        error("후속 복구 범위")
+    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot = error("후속 복구 범위")
 
-    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt =
-        error("읽기 전용")
+    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = error("읽기 전용")
 }
 
 private fun id(number: Int) = "00000000-0000-0000-0000-" + number.toString().padStart(12, '0')
 
 private fun snapshot(income: Long): LedgerSnapshot {
     val account = LedgerAccount(
-        id(11), "합성 계좌", AccountNature.GENERAL, AccountStatus.ACTIVE, 1,
-        BalanceAnchor(id(12), LocalDate.of(2026, 1, 1), null, null, "미확인")
+        id(11),
+        "합성 계좌",
+        AccountNature.GENERAL,
+        AccountStatus.ACTIVE,
+        1,
+        BalanceAnchor(id(12), LocalDate.of(2026, 1, 1), null, null, "미확인"),
     )
     val rows = if (income == 0L) emptyList() else listOf(
         LedgerTransaction(
@@ -202,8 +201,8 @@ private fun snapshot(income: Long): LedgerSnapshot {
             AccountNature.GENERAL,
             "합성 수입",
             1,
-            1
-        )
+            1,
+        ),
     )
     return LedgerSnapshot(1, listOf(account), rows, mapOf(account.id to null), income, 0)
 }

@@ -16,14 +16,15 @@ import java.time.ZoneOffset
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.test.*
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Before
@@ -32,7 +33,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import kotlin.test.*
 
 /** R1–R12의 실제 파일/트랜잭션 경계. task 재생성과 기기 강제 종료 자체를 시험하지는 않는다. */
 @RunWith(RobolectricTestRunner::class)
@@ -72,14 +72,18 @@ class SubmissionRecoveryTest {
     }
 
     private fun account(number: Long = 1) = CreateAccount(
-        id(number), id(number + 1), "합성 계좌 $number",
-        AccountNature.GENERAL, LocalDate.of(2026, 10, 31), "확인 전"
+        id(number),
+        id(number + 1),
+        "합성 계좌 $number",
+        AccountNature.GENERAL,
+        LocalDate.of(2026, 10, 31),
+        "확인 전",
     )
 
     private suspend fun pending(
         operation: Long,
         value: CreateAccount = account(),
-        reference: Boolean = true
+        reference: Boolean = true,
     ) {
         val raw = captureWrite(context, WriteCommand.Account(value))
         dao.insertSubmission(
@@ -87,30 +91,31 @@ class SubmissionRecoveryTest {
                 context.ledgerId,
                 id(operation),
                 raw,
-                requestHash(raw)
-            )
+                requestHash(raw),
+            ),
         )
         if (reference) dao.insertSubmissionReference(
             SubmissionReferenceEntity(
                 context.ledgerId,
                 id(operation),
-                context.storageGeneration
-            )
+                context.storageGeneration,
+            ),
         )
     }
 
-    private fun rows(tables: List<String> = allTables): List<List<List<String?>>> =
-        tables.map { table ->
-            sql.query("SELECT * FROM $table ORDER BY 1, 2").use { cursor ->
-                buildList {
-                    while (cursor.moveToNext()) add((0 until cursor.columnCount).map {
+    private fun rows(tables: List<String> = allTables): List<List<List<String?>>> = tables.map { table ->
+        sql.query("SELECT * FROM $table ORDER BY 1, 2").use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) add(
+                    (0 until cursor.columnCount).map {
                         cursor.getString(
-                            it
+                            it,
                         )
-                    })
-                }
+                    },
+                )
             }
         }
+    }
 
     /**
      * 목적: R1의 capture 오류가 pending만 남기지 않는다.
@@ -171,10 +176,11 @@ class SubmissionRecoveryTest {
             interrupted.createAccount(
                 context,
                 id(100),
-                account()
+                account(),
             )
         }
-        database.close(); reopen()
+        database.close()
+        reopen()
         val before = rows()
         val item =
             repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Pending
@@ -195,7 +201,8 @@ class SubmissionRecoveryTest {
         repository.initialize(context)
         repository.createAccount(context, id(100), account())
         repository.createAccount(context, id(101), account(3))
-        database.close(); reopen()
+        database.close()
+        reopen()
         val before = rows()
         val discovered =
             repository.submissionRecovery(context).items.map { it as SubmissionRecoveryItem.Committed }
@@ -206,16 +213,17 @@ class SubmissionRecoveryTest {
         val receipt = discovered.first().receipt
         assertEquals(
             FinishSubmissionRecoveryResult.Finished,
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         val after = rows()
         assertEquals(before.take(6), after.take(6))
         assertEquals(
             listOf(id(101)),
-            dao.submissionReferences(context.ledgerId).map { it.operationId })
+            dao.submissionReferences(context.ledgerId).map { it.operationId },
+        )
         assertEquals(
             FinishSubmissionRecoveryResult.AlreadyInactive,
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         assertEquals(receipt, repository.createAccount(context, id(100), account()))
         val error = assertFailsWith<LedgerConflictException> {
@@ -233,23 +241,23 @@ class SubmissionRecoveryTest {
             SubmissionReferenceEntity(
                 context.ledgerId,
                 id(101),
-                context.storageGeneration
-            )
+                context.storageGeneration,
+            ),
         )
         val before = rows()
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.PENDING),
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.MISSING_RECORD),
-            repository.finishSubmissionRecovery(context, id(101))
+            repository.finishSubmissionRecovery(context, id(101)),
         )
         assertFailsWith<IllegalStateException> {
             repository.createAccount(
                 context,
                 id(101),
-                account(3)
+                account(3),
             )
         }
         val items = repository.submissionRecovery(context).items
@@ -257,8 +265,9 @@ class SubmissionRecoveryTest {
         assertEquals(
             SubmissionRecoveryItem.Blocked(
                 SubmissionReference(context, id(101)),
-                SubmissionRecoveryProblem.MISSING_RECORD
-            ), items.last()
+                SubmissionRecoveryProblem.MISSING_RECORD,
+            ),
+            items.last(),
         )
         assertEquals(before, rows())
     }
@@ -279,13 +288,13 @@ class SubmissionRecoveryTest {
         assertEquals(
             SubmissionRecoveryItem.Blocked(
                 SubmissionReference(context, id(100)),
-                SubmissionRecoveryProblem.GENERATION_MISMATCH
+                SubmissionRecoveryProblem.GENERATION_MISMATCH,
             ),
-            repository.submissionRecovery(replacement).items.single()
+            repository.submissionRecovery(replacement).items.single(),
         )
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.GENERATION_MISMATCH),
-            repository.finishSubmissionRecovery(replacement, id(100))
+            repository.finishSubmissionRecovery(replacement, id(100)),
         )
         assertEquals(
             LedgerConflict.STALE_GENERATION,
@@ -293,9 +302,9 @@ class SubmissionRecoveryTest {
                 repository.createAccount(
                     replacement,
                     id(100),
-                    account()
+                    account(),
                 )
-            }.conflict
+            }.conflict,
         )
         assertFailsWith<LedgerConflictException> { repository.submissionRecovery(context) }
         assertEquals(before, rows())
@@ -318,7 +327,7 @@ class SubmissionRecoveryTest {
         sql.execSQL("DROP TRIGGER fail_finish")
         assertEquals(
             FinishSubmissionRecoveryResult.Finished,
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         assertEquals(before.take(6), rows().take(6))
     }
@@ -344,7 +353,8 @@ class SubmissionRecoveryTest {
         withContext(Dispatchers.Default) { withTimeout(10_000) { child.join() } }
         assertTrue(observed.get())
         assertTrue(child.isCancelled)
-        database.close(); reopen()
+        database.close()
+        reopen()
         assertEquals(before, rows())
     }
 
@@ -354,18 +364,18 @@ class SubmissionRecoveryTest {
         assertTrue(repository.submissionRecovery(context).items.isEmpty())
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.MISSING_RECORD),
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         repository.createAccount(context, id(100), account())
         pending(100, reference = false)
         val before = rows()
         assertEquals(
             SubmissionRecoveryProblem.CONFLICTING_RECORDS,
-            (repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Blocked).reason
+            (repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Blocked).reason,
         )
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.CONFLICTING_RECORDS),
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         assertFailsWith<IllegalStateException> { repository.retryPending(context, id(100)) }
         assertEquals(before, rows())
@@ -384,34 +394,34 @@ class SubmissionRecoveryTest {
             original.copy(requestSha256 = "bad") to SubmissionRecoveryProblem.CORRUPTED,
             original.copy(
                 requestJson = "{}",
-                requestSha256 = requestHash("{}")
+                requestSha256 = requestHash("{}"),
             ) to SubmissionRecoveryProblem.CORRUPTED,
             original.requestJson.replace("\"version\":1", "\"version\":2").let {
                 original.copy(
                     requestJson = it,
-                    requestSha256 = requestHash(it)
+                    requestSha256 = requestHash(it),
                 ) to SubmissionRecoveryProblem.UNSUPPORTED
             },
             original.requestJson.replace("UPDATE_ACCOUNT", "FUTURE_KIND").let {
                 original.copy(
                     requestJson = it,
-                    requestSha256 = requestHash(it)
+                    requestSha256 = requestHash(it),
                 ) to SubmissionRecoveryProblem.UNSUPPORTED
             },
         )
         for ((record, reason) in changed) {
             sql.execSQL(
                 "UPDATE submissions SET requestJson=?, requestSha256=? WHERE operationId=?",
-                arrayOf(record.requestJson, record.requestSha256, id(100))
+                arrayOf(record.requestJson, record.requestSha256, id(100)),
             )
             val before = rows()
             assertEquals(
                 reason,
-                (repository.submissionRecovery(context).items.first() as SubmissionRecoveryItem.Blocked).reason
+                (repository.submissionRecovery(context).items.first() as SubmissionRecoveryItem.Blocked).reason,
             )
             assertEquals(
                 FinishSubmissionRecoveryResult.NotReady(reason),
-                repository.finishSubmissionRecovery(context, id(100))
+                repository.finishSubmissionRecovery(context, id(100)),
             )
             assertTrue(repository.submissionRecovery(context).items.last() is SubmissionRecoveryItem.LegacyPending)
             assertEquals(before, rows())
@@ -419,7 +429,7 @@ class SubmissionRecoveryTest {
         sql.execSQL("UPDATE submission_references SET operationId='bad-id'")
         assertEquals(
             SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED),
-            repository.submissionRecovery(context).items.first()
+            repository.submissionRecovery(context).items.first(),
         )
     }
 
@@ -450,16 +460,16 @@ class SubmissionRecoveryTest {
                     record.requestSha256,
                     record.storageGeneration,
                     record.ledgerRevision,
-                    record.committedAt
-                )
+                    record.committedAt,
+                ),
             )
             val before = rows()
             assertTrue(repository.submissionRecovery(context).items.single() is SubmissionRecoveryItem.Blocked)
             assertTrue(
                 repository.finishSubmissionRecovery(
                     context,
-                    id(100)
-                ) is FinishSubmissionRecoveryResult.NotReady
+                    id(100),
+                ) is FinishSubmissionRecoveryResult.NotReady,
             )
             assertFailsWith<IllegalStateException> { repository.receipt(context, id(100)) }
             assertEquals(before, rows())
@@ -471,17 +481,22 @@ class SubmissionRecoveryTest {
         repository.initialize(context)
         repository.createAccount(context, id(100), account())
         val receipt = repository.createTransaction(
-            context, id(101), CreateTransaction(
-                id(5), TransactionKind.INCOME,
-                LocalDate.of(2026, 11, 1), 15, creditAccountId = id(1)
-            )
+            context,
+            id(101),
+            CreateTransaction(
+                id(5),
+                TransactionKind.INCOME,
+                LocalDate.of(2026, 11, 1),
+                15,
+                creditAccountId = id(1),
+            ),
         )
         val item =
             repository.submissionRecovery(context).items.last() as SubmissionRecoveryItem.Committed
         assertEquals(receipt, item.receipt)
         assertEquals(
             FinishSubmissionRecoveryResult.Finished,
-            repository.finishSubmissionRecovery(context, id(101))
+            repository.finishSubmissionRecovery(context, id(101)),
         )
     }
 
@@ -509,7 +524,7 @@ class SubmissionRecoveryTest {
         assertEquals(before, rows())
         assertEquals(
             FinishSubmissionRecoveryResult.Finished,
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         assertEquals(before.take(6), rows().take(6))
     }
@@ -527,10 +542,15 @@ class SubmissionRecoveryTest {
         repository.initialize(context)
         repository.createAccount(context, id(100), account())
         repository.createTransaction(
-            context, id(101), CreateTransaction(
-                id(5), TransactionKind.INCOME,
-                LocalDate.of(2026, 11, 1), 15, creditAccountId = id(1)
-            )
+            context,
+            id(101),
+            CreateTransaction(
+                id(5),
+                TransactionKind.INCOME,
+                LocalDate.of(2026, 11, 1),
+                15,
+                creditAccountId = id(1),
+            ),
         )
         removeTarget("transactions", id(5))
         assertMissingTargetIsBlocked(id(101))
@@ -548,19 +568,19 @@ class SubmissionRecoveryTest {
         repository.createAccount(context, id(100), account())
         assertEquals(
             FinishSubmissionRecoveryResult.Finished,
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         removeTarget("anchors", id(2))
         val before = rows()
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.CORRUPTED),
-            repository.finishSubmissionRecovery(context, id(100))
+            repository.finishSubmissionRecovery(context, id(100)),
         )
         assertFailsWith<IllegalStateException> {
             repository.createAccount(
                 context,
                 id(100),
-                account()
+                account(),
             )
         }
         assertEquals(before, rows())
@@ -570,13 +590,14 @@ class SubmissionRecoveryTest {
     private fun removeTarget(table: String, targetId: String) {
         database.close()
         SQLiteDatabase.openDatabase(
-            application.getDatabasePath("discovery.db").path, null,
-            SQLiteDatabase.OPEN_READWRITE
+            application.getDatabasePath("discovery.db").path,
+            null,
+            SQLiteDatabase.OPEN_READWRITE,
         ).use {
             it.execSQL("PRAGMA foreign_keys=OFF")
             it.execSQL(
                 "DELETE FROM $table WHERE ledgerId=? AND id=?",
-                arrayOf(context.ledgerId, targetId)
+                arrayOf(context.ledgerId, targetId),
             )
         }
         reopen()
@@ -595,12 +616,13 @@ class SubmissionRecoveryTest {
         assertEquals(
             SubmissionRecoveryItem.Blocked(
                 SubmissionReference(context, operationId),
-                SubmissionRecoveryProblem.CORRUPTED
-            ), item
+                SubmissionRecoveryProblem.CORRUPTED,
+            ),
+            item,
         )
         assertEquals(
             FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.CORRUPTED),
-            repository.finishSubmissionRecovery(context, operationId)
+            repository.finishSubmissionRecovery(context, operationId),
         )
         assertFailsWith<IllegalStateException> { repository.receipt(context, operationId) }
         assertFailsWith<IllegalStateException> { repository.retryPending(context, operationId) }
@@ -614,26 +636,26 @@ class SubmissionRecoveryTest {
         SQLiteDatabase.openDatabase(
             application.getDatabasePath("discovery.db").path,
             null,
-            SQLiteDatabase.OPEN_READWRITE
+            SQLiteDatabase.OPEN_READWRITE,
         ).use {
             it.execSQL("PRAGMA foreign_keys=OFF")
             it.execSQL(
                 "INSERT INTO submission_references VALUES (?,?,?)",
-                arrayOf(context.ledgerId, id(100), context.storageGeneration)
+                arrayOf(context.ledgerId, id(100), context.storageGeneration),
             )
         }
         reopen()
         val before = rows()
         assertEquals(
             LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA),
-            repository.openLedger()
+            repository.openLedger(),
         )
         assertEquals(before, rows())
         repository.initialize(LedgerContext(id(902), id(903)))
         val withOther = rows()
         assertEquals(
             LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA),
-            repository.openLedger()
+            repository.openLedger(),
         )
         assertEquals(withOther, rows())
     }
@@ -650,8 +672,8 @@ class SubmissionRecoveryTest {
         val schema = JSONObject(
             java.io.File(
                 System.getProperty("monit.roomSchemas"),
-                "com.monit.core.data.LedgerDatabase/1.json"
-            ).readText()
+                "com.monit.core.data.LedgerDatabase/1.json",
+            ).readText(),
         ).getJSONObject("database")
         val raw = captureWrite(context, WriteCommand.Account(account()))
         val pendingRaw = captureWrite(context, WriteCommand.Account(account(10)))
@@ -667,27 +689,27 @@ class SubmissionRecoveryTest {
                 val indices = entity.optJSONArray("indices")
                 if (indices != null) for (i in 0 until indices.length()) fixture.execSQL(
                     indices.getJSONObject(
-                        i
-                    ).getString("createSql").replace("\${TABLE_NAME}", name)
+                        i,
+                    ).getString("createSql").replace("\${TABLE_NAME}", name),
                 )
             }
             val setup = schema.getJSONArray("setupQueries")
             for (i in 0 until setup.length()) fixture.execSQL(setup.getString(i))
             fixture.execSQL(
                 "INSERT INTO ledgers VALUES (?,?,3)",
-                arrayOf(context.ledgerId, context.storageGeneration)
+                arrayOf(context.ledgerId, context.storageGeneration),
             )
             fixture.execSQL(
                 "INSERT INTO accounts VALUES (?,?,?,'GENERAL','ACTIVE',1)",
-                arrayOf(context.ledgerId, id(1), account().name)
+                arrayOf(context.ledgerId, id(1), account().name),
             )
             fixture.execSQL(
                 "INSERT INTO anchors VALUES (?,?,?,'2026-10-31',NULL,NULL,?,1)",
-                arrayOf(context.ledgerId, id(2), id(1), account().unknownReason)
+                arrayOf(context.ledgerId, id(2), id(1), account().unknownReason),
             )
             fixture.execSQL(
                 "INSERT INTO transactions VALUES (?,?,'INCOME','2026-11-01',15,NULL,?,NULL,'GENERAL','',1,1)",
-                arrayOf(context.ledgerId, id(5), id(1))
+                arrayOf(context.ledgerId, id(5), id(1)),
             )
             fixture.execSQL(
                 "INSERT INTO operations VALUES (?,?,?,'UPDATE_ACCOUNT',?,?,?,2,?)",
@@ -701,24 +723,26 @@ class SubmissionRecoveryTest {
                     encodeRefs(
                         listOf(
                             EntityRef("accounts", id(1), 1),
-                            EntityRef("anchors", id(2), 1)
-                        )
-                    )
-                )
+                            EntityRef("anchors", id(2), 1),
+                        ),
+                    ),
+                ),
             )
             fixture.execSQL(
                 "INSERT INTO submissions VALUES (?,?,?,?)",
-                arrayOf(context.ledgerId, id(101), pendingRaw, requestHash(pendingRaw))
+                arrayOf(context.ledgerId, id(101), pendingRaw, requestHash(pendingRaw)),
             )
             fixture.version = 1
             expected = oldTables.map { table ->
                 fixture.rawQuery("SELECT * FROM $table ORDER BY 1, 2", null).use { cursor ->
                     buildList {
-                        while (cursor.moveToNext()) add((0 until cursor.columnCount).map {
-                            cursor.getString(
-                                it
-                            )
-                        })
+                        while (cursor.moveToNext()) add(
+                            (0 until cursor.columnCount).map {
+                                cursor.getString(
+                                    it,
+                                )
+                            },
+                        )
                     }
                 }
             }
@@ -727,14 +751,16 @@ class SubmissionRecoveryTest {
         assertEquals(LedgerEntryResult.Ready(context), repository.openLedger())
         assertEquals(expected, rows(oldTables))
         assertTrue(dao.submissionReferences(context.ledgerId).isEmpty())
-        database.close(); reopen()
+        database.close()
+        reopen()
         assertEquals(expected, rows(oldTables))
         assertTrue(repository.submissionRecovery(context).items.single() is SubmissionRecoveryItem.LegacyPending)
         assertTrue(repository.pendingRecovery(context).items.single() is PendingRecoveryItem.AccountRegistration)
         repository.retryPending(context, id(101))
         assertEquals(
             listOf(id(101)),
-            dao.submissionReferences(context.ledgerId).map { it.operationId })
+            dao.submissionReferences(context.ledgerId).map { it.operationId },
+        )
         assertTrue(repository.submissionRecovery(context).items.single() is SubmissionRecoveryItem.Committed)
         assertEquals(raw, dao.operation(context.ledgerId, id(100))!!.requestJson)
     }

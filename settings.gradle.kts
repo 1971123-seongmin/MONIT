@@ -32,6 +32,6 @@ include(
     ":core:model",
     ":core:data",
     ":core:designsystem",
-    ":feature:accounts"
+    ":feature:accounts",
 )
 include(":core:navigation", ":feature:home", ":feature:transactions")

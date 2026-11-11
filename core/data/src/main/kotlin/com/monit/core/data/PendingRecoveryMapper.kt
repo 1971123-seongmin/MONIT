@@ -38,12 +38,12 @@ internal fun SubmissionEntity.toRecoveryItem(context: LedgerContext): PendingRec
         when (val command = decodeWrite(context, requestJson)) {
             is WriteCommand.Account -> PendingRecoveryItem.AccountRegistration(
                 operationId,
-                command.value
+                command.value,
             )
 
             is WriteCommand.Transaction -> PendingRecoveryItem.TransactionCreation(
                 operationId,
-                command.value
+                command.value,
             )
         }
     } catch (_: JSONException) {

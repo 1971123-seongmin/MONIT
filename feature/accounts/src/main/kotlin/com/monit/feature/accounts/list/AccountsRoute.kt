@@ -8,11 +8,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.monit.core.model.LedgerContext
 
 @Composable
-fun AccountsRoute(context: LedgerContext, viewModel: AccountsViewModel = hiltViewModel()) {
+fun AccountsRoute(
+    context: LedgerContext,
+    viewModel: AccountsViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
     LifecycleResumeEffect(context) {
         viewModel.refresh(context)
+
         onPauseOrDispose {}
     }
-    AccountsScreen(state, onRetry = { viewModel.refresh(context) })
+
+    AccountsScreen(
+        state,
+        onRetry = { viewModel.refresh(context) },
+    )
 }

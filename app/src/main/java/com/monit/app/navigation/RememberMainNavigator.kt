@@ -8,5 +8,8 @@ import com.monit.core.navigation.rememberNavigator
 @Composable
 fun rememberMainNavigator(controller: NavHostController): MainNavigator {
     val navigator = rememberNavigator(controller)
-    return remember(navigator) { MainNavigator(navigator) }
+
+    return remember(navigator) {
+        MainNavigator(navigator)
+    }
 }

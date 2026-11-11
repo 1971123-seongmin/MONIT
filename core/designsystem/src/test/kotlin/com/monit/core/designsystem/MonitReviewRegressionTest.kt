@@ -57,14 +57,20 @@ class MonitReviewRegressionTest {
         compose.setContent {
             MonitTheme {
                 MonitListItem(
-                    headline = { Text("항목") }, modifier = Modifier.testTag("item"),
-                    enabled = enabled, onClick = { calls++ })
+                    headline = { Text("항목") },
+                    modifier = Modifier.testTag("item"),
+                    enabled = enabled,
+                    onClick = { calls++ },
+                )
             }
         }
         compose.onAllNodes(hasClickAction()).assertCountEquals(1)
         val item = compose.onNodeWithTag("item")
         item.performTouchInput { click(Offset(4f, center.y)) }
-        compose.runOnIdle { assertEquals(1, calls); enabled = false }
+        compose.runOnIdle {
+            assertEquals(1, calls)
+            enabled = false
+        }
         item.performTouchInput { click(Offset(4f, center.y)) }
         compose.runOnIdle { assertEquals(1, calls) }
     }

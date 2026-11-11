@@ -42,13 +42,12 @@ class MainNavigator(private val navigator: Navigator) {
     }
 
     /** 루트에만 연결한다. 입력/등록의 포기 확인을 우회하는 범용 Back이 아니다. */
-    fun onTopLevelBack(source: NavBackStackEntry): NavigationResult =
-        when (source.topLevelDestination()) {
-            TopLevelDestination.TRANSACTIONS, TopLevelDestination.ACCOUNTS ->
-                navigateToTopLevel(source, TopLevelDestination.HOME)
+    fun onTopLevelBack(source: NavBackStackEntry): NavigationResult = when (source.topLevelDestination()) {
+        TopLevelDestination.TRANSACTIONS, TopLevelDestination.ACCOUNTS ->
+            navigateToTopLevel(source, TopLevelDestination.HOME)
 
-            else -> NavigationResult.UNAVAILABLE
-        }
+        else -> NavigationResult.UNAVAILABLE
+    }
 
     fun openTransactionEntry(
         source: NavBackStackEntry,
@@ -105,7 +104,7 @@ class MainNavigator(private val navigator: Navigator) {
         }
         return navigator.back(source) {
             it.destination.hasRoute<HomeDestination>() ||
-                    it.destination.hasRoute<TransactionsDestination>()
+                it.destination.hasRoute<TransactionsDestination>()
         }
     }
 
@@ -114,9 +113,10 @@ class MainNavigator(private val navigator: Navigator) {
         registration: AccountRegistrationDestination,
     ): Boolean = when (registration.origin) {
         AccountRegistrationOrigin.ACCOUNTS -> caller.destination.hasRoute<AccountsDestination>()
+
         AccountRegistrationOrigin.TRANSACTION_ENTRY ->
             caller.destination.hasRoute<TransactionEntryDestination>() &&
-                    caller.toRoute<TransactionEntryDestination>().entryId == registration.callerEntryId
+                caller.toRoute<TransactionEntryDestination>().entryId == registration.callerEntryId
     }
 }
 

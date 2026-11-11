@@ -14,19 +14,26 @@ import com.monit.core.designsystem.theme.MonitTheme
     name = "Accounts / Empty / Dark",
     widthDp = 360,
     heightDp = 708,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Preview(name = "Accounts / 320dp / 200%", widthDp = 320, heightDp = 480, fontScale = 2f)
 @Composable
 internal fun AccountsEmptyPreview() {
     MonitTheme {
         Surface(
-            Modifier.fillMaxSize(), color = MonitTheme.colors.surfaceContainer,
-            contentColor = MonitTheme.colors.onSurface
+            Modifier.fillMaxSize(),
+            color = MonitTheme.colors.surfaceContainer,
+            contentColor = MonitTheme.colors.onSurface,
         ) {
             AccountsScreen(
-                AccountsState.Ready(AccountsUiState("등록된 계좌가 없어요", emptyList())),
-                onRetry = {})
+                AccountsState.Ready(
+                    AccountsUiState(
+                        "등록된 계좌가 없어요",
+                        emptyList(),
+                    ),
+                ),
+                onRetry = {},
+            )
         }
     }
 }

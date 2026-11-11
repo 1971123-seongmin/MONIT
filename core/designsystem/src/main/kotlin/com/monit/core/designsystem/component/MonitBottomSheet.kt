@@ -37,16 +37,20 @@ fun MonitBottomSheet(
         skipPartiallyExpanded = true,
         confirmValueChange = { canDismiss || it != SheetValue.Hidden },
     )
+
     ModalBottomSheet(
-        onDismissRequest = { if (canDismiss) onDismissRequest() }, sheetState = state,
-        dragHandle = null, containerColor = MonitTheme.colors.surfaceContainer,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius), modifier = modifier
+        onDismissRequest = { if (canDismiss) onDismissRequest() },
+        sheetState = state,
+        dragHandle = null,
+        containerColor = MonitTheme.colors.surfaceContainer,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
+        modifier = modifier,
     ) {
         MonitBottomSheetContent(
             title = title,
             actions = actions,
             scrollContent = scrollContent,
-            content = content
+            content = content,
         )
     }
 }
@@ -62,23 +66,32 @@ fun MonitBottomSheetContent(
 ) {
     val maxHeight =
         with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() * .9f }
+
     Surface(
         modifier,
         color = MonitTheme.colors.surfaceContainer,
         contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     ) {
         Column(
-            Modifier.heightIn(max = maxHeight).padding(MonitTheme.spacing.content),
-            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            Modifier
+                .heightIn(max = maxHeight)
+                .padding(MonitTheme.spacing.content),
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
         ) {
             title()
+
             Column(
-                Modifier.weight(1f, fill = false)
+                Modifier
+                    .weight(
+                        1f,
+                        fill = false,
+                    )
                     .then(if (scrollContent) Modifier.verticalScroll(rememberScrollState()) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
-                content = content
+                content = content,
             )
+
             actions()
         }
     }

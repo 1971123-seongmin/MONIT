@@ -1,15 +1,15 @@
 package com.monit.core.designsystem.component
 
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,11 +27,19 @@ fun MonitDialog(
     actions: @Composable ColumnScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    BasicAlertDialog(onDismissRequest, modifier = modifier, properties = properties) {
+    BasicAlertDialog(
+        onDismissRequest,
+        modifier = modifier,
+        properties = properties,
+    ) {
         MonitDialogContent(
-            Modifier.padding(horizontal = MonitTheme.spacing.content).widthIn(max = 304.dp)
+            Modifier
+                .padding(horizontal = MonitTheme.spacing.content)
+                .widthIn(max = 304.dp)
                 .fillMaxWidth(),
-            title = title, actions = actions, content = content
+            title = title,
+            actions = actions,
+            content = content,
         )
     }
 }
@@ -48,14 +56,16 @@ internal fun MonitDialogContent(
         modifier,
         color = MonitTheme.colors.surfaceContainer,
         contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     ) {
         Column(
             Modifier.padding(MonitTheme.spacing.content),
-            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
         ) {
             title()
+
             content()
+
             actions()
         }
     }

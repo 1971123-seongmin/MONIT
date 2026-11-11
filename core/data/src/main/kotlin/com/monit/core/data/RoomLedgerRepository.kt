@@ -8,6 +8,7 @@ import com.monit.core.model.BalanceAnchor
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.CreateTransaction
 import com.monit.core.model.EntityRef
+import com.monit.core.model.FinishSubmissionRecoveryResult
 import com.monit.core.model.LedgerAccount
 import com.monit.core.model.LedgerConflict
 import com.monit.core.model.LedgerConflictException
@@ -17,9 +18,8 @@ import com.monit.core.model.LedgerEntryResult
 import com.monit.core.model.LedgerRepository
 import com.monit.core.model.LedgerSnapshot
 import com.monit.core.model.LedgerTransaction
-import com.monit.core.model.PendingWrite
 import com.monit.core.model.PendingRecoverySnapshot
-import com.monit.core.model.FinishSubmissionRecoveryResult
+import com.monit.core.model.PendingWrite
 import com.monit.core.model.SubmissionRecoveryItem
 import com.monit.core.model.SubmissionRecoveryProblem
 import com.monit.core.model.SubmissionRecoverySnapshot
@@ -52,6 +52,7 @@ internal class RoomLedgerRepository @Inject constructor(
         val ledgers = dao.entryLedgers()
         when {
             ledgers.size > 1 -> LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MULTIPLE_LEDGERS)
+
             ledgers.size == 1 -> {
                 val row = ledgers.single()
                 val context = try {
@@ -68,6 +69,7 @@ internal class RoomLedgerRepository @Inject constructor(
             }
 
             dao.hasBusinessRecords() -> LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA)
+
             else -> {
                 database.requireDurableWriter()
                 val context =
@@ -79,40 +81,45 @@ internal class RoomLedgerRepository @Inject constructor(
         }
     }
 
-    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot =
-        database.withTransaction {
-            requireContext(context)
-            val items = dao.submissions(context.ledgerId).map {
-                currentCoroutineContext().ensureActive()
-                it.toRecoveryItem(context)
-            }
-            PendingRecoverySnapshot(context, items)
+    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot = database.withTransaction {
+        requireContext(context)
+        val items = dao.submissions(context.ledgerId).map {
+            currentCoroutineContext().ensureActive()
+            it.toRecoveryItem(context)
         }
+        PendingRecoverySnapshot(context, items)
+    }
 
-    override suspend fun submissionRecovery(context: LedgerContext): SubmissionRecoverySnapshot =
-        database.withTransaction {
-            val ledger = requireContext(context)
-            val references = dao.submissionReferences(context.ledgerId)
-            val pending = dao.submissions(context.ledgerId).associateBy { it.operationId }
-            val activeIds = references.mapTo(mutableSetOf()) { it.operationId }
-            val items = references.map { reference ->
-                currentCoroutineContext().ensureActive()
-                recoveryItem(
-                    context, ledger.revision, reference, pending[reference.operationId],
-                    dao.operation(context.ledgerId, reference.operationId)
-                )
-            } + pending.values.filter { it.operationId !in activeIds }.map { submission ->
-                currentCoroutineContext().ensureActive()
-                recoveryItem(
-                    context, ledger.revision, null, submission,
-                    dao.operation(context.ledgerId, submission.operationId)
-                )
-            }
-            SubmissionRecoverySnapshot(context, items)
+    override suspend fun submissionRecovery(context: LedgerContext): SubmissionRecoverySnapshot = database.withTransaction {
+        val ledger = requireContext(context)
+        val references = dao.submissionReferences(context.ledgerId)
+        val pending = dao.submissions(context.ledgerId).associateBy { it.operationId }
+        val activeIds = references.mapTo(mutableSetOf()) { it.operationId }
+        val items = references.map { reference ->
+            currentCoroutineContext().ensureActive()
+            recoveryItem(
+                context,
+                ledger.revision,
+                reference,
+                pending[reference.operationId],
+                dao.operation(context.ledgerId, reference.operationId),
+            )
+        } + pending.values.filter { it.operationId !in activeIds }.map { submission ->
+            currentCoroutineContext().ensureActive()
+            recoveryItem(
+                context,
+                ledger.revision,
+                null,
+                submission,
+                dao.operation(context.ledgerId, submission.operationId),
+            )
         }
+        SubmissionRecoverySnapshot(context, items)
+    }
 
     override suspend fun finishSubmissionRecovery(
-        context: LedgerContext, operationId: String,
+        context: LedgerContext,
+        operationId: String,
     ): FinishSubmissionRecoveryResult = database.withTransaction {
         requireLedgerId(operationId)
         database.requireDurableWriter()
@@ -120,15 +127,17 @@ internal class RoomLedgerRepository @Inject constructor(
         val reference = dao.submissionReference(context.ledgerId, operationId)
         val operation = dao.operation(context.ledgerId, operationId)
         val item = recoveryItem(
-            context, ledger.revision,
+            context,
+            ledger.revision,
             reference ?: operation?.let {
                 SubmissionReferenceEntity(
                     context.ledgerId,
                     operationId,
-                    it.storageGeneration
+                    it.storageGeneration,
                 )
             },
-            dao.submission(context.ledgerId, operationId), operation
+            dao.submission(context.ledgerId, operationId),
+            operation,
         )
         when (item) {
             is SubmissionRecoveryItem.Committed -> {
@@ -142,6 +151,7 @@ internal class RoomLedgerRepository @Inject constructor(
             }
 
             is SubmissionRecoveryItem.Blocked -> FinishSubmissionRecoveryResult.NotReady(item.reason)
+
             is SubmissionRecoveryItem.Pending, is SubmissionRecoveryItem.LegacyPending ->
                 FinishSubmissionRecoveryResult.NotReady(SubmissionRecoveryProblem.PENDING)
         }
@@ -154,8 +164,8 @@ internal class RoomLedgerRepository @Inject constructor(
             LedgerEntity(
                 context.ledgerId,
                 context.storageGeneration,
-                1
-            )
+                1,
+            ),
         )
         else requireContext(context)
         Unit
@@ -164,57 +174,52 @@ internal class RoomLedgerRepository @Inject constructor(
     override suspend fun createAccount(
         context: LedgerContext,
         operationId: String,
-        value: CreateAccount
-    ) =
-        submit(context, operationId, WriteCommand.Account(value))
+        value: CreateAccount,
+    ) = submit(context, operationId, WriteCommand.Account(value))
 
     override suspend fun createTransaction(
         context: LedgerContext,
         operationId: String,
-        value: CreateTransaction
-    ) =
-        submit(context, operationId, WriteCommand.Transaction(value))
+        value: CreateTransaction,
+    ) = submit(context, operationId, WriteCommand.Transaction(value))
 
-    override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? =
-        database.withTransaction {
+    override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? = database.withTransaction {
+        requireLedgerId(operationId)
+        val ledger = requireContext(context)
+        dao.operation(context.ledgerId, operationId)
+            ?.let { verifiedReceipt(context, ledger, it) }
+    }
+
+    override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> = database.withTransaction {
+        requireContext(context)
+        dao.submissions(context.ledgerId).map { PendingWrite(it.operationId, it.requestJson) }
+    }
+
+    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = withContext(coroutineContexts.default) {
+        val (prior, pending) = database.withTransaction {
             requireLedgerId(operationId)
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)
-                ?.let { verifiedReceipt(context, ledger, it) }
+                ?.let { return@withTransaction verifiedReceipt(context, ledger, it) to null }
+            val submission = checkNotNull(
+                dao.submission(
+                    context.ledgerId,
+                    operationId,
+                ),
+            ) { "No captured write" }
+            check(requestHash(submission.requestJson) == submission.requestSha256)
+            null to submission
         }
-
-    override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> =
-        database.withTransaction {
-            requireContext(context)
-            dao.submissions(context.ledgerId).map { PendingWrite(it.operationId, it.requestJson) }
-        }
-
-    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt =
-        withContext(coroutineContexts.default) {
-            val (prior, pending) = database.withTransaction {
-                requireLedgerId(operationId)
-                val ledger = requireContext(context)
-                dao.operation(context.ledgerId, operationId)
-                    ?.let { return@withTransaction verifiedReceipt(context, ledger, it) to null }
-                val submission = checkNotNull(
-                    dao.submission(
-                        context.ledgerId,
-                        operationId
-                    )
-                ) { "No captured write" }
-                check(requestHash(submission.requestJson) == submission.requestSha256)
-                null to submission
-            }
-            if (prior != null) return@withContext prior
-            val submission = checkNotNull(pending)
-            submit(context, operationId, decodeWrite(context, submission.requestJson))
-        }
+        if (prior != null) return@withContext prior
+        val submission = checkNotNull(pending)
+        submit(context, operationId, decodeWrite(context, submission.requestJson))
+    }
 
     /** 제출 의도를 먼저 commit하고 금융 변경·결과·의도 소비는 다음 단일 트랜잭션에서 확정한다. */
     private suspend fun submit(
         context: LedgerContext,
         operationId: String,
-        command: WriteCommand
+        command: WriteCommand,
     ): WriteReceipt = withContext(coroutineContexts.default) {
         requireLedgerId(operationId)
         val payload = captureWrite(context, command)
@@ -237,8 +242,8 @@ internal class RoomLedgerRepository @Inject constructor(
                     context.ledgerId,
                     operationId,
                     payload,
-                    hash
-                )
+                    hash,
+                ),
             )
             else requireSameRequest(pending.requestJson, pending.requestSha256, payload, hash)
             if (reference == null) dao.insertSubmissionReference(
@@ -265,7 +270,7 @@ internal class RoomLedgerRepository @Inject constructor(
             }
             if (dao.advanceRevision(
                     context.ledgerId,
-                    ledger.revision
+                    ledger.revision,
                 ) != 1
             ) conflict(LedgerConflict.STALE_REVISION)
             val result = WriteReceipt(operationId, Math.addExact(ledger.revision, 1), refs)
@@ -281,8 +286,8 @@ internal class RoomLedgerRepository @Inject constructor(
                     hash,
                     clock.instant().toString(),
                     result.ledgerRevision,
-                    encodeRefs(refs)
-                )
+                    encodeRefs(refs),
+                ),
             )
             check(dao.deleteSubmission(context.ledgerId, operationId) == 1)
             currentCoroutineContext().ensureActive()
@@ -292,14 +297,14 @@ internal class RoomLedgerRepository @Inject constructor(
 
     private suspend fun insertAccount(
         context: LedgerContext,
-        value: CreateAccount
+        value: CreateAccount,
     ): List<EntityRef> {
         require(value.anchorDate >= LocalDate.of(1900, 1, 1) && value.anchorDate < today()) {
             "Anchor date must be before today and within the supported range"
         }
         if (dao.account(context.ledgerId, value.id) != null || dao.anchor(
                 context.ledgerId,
-                value.anchorId
+                value.anchorId,
             ) != null
         )
             conflict(LedgerConflict.DUPLICATE_ENTITY)
@@ -310,26 +315,32 @@ internal class RoomLedgerRepository @Inject constructor(
                 value.name,
                 value.nature.name,
                 "ACTIVE",
-                1
-            )
+                1,
+            ),
         )
         dao.insertAnchor(
             AnchorEntity(
-                context.ledgerId, value.anchorId, value.id, value.anchorDate.toString(),
-                null, null, value.unknownReason, 1
-            )
+                context.ledgerId,
+                value.anchorId,
+                value.id,
+                value.anchorDate.toString(),
+                null,
+                null,
+                value.unknownReason,
+                1,
+            ),
         )
         return listOf(EntityRef("accounts", value.id, 1), EntityRef("anchors", value.anchorId, 1))
     }
 
     private suspend fun insertTransaction(
         context: LedgerContext,
-        value: CreateTransaction
+        value: CreateTransaction,
     ): List<EntityRef> {
         transactionDateOf(value.date.year, value.date.monthValue, value.date.dayOfMonth, today())
         if (dao.transaction(
                 context.ledgerId,
-                value.id
+                value.id,
             ) != null
         ) conflict(LedgerConflict.DUPLICATE_ENTITY)
         suspend fun account(id: String?): AccountEntity? {
@@ -355,8 +366,8 @@ internal class RoomLedgerRepository @Inject constructor(
                 credit?.nature,
                 value.memo,
                 1,
-                1
-            )
+                1,
+            ),
         )
         // 현재 잔액과 입력 거래가 영향을 준 월의 전체 합계를 같은 writer 스냅샷에서 검사한다.
         snapshotInside(context, today())
@@ -365,11 +376,10 @@ internal class RoomLedgerRepository @Inject constructor(
         return listOf(EntityRef("transactions", value.id, 1))
     }
 
-    override suspend fun snapshot(context: LedgerContext, asOf: LocalDate): LedgerSnapshot =
-        database.withTransaction {
-            require(asOf >= LocalDate.of(1900, 1, 1) && asOf <= today())
-            snapshotInside(context, asOf)
-        }
+    override suspend fun snapshot(context: LedgerContext, asOf: LocalDate): LedgerSnapshot = database.withTransaction {
+        require(asOf >= LocalDate.of(1900, 1, 1) && asOf <= today())
+        snapshotInside(context, asOf)
+    }
 
     private suspend fun snapshotInside(context: LedgerContext, asOf: LocalDate): LedgerSnapshot {
         val ledger = requireContext(context)
@@ -377,17 +387,29 @@ internal class RoomLedgerRepository @Inject constructor(
         val accounts = dao.accounts(context.ledgerId).map { a ->
             val anchor = checkNotNull(anchors[a.id]) { "Account has no anchor state" }
             LedgerAccount(
-                a.id, a.name, AccountNature.valueOf(a.nature), AccountStatus.valueOf(a.status),
-                a.revision, BalanceAnchor(
-                    anchor.id, LocalDate.parse(anchor.date), anchor.amount,
-                    anchor.confirmedAt?.let(Instant::parse), anchor.unknownReason
-                )
+                a.id,
+                a.name,
+                AccountNature.valueOf(a.nature),
+                AccountStatus.valueOf(a.status),
+                a.revision,
+                BalanceAnchor(
+                    anchor.id,
+                    LocalDate.parse(anchor.date),
+                    anchor.amount,
+                    anchor.confirmedAt?.let(Instant::parse),
+                    anchor.unknownReason,
+                ),
             )
         }
         val transactions = dao.transactions(context.ledgerId).map { t ->
             val value = CreateTransaction(
-                t.id, TransactionKind.valueOf(t.kind), LocalDate.parse(t.date),
-                t.amount, t.debitAccountId, t.creditAccountId, t.memo
+                t.id,
+                TransactionKind.valueOf(t.kind),
+                LocalDate.parse(t.date),
+                t.amount,
+                t.debitAccountId,
+                t.creditAccountId,
+                t.memo,
             )
             LedgerTransaction(
                 value.id,
@@ -400,7 +422,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 t.creditNature?.let(AccountNature::valueOf),
                 value.memo,
                 t.revision,
-                t.financialRevision
+                t.financialRevision,
             )
         }.filter { it.date <= asOf }
         val balances = accounts.associate { account ->
@@ -419,11 +441,18 @@ internal class RoomLedgerRepository @Inject constructor(
         }
         val monthly = transactions.filter { YearMonth.from(it.date) == YearMonth.from(asOf) }
         return LedgerSnapshot(
-            ledger.revision, accounts, transactions, balances,
-            sumSignedAmounts(monthly.filter { it.kind == TransactionKind.INCOME }
-                .map { it.amount }),
-            sumSignedAmounts(monthly.filter { it.kind == TransactionKind.EXPENSE }
-                .map { it.amount })
+            ledger.revision,
+            accounts,
+            transactions,
+            balances,
+            sumSignedAmounts(
+                monthly.filter { it.kind == TransactionKind.INCOME }
+                    .map { it.amount },
+            ),
+            sumSignedAmounts(
+                monthly.filter { it.kind == TransactionKind.EXPENSE }
+                    .map { it.amount },
+            ),
         )
     }
 
@@ -437,17 +466,20 @@ internal class RoomLedgerRepository @Inject constructor(
     private suspend fun verifiedReceipt(
         context: LedgerContext,
         ledger: LedgerEntity,
-        operation: OperationEntity
+        operation: OperationEntity,
     ): WriteReceipt {
         val reference = dao.submissionReference(context.ledgerId, operation.operationId)
             ?: SubmissionReferenceEntity(
                 context.ledgerId,
                 operation.operationId,
-                operation.storageGeneration
+                operation.storageGeneration,
             )
         val item = recoveryItem(
-            context, ledger.revision, reference,
-            dao.submission(context.ledgerId, operation.operationId), operation
+            context,
+            ledger.revision,
+            reference,
+            dao.submission(context.ledgerId, operation.operationId),
+            operation,
         )
         check(item is SubmissionRecoveryItem.Committed) { "Stored submission is not a verified success" }
         return item.receipt
@@ -472,7 +504,7 @@ internal class RoomLedgerRepository @Inject constructor(
             }
             if (!present) return SubmissionRecoveryItem.Blocked(
                 item.reference,
-                SubmissionRecoveryProblem.CORRUPTED
+                SubmissionRecoveryProblem.CORRUPTED,
             )
         }
         return item
@@ -482,7 +514,7 @@ internal class RoomLedgerRepository @Inject constructor(
         stored: String,
         storedHash: String,
         request: String,
-        hash: String
+        hash: String,
     ) {
         if (stored != request || storedHash != hash) conflict(LedgerConflict.DUPLICATE_REQUEST)
     }

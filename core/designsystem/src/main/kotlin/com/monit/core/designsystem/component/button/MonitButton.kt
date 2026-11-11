@@ -1,13 +1,13 @@
 package com.monit.core.designsystem.component.button
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,16 +21,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +56,7 @@ fun MonitButton(
 ) {
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
+
     MonitButtonContent(
         text = text,
         onClick = onClick,
@@ -98,21 +99,29 @@ internal fun MonitButtonContent(
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val primary = colors.focusOutline
-    // MONIT 누름 색상과 포커스 링을 직접 적용하므로 M3 state layer를 중첩하지 않는다.
+
+// MONIT 누름 색상과 포커스 링을 직접 적용하므로 M3 state layer를 중첩하지 않는다.
     CompositionLocalProvider(LocalRippleConfiguration provides null) {
         Button(
-            onClick = onClick, enabled = enabled && !loading, interactionSource = interactionSource,
-            modifier = modifier.heightIn(min = layout.minHeight)
+            onClick = onClick,
+            enabled = enabled && !loading,
+            interactionSource = interactionSource,
+            modifier = modifier
+                .heightIn(min = layout.minHeight)
                 .drawBehind {
                     if (focused && enabled && !loading) {
                         val stroke = layout.focusOutlineWidth.toPx()
                         val offset = layout.focusGap.toPx() + stroke / 2
+
                         drawRoundRect(
                             color = primary,
-                            topLeft = Offset(-offset, -offset),
+                            topLeft = Offset(
+                                -offset,
+                                -offset,
+                            ),
                             size = Size(
                                 this.size.width + offset * 2,
-                                this.size.height + offset * 2
+                                this.size.height + offset * 2,
                             ),
                             cornerRadius = CornerRadius(layout.cornerRadius.toPx() + offset),
                             style = Stroke(stroke),
@@ -135,23 +144,35 @@ internal fun MonitButtonContent(
             ),
         ) {
             Row(
-                Modifier.width(IntrinsicSize.Max), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing)
+                Modifier.width(IntrinsicSize.Max),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(layout.iconSpacing),
             ) {
                 leadingIcon?.let {
                     Box(
-                        Modifier.size(layout.iconSize).clearAndSetSemantics {},
-                        contentAlignment = Alignment.Center
+                        Modifier
+                            .size(layout.iconSize)
+                            .clearAndSetSemantics {},
+                        contentAlignment = Alignment.Center,
                     ) { it() }
                 }
+
                 Text(
-                    if (loading) loadingText else text, Modifier.weight(1f, fill = false),
-                    style = layout.textStyle, textAlign = TextAlign.Center
+                    if (loading) loadingText else text,
+                    Modifier.weight(
+                        1f,
+                        fill = false,
+                    ),
+                    style = layout.textStyle,
+                    textAlign = TextAlign.Center,
                 )
+
                 trailingIcon?.let {
                     Box(
-                        Modifier.size(layout.iconSize).clearAndSetSemantics {},
-                        contentAlignment = Alignment.Center
+                        Modifier
+                            .size(layout.iconSize)
+                            .clearAndSetSemantics {},
+                        contentAlignment = Alignment.Center,
                     ) { it() }
                 }
             }
