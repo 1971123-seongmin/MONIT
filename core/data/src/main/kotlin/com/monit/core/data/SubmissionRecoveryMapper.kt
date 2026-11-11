@@ -38,7 +38,7 @@ internal fun submissionRecoveryItem(
     }
     if (pending == null) return blocked(SubmissionRecoveryProblem.MISSING_RECORD)
     return when (val item = pending.toRecoveryItem(context)) {
-        is PendingRecoveryItem.AccountRegistration -> {
+        is PendingRecoveryItem.TypedSubmission -> {
             if (key == null) SubmissionRecoveryItem.LegacyPending(item)
             else if (item.operationId == key.operationId) SubmissionRecoveryItem.Pending(key, item)
             else blocked(SubmissionRecoveryProblem.CORRUPTED)

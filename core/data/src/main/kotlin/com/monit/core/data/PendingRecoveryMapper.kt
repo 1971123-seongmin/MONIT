@@ -32,11 +32,20 @@ internal fun SubmissionEntity.toRecoveryItem(context: LedgerContext): PendingRec
         ) return corrupted(CorruptedSubmission.CONTEXT_MISMATCH)
         val kind = json.get("kind")
         if (kind !is String) return corrupted(CorruptedSubmission.INVALID_PAYLOAD)
-        if (kind != "UPDATE_ACCOUNT") {
+        if (kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION") {
             return PendingRecoveryItem.Unsupported(operationId, UnsupportedSubmission.KIND)
         }
-        val command = decodeWrite(context, requestJson) as WriteCommand.Account
-        PendingRecoveryItem.AccountRegistration(operationId, command.value)
+        when (val command = decodeWrite(context, requestJson)) {
+            is WriteCommand.Account -> PendingRecoveryItem.AccountRegistration(
+                operationId,
+                command.value
+            )
+
+            is WriteCommand.Transaction -> PendingRecoveryItem.TransactionCreation(
+                operationId,
+                command.value
+            )
+        }
     } catch (_: JSONException) {
         corrupted(CorruptedSubmission.INVALID_PAYLOAD)
     } catch (_: IllegalArgumentException) {
