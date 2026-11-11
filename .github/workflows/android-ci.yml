@@ -1,22 +1,29 @@
 name: Android CI
+run-name: 'Cold comparison · workers ${{ inputs.workers }}'
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
-      cold_cache:
-        description: 'Restore 없이 전체 검증 (Gradle cache 성능 진단)'
-        type: boolean
-        default: false
+      workers:
+        description: '일반 빌드 worker 수 (비교 전용·병합 금지)'
+        type: choice
+        options: ['2', '4']
+        default: '2'
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: android-cold-comparison-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MONIT_PRODUCT_SHA: 43ba391a3801f502321052c62032bf7e2d4488fc
+  MONIT_WORKERS: ${{ inputs.workers }}
+
+defaults:
+  run:
+    working-directory: product
 
 jobs:
   build:
@@ -25,39 +32,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          path: harness
+      - uses: actions/checkout@v4
+        with:
+          ref: 43ba391a3801f502321052c62032bf7e2d4488fc
+          path: product
           fetch-depth: 0
-      - name: Determine validation impact
-        id: impact
-        continue-on-error: true
-        run: node .github/scripts/ci-impact.mjs
+      - name: Verify fixed product revision
+        run: test "$(git rev-parse HEAD)" = "$MONIT_PRODUCT_SHA"
+      - name: Prepare empty Gradle User Home
+        run: |
+          test ! -e "$RUNNER_TEMP/monit-cold-gradle-home"
+          mkdir "$RUNNER_TEMP/monit-cold-gradle-home"
+          echo "GRADLE_USER_HOME=$RUNNER_TEMP/monit-cold-gradle-home" >> "$GITHUB_ENV"
+          echo 'MONIT_COLD_HOME_VERIFIED=true' >> "$GITHUB_ENV"
       - name: Check documentation
         shell: pwsh
         run: ./scripts/Test-AiDocs.ps1
       - name: Check diff whitespace
         run: node .github/scripts/ci-impact.mjs --check-diff
       - name: Test validation classifier
-        if: steps.impact.outputs.ci_tests != 'false'
         run: node --test .github/scripts/ci-impact.test.mjs
       - uses: actions/setup-java@v4
-        if: steps.impact.outputs.android != 'false'
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-        if: steps.impact.outputs.android != 'false'
         with:
-          # PRs restore base caches without paying for a PR-scoped cache upload.
-          cache-read-only: ${{ github.event_name == 'pull_request' }}
-          cache-write-only: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
-      - name: Check independent UI components
-        if: steps.impact.outcome != 'success' || steps.impact.outputs.components != ''
-        env:
-          MONIT_COMPONENTS: ${{ steps.impact.outputs.components }}
-          IMPACT_OUTCOME: ${{ steps.impact.outcome }}
-        run: node .github/scripts/independent-components.mjs
-      - name: Build, unit tests and lint
-        if: steps.impact.outputs.android != 'false'
-        run: bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug --parallel --max-workers=2 --console=plain
-      - name: Report classifier fallback
-        if: always() && steps.impact.outcome != 'success'
-        run: echo 'Change classification failed; Android and independent checks were requested in full.'
+          # No GitHub cache reads/writes or artifact uploads in either comparison.
+          cache-disabled: true
+      - name: Cold full validation and profile
+        run: node ../harness/.github/scripts/ci-cold-benchmark.mjs
