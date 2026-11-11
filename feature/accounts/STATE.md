@@ -8,9 +8,11 @@ ViewModel은 기본 `viewModelScope.launch`를 사용한다. 테스트는 Main�
 
 호출자는 `SavedStateHandle`의 `ledgerId`, `storageGeneration`에 기존 장부의 정규 UUID를 전달해야 한다. 식별자가 없거나 잘못되면 `UNAVAILABLE / CONTEXT_REQUIRED`이며 새 장부를 자동 생성하지 않는다. 현재 앱의 진입 화면은 placeholder이며, 안정적인 장부 식별자 소유·재진입 경로와 실제 화면 연결은 후속 작업이다. Hilt 앱 빌드는 정적 의존성 연결의 검증이며 실제 화면에서의 주입·기기 실행 검증을 뜻하지 않는다.
 
-context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/README.md), 전체 입력·상태·Action 정의는 [상태 모델](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationState.kt)을 참조한다. context를 준비하는 제품 진입점은 아직 없으므로 화면 연결 예시는 후속 구현에서 제공한다.
+context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/README.md), 등록 작업 상태는 [AccountRegistrationState](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationState.kt), 이벤트는 [Action](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationAction.kt)을 참조한다. context를 준비하는 제품 진입점은 아직 없으므로 화면 연결 예시는 후속 구현에서 제공한다.
 
-입력은 `AccountRegistrationAction`을 Main에서 전달하고 읽기 전용 `uiState`를 수집한다. `AccountSaveState`는 초기화·편집·저장·결과 확인·미확정·성공·사용 불가를 구분하며 저장/확인 상태가 제출을, 성공 상태가 operationId와 accountId를 필수로 보유한다. `AccountReadState`는 조회 전·조회 중·조회 성공 모델·실패를 구분한다. `phase`·`problem`·`savedAccountId`·`account`·`readPhase`는 이 상태에서 계산하는 읽기 전용 표시 값이며 별도로 갱신하지 않는다. 초기화 실패는 `RetryInitialization`으로만 다시 초기화한다.
+입력은 `AccountRegistrationAction`을 Main에서 전달하고 읽기 전용 `state: StateFlow<AccountRegistrationState>`를 수집한다. 표시 데이터는 `state.value.uiState`로 얻는다. [AccountRegistrationUiState.kt](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationUiState.kt)에는 순수 표시 데이터인 `AccountRegistrationUiState`와 그 자식 `AccountDraftUiState`·`AccountUiState`만 둔다. enum·Action·저장/조회 상태·제출/복원·mapper는 각 별도 파일에 있다. 명명·파일 기준은 [Android 지침](../../docs/ai/roles/android.md)을 따른다.
+
+`AccountSaveState`는 초기화·편집·저장·결과 확인·미확정·성공·사용 불가를 구분하며 저장/확인 상태가 제출을, 성공 상태가 operationId와 accountId를 필수로 보유한다. `AccountReadState`는 조회 전·조회 중·조회 성공 모델·실패를 구분한다. `phase`·`problem`·`savedAccountId`·`account`·`readPhase`와 표시용 `uiState`는 등록 상태에서 계산하며 별도로 갱신하지 않는다. 초기화 실패는 `RetryInitialization`으로만 다시 초기화한다.
 
 - 이름·미확인 사유는 기존 모델의 Unicode·UTF-8 검증을 사용한다. 기준일은 엄격한 ISO 날짜이며 서울 1900-01-01부터 어제까지다. 입력 오류 시 원문을 유지한다.
 - 유효한 첫 제출에서 operation·계좌·기준점 ID를 한 번 만들고 요청을 고정한다. 저장·결과 확인·미확정 재시도 중에는 편집과 중복 제출을 받지 않는다.

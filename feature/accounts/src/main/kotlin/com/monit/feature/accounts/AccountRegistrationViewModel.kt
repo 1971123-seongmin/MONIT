@@ -13,7 +13,7 @@ import com.monit.core.model.WriteReceipt
 import com.monit.feature.accounts.model.AccountSubmissionCodec
 import com.monit.feature.accounts.model.SubmittedAccountState
 import com.monit.feature.accounts.model.matches
-import com.monit.feature.accounts.model.toAccountUiModel
+import com.monit.feature.accounts.model.toAccountUiState
 import com.monit.feature.accounts.model.validateAccountDraft
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
@@ -39,8 +39,8 @@ class AccountRegistrationViewModel @Inject constructor(
         )
     }.getOrNull()
     private var submitted: SubmittedAccountState? = null
-    private val mutableState = MutableStateFlow(AccountRegistrationUiState(newDraft()))
-    val uiState = mutableState.asStateFlow()
+    private val mutableState = MutableStateFlow(AccountRegistrationState(newDraft()))
+    val state = mutableState.asStateFlow()
 
     init {
         val ledger = context
@@ -76,25 +76,25 @@ class AccountRegistrationViewModel @Inject constructor(
             AccountRegistrationAction.RetrySave -> retry(allowWrite = true)
             AccountRegistrationAction.RetryInitialization -> {
                 val ledger = context
-                if (ledger != null && uiState.value.saveState == AccountSaveState.InitializationFailed) {
-                    mutableState.value = uiState.value.copy(saveState = AccountSaveState.Initializing)
+                if (ledger != null && state.value.saveState == AccountSaveState.InitializationFailed) {
+                    mutableState.value = state.value.copy(saveState = AccountSaveState.Initializing)
                     viewModelScope.launch { initialize(ledger) }
                 }
             }
             AccountRegistrationAction.ReloadSavedAccount -> {
                 val intent = submitted
-                if (intent != null && uiState.value.phase == AccountSavePhase.SAVED &&
-                    uiState.value.readPhase == AccountReadPhase.FAILED
+                if (intent != null && state.value.phase == AccountSavePhase.SAVED &&
+                    state.value.readPhase == AccountReadPhase.FAILED
                 ) {
-                    mutableState.value = uiState.value.copy(readState = AccountReadState.Loading)
+                    mutableState.value = state.value.copy(readState = AccountReadState.Loading)
                     viewModelScope.launch { readAccount(intent) }
                 }
             }
             AccountRegistrationAction.StartNew -> {
-                if (uiState.value.phase == AccountSavePhase.SAVED) {
+                if (state.value.phase == AccountSavePhase.SAVED) {
                     savedState.remove<Any>(SUBMISSION)
                     submitted = null
-                    mutableState.value = AccountRegistrationUiState(newDraft(), AccountSaveState.Editing)
+                    mutableState.value = AccountRegistrationState(newDraft(), AccountSaveState.Editing)
                 }
             }
         }
@@ -105,7 +105,7 @@ class AccountRegistrationViewModel @Inject constructor(
             repository.initialize(ledger)
             val intent = submitted
             if (intent == null) {
-                mutableState.value = uiState.value.copy(saveState = AccountSaveState.Editing)
+                mutableState.value = state.value.copy(saveState = AccountSaveState.Editing)
             } else {
                 checkResult(intent, allowWrite = false)
             }
@@ -115,25 +115,25 @@ class AccountRegistrationViewModel @Inject constructor(
             block(AccountProblem.CONFLICT)
         } catch (error: Exception) {
             Log.w(TAG, "initialize: ${error.javaClass.simpleName}")
-            mutableState.value = uiState.value.copy(
+            mutableState.value = state.value.copy(
                 saveState = AccountSaveState.InitializationFailed,
             )
         }
     }
 
-    private fun edit(change: AccountDraft.() -> AccountDraft) {
-        if (uiState.value.editable) {
-            mutableState.value = uiState.value.copy(draft = uiState.value.draft.change(), inputError = null)
+    private fun edit(change: AccountDraftUiState.() -> AccountDraftUiState) {
+        if (state.value.editable) {
+            mutableState.value = state.value.copy(draft = state.value.draft.change(), inputError = null)
         }
     }
 
     private fun submit() {
         val ledger = context ?: return
-        if (!uiState.value.editable) return
-        val draft = uiState.value.draft
+        if (!state.value.editable) return
+        val draft = state.value.draft
         val error = validateAccountDraft(draft, today())
         if (error != null) {
-            mutableState.value = uiState.value.copy(inputError = error)
+            mutableState.value = state.value.copy(inputError = error)
             return
         }
         val intent = SubmittedAccountState(
@@ -148,14 +148,14 @@ class AccountRegistrationViewModel @Inject constructor(
         // 하나의 saved-state 값으로 제출 스냅샷을 보관한다. 미제출 입력폼의 영속 초안은 아니다.
         savedState[SUBMISSION] = AccountSubmissionCodec.encode(intent)
         submitted = intent
-        mutableState.value = uiState.value.copy(saveState = AccountSaveState.Saving(intent))
+        mutableState.value = state.value.copy(saveState = AccountSaveState.Saving(intent))
         viewModelScope.launch { write(intent) }
     }
 
     private fun retry(allowWrite: Boolean) {
-        val state = uiState.value.saveState as? AccountSaveState.Unconfirmed ?: return
-        mutableState.value = uiState.value.copy(saveState = AccountSaveState.CheckingResult(state.submission))
-        viewModelScope.launch { checkResult(state.submission, allowWrite) }
+        val unconfirmed = state.value.saveState as? AccountSaveState.Unconfirmed ?: return
+        mutableState.value = state.value.copy(saveState = AccountSaveState.CheckingResult(unconfirmed.submission))
+        viewModelScope.launch { checkResult(unconfirmed.submission, allowWrite) }
     }
 
     private suspend fun write(intent: SubmittedAccountState) {
@@ -176,7 +176,7 @@ class AccountRegistrationViewModel @Inject constructor(
     }
 
     private suspend fun checkResult(intent: SubmittedAccountState, allowWrite: Boolean) {
-        mutableState.value = uiState.value.copy(saveState = AccountSaveState.CheckingResult(intent))
+        mutableState.value = state.value.copy(saveState = AccountSaveState.CheckingResult(intent))
         val receipt = try {
             repository.receipt(intent.context, intent.operationId)
         } catch (cancelled: CancellationException) {
@@ -193,7 +193,7 @@ class AccountRegistrationViewModel @Inject constructor(
         when {
             receipt != null -> accept(intent, receipt)
             allowWrite -> {
-                mutableState.value = uiState.value.copy(saveState = AccountSaveState.Saving(intent))
+                mutableState.value = state.value.copy(saveState = AccountSaveState.Saving(intent))
                 write(intent)
             }
             else -> unconfirmed(intent)
@@ -205,7 +205,7 @@ class AccountRegistrationViewModel @Inject constructor(
             block(AccountProblem.RESULT_MISMATCH)
             return
         }
-        mutableState.value = uiState.value.copy(
+        mutableState.value = state.value.copy(
             saveState = AccountSaveState.Saved(intent.operationId, intent.value.id),
             readState = AccountReadState.Loading,
         )
@@ -216,30 +216,30 @@ class AccountRegistrationViewModel @Inject constructor(
         try {
             val snapshot = repository.snapshot(intent.context, today())
             val account = snapshot.accounts.single { it.id == intent.value.id }
-            val model = account.toAccountUiModel(snapshot.balances)
+            val model = account.toAccountUiState(snapshot.balances)
             if (submitted != intent) return
-            mutableState.value = uiState.value.copy(
+            mutableState.value = state.value.copy(
                 readState = AccountReadState.Ready(model),
             )
         } catch (cancelled: CancellationException) {
-            if (submitted == intent) mutableState.value = uiState.value.copy(readState = AccountReadState.Failed)
+            if (submitted == intent) mutableState.value = state.value.copy(readState = AccountReadState.Failed)
             throw cancelled
         } catch (error: Exception) {
             Log.w(TAG, "snapshot: ${error.javaClass.simpleName}")
             // 조회 실패가 확인된 저장 성공을 취소하거나 새 저장을 유발하지 않는다.
-            if (submitted == intent) mutableState.value = uiState.value.copy(readState = AccountReadState.Failed)
+            if (submitted == intent) mutableState.value = state.value.copy(readState = AccountReadState.Failed)
         }
     }
 
-    private fun newDraft() = AccountDraft(anchorDate = today().minusDays(1).toString())
+    private fun newDraft() = AccountDraftUiState(anchorDate = today().minusDays(1).toString())
     private fun today(): LocalDate = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
     private fun unconfirmed(intent: SubmittedAccountState) {
-        mutableState.value = uiState.value.copy(
+        mutableState.value = state.value.copy(
             saveState = AccountSaveState.Unconfirmed(intent),
         )
     }
     private fun block(problem: AccountProblem) {
-        mutableState.value = uiState.value.copy(saveState = AccountSaveState.Unavailable(problem))
+        mutableState.value = state.value.copy(saveState = AccountSaveState.Unavailable(problem))
     }
 
     companion object {

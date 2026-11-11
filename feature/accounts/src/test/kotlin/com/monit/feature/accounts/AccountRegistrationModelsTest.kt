@@ -14,7 +14,7 @@ import com.monit.core.model.WriteReceipt
 import com.monit.feature.accounts.model.AccountSubmissionCodec
 import com.monit.feature.accounts.model.SubmittedAccountState
 import com.monit.feature.accounts.model.matches
-import com.monit.feature.accounts.model.toAccountUiModel
+import com.monit.feature.accounts.model.toAccountUiState
 import com.monit.feature.accounts.model.validateAccountDraft
 import java.time.LocalDate
 import kotlin.test.assertEquals
@@ -90,15 +90,15 @@ class AccountRegistrationModelsTest {
         val value = submission.value
         val account = LedgerAccount(value.id, value.name, value.nature, AccountStatus.ACTIVE, 1,
             BalanceAnchor(value.anchorId, date, null, null, value.unknownReason))
-        val ui = account.toAccountUiModel(mapOf(account.id to null))
+        val ui = account.toAccountUiState(mapOf(account.id to null))
         assertNull(ui.balance)
         assertEquals("미확인", ui.unknownReason)
-        assertFailsWith<NoSuchElementException> { account.toAccountUiModel(emptyMap()) }
+        assertFailsWith<NoSuchElementException> { account.toAccountUiState(emptyMap()) }
     }
 
     /** 순수 검증은 입력을 변경하지 않고 첫 오류와 엄격한 날짜 경계를 반환한다. */
     @Test fun validatorPreservesOriginalInputAndFieldOrder() {
-        val draft = AccountDraft(name = "  ", anchorDate = "2026-02-30", unknownReason = "")
+        val draft = AccountDraftUiState(name = "  ", anchorDate = "2026-02-30", unknownReason = "")
         assertEquals(AccountInputError.NAME, validateAccountDraft(draft, date.plusDays(1)))
         assertEquals("  ", draft.name)
         assertEquals(AccountInputError.ANCHOR_DATE,

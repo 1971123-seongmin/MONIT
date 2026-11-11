@@ -43,9 +43,10 @@ Google 권장 아키텍처의 `UI → ViewModel → Repository → 데이터 소
 
 | 파일 | 제안하는 책임/변경 |
 | --- | --- |
-| `feature/accounts/src/main/kotlin/com/monit/feature/accounts/AccountRegistrationState.kt` | `AccountDraft`, 입력 오류, Action과 불변 UiState. 저장/조회 상태의 필수 값 및 조회/재저장 Action을 구분한다. |
+| `feature/accounts/src/main/kotlin/com/monit/feature/accounts/AccountRegistrationState.kt` | 등록 작업 상태와 표시용 UiState 투영. 저장/조회 상태·Action·enum은 각각 별도 파일로 구분한다. |
+| `feature/accounts/src/main/kotlin/com/monit/feature/accounts/AccountRegistrationUiState.kt` | 순수 표시 데이터와 직접 참조하는 자식 `AccountDraftUiState`·`AccountUiState`만 함께 정의한다. |
 | `feature/accounts/src/main/kotlin/com/monit/feature/accounts/AccountRegistrationViewModel.kt` | Main 이벤트 직렬 처리, 캡처된 제출의 소유, Repository 호출, 결과를 화면 상태로 조정. 공통 codec/mapper/검증 구현은 밖으로 옮긴다. |
-| `feature/accounts/src/main/kotlin/com/monit/feature/accounts/model/AccountUiModel.kt` | Room Entity가 아닌 `LedgerAccount`와 검증된 balance 입력에서 표시 모델로 변환. balance map에 키가 없는 경우를 미확인 null과 혼동하지 않는다. |
+| `feature/accounts/src/main/kotlin/com/monit/feature/accounts/model/AccountUiMapper.kt` | Room Entity가 아닌 `LedgerAccount`와 검증된 balance 입력에서 `AccountUiState`로 변환. balance map에 키가 없는 경우를 미확인 null과 혼동하지 않는다. |
 | `feature/accounts/src/main/kotlin/com/monit/feature/accounts/model/AccountDraftValidator.kt` | 순수 입력 검증. 원문을 trim·날짜 자동 보정하지 않고 첫 필드 오류를 반환한다. Clock에서 계산한 서울 오늘을 입력받는다. |
 | `feature/accounts/src/main/kotlin/com/monit/feature/accounts/model/SubmittedAccountState.kt` | context·operationId·typed CreateAccount의 불변 제출 스냅샷. 저장 의도가 생긴 뒤에는 입력과 분리한다. |
 | `feature/accounts/src/main/kotlin/com/monit/feature/accounts/model/AccountSubmissionCodec.kt` | SavedStateHandle 경계의 인코딩/복원, 버전·필수 필드·정규 ID·context 검증. raw DB requestJson은 해석하지 않는다. |

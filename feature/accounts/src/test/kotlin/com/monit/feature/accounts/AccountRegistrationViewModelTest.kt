@@ -69,7 +69,7 @@ class AccountRegistrationViewModelTest {
         val repository = FakeRepository()
         val vm = viewModel(repository, SavedStateHandle())
         advanceUntilIdle()
-        assertEquals(AccountProblem.CONTEXT_REQUIRED, vm.uiState.value.problem)
+        assertEquals(AccountProblem.CONTEXT_REQUIRED, vm.state.value.problem)
         assertEquals(0, repository.initializations)
         vm.onAction(AccountRegistrationAction.Submit)
         assertTrue(repository.requests.isEmpty())
@@ -80,11 +80,11 @@ class AccountRegistrationViewModelTest {
         val repository = FakeRepository()
         val vm = viewModel(repository)
         advanceUntilIdle()
-        assertEquals("2026-11-10", vm.uiState.value.draft.anchorDate)
+        assertEquals("2026-11-10", vm.state.value.uiState.draft.anchorDate)
         vm.onAction(AccountRegistrationAction.NameChanged("  "))
         vm.onAction(AccountRegistrationAction.Submit)
-        assertEquals(AccountInputError.NAME, vm.uiState.value.inputError)
-        assertEquals("  ", vm.uiState.value.draft.name)
+        assertEquals(AccountInputError.NAME, vm.state.value.uiState.inputError)
+        assertEquals("  ", vm.state.value.uiState.draft.name)
         assertTrue(repository.requests.isEmpty())
     }
 
@@ -95,7 +95,7 @@ class AccountRegistrationViewModelTest {
             val vm = ready(repository)
             vm.onAction(AccountRegistrationAction.AnchorDateChanged(date))
             vm.onAction(AccountRegistrationAction.Submit)
-            assertEquals(AccountInputError.ANCHOR_DATE, vm.uiState.value.inputError, date)
+            assertEquals(AccountInputError.ANCHOR_DATE, vm.state.value.uiState.inputError, date)
             assertTrue(repository.requests.isEmpty())
         }
         for (date in listOf("1900-01-01", "2026-11-10")) {
@@ -104,7 +104,7 @@ class AccountRegistrationViewModelTest {
             vm.onAction(AccountRegistrationAction.AnchorDateChanged(date))
             vm.onAction(AccountRegistrationAction.Submit)
             advanceUntilIdle()
-            assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase, date)
+            assertEquals(AccountSavePhase.SAVED, vm.state.value.phase, date)
         }
     }
 
@@ -115,12 +115,12 @@ class AccountRegistrationViewModelTest {
         for (name in listOf("가".repeat(6000), "\uD800")) {
             vm.onAction(AccountRegistrationAction.NameChanged(name))
             vm.onAction(AccountRegistrationAction.Submit)
-            assertEquals(AccountInputError.NAME, vm.uiState.value.inputError)
+            assertEquals(AccountInputError.NAME, vm.state.value.uiState.inputError)
         }
         vm.onAction(AccountRegistrationAction.NameChanged("합성 계좌"))
         vm.onAction(AccountRegistrationAction.UnknownReasonChanged(""))
         vm.onAction(AccountRegistrationAction.Submit)
-        assertEquals(AccountInputError.UNKNOWN_REASON, vm.uiState.value.inputError)
+        assertEquals(AccountInputError.UNKNOWN_REASON, vm.state.value.uiState.inputError)
         assertTrue(repository.requests.isEmpty())
     }
 
@@ -139,14 +139,14 @@ class AccountRegistrationViewModelTest {
         vm.onAction(AccountRegistrationAction.Submit)
         vm.onAction(AccountRegistrationAction.NameChanged("변경 시도"))
         runCurrent()
-        assertEquals(AccountSavePhase.SAVING, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVING, vm.state.value.phase)
         assertEquals(1, repository.requests.size)
         gate.complete(Unit)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
-        assertEquals("합성 계좌", vm.uiState.value.account?.name)
-        assertNull(assertNotNull(vm.uiState.value.account).balance)
-        assertEquals("기준 잔액을 아직 확인하지 않았습니다", vm.uiState.value.account?.unknownReason)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
+        assertEquals("합성 계좌", vm.state.value.uiState.account?.name)
+        assertNull(assertNotNull(vm.state.value.uiState.account).balance)
+        assertEquals("기준 잔액을 아직 확인하지 않았습니다", vm.state.value.uiState.account?.unknownReason)
         assertEquals(context, repository.requests.single().context)
     }
 
@@ -161,7 +161,7 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
         assertEquals(1, repository.requests.size)
         assertEquals(1, repository.receiptReads)
     }
@@ -177,14 +177,14 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.uiState.value.problem)
-        assertFalse(vm.uiState.value.editable)
+        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.state.value.problem)
+        assertFalse(vm.state.value.editable)
         vm.onAction(AccountRegistrationAction.NameChanged("다른 이름"))
         repository.beforeWrite = {}
         vm.onAction(AccountRegistrationAction.RetrySave)
         vm.onAction(AccountRegistrationAction.RetrySave)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
         assertEquals(2, repository.requests.size)
         assertEquals(repository.requests[0], repository.requests[1])
     }
@@ -205,9 +205,9 @@ class AccountRegistrationViewModelTest {
         advanceUntilIdle()
         vm.onAction(AccountRegistrationAction.RetrySave)
         advanceUntilIdle()
-        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.uiState.value.problem)
+        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.state.value.problem)
         assertEquals(1, repository.requests.size)
-        assertEquals("합성 계좌", vm.uiState.value.draft.name)
+        assertEquals("합성 계좌", vm.state.value.uiState.draft.name)
     }
 
     /**
@@ -221,13 +221,13 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
-        assertEquals(AccountReadPhase.FAILED, vm.uiState.value.readPhase)
-        assertNotNull(vm.uiState.value.savedAccountId)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
+        assertEquals(AccountReadPhase.FAILED, vm.state.value.readPhase)
+        assertNotNull(vm.state.value.savedAccountId)
         repository.beforeSnapshot = {}
         vm.onAction(AccountRegistrationAction.ReloadSavedAccount)
         advanceUntilIdle()
-        assertEquals(AccountReadPhase.READY, vm.uiState.value.readPhase)
+        assertEquals(AccountReadPhase.READY, vm.state.value.readPhase)
         assertEquals(1, repository.requests.size)
         assertEquals(2, repository.snapshotReads)
     }
@@ -245,13 +245,13 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         runCurrent()
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
         vm.onAction(AccountRegistrationAction.StartNew)
         gate.complete(Unit)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.EDITING, vm.uiState.value.phase)
-        assertEquals("", vm.uiState.value.draft.name)
-        assertEquals(AccountReadPhase.NOT_REQUESTED, vm.uiState.value.readPhase)
+        assertEquals(AccountSavePhase.EDITING, vm.state.value.phase)
+        assertEquals("", vm.state.value.uiState.draft.name)
+        assertEquals(AccountReadPhase.NOT_REQUESTED, vm.state.value.readPhase)
     }
 
     /** 새 등록을 명시하면 같은 이름이어도 별도 ID의 새 계좌가 된다. */
@@ -290,16 +290,16 @@ class AccountRegistrationViewModelTest {
         stores.first().clear()
         advanceUntilIdle()
         assertTrue(finished)
-        assertEquals(AccountSavePhase.RETRY_AVAILABLE, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.RETRY_AVAILABLE, vm.state.value.phase)
         val restored = viewModel(repository, recovered)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.RETRY_AVAILABLE, restored.uiState.value.phase)
+        assertEquals(AccountSavePhase.RETRY_AVAILABLE, restored.state.value.phase)
         assertEquals(1, repository.requests.size)
         assertEquals(1, repository.receiptReads)
         repository.beforeWrite = {}
         restored.onAction(AccountRegistrationAction.RetrySave)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.SAVED, restored.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVED, restored.state.value.phase)
         assertEquals(repository.requests[0], repository.requests[1])
     }
 
@@ -317,8 +317,8 @@ class AccountRegistrationViewModelTest {
         advanceUntilIdle()
         val restored = viewModel(repository, saved)
         advanceUntilIdle()
-        assertEquals(vm.uiState.value.savedAccountId, restored.uiState.value.savedAccountId)
-        assertEquals(AccountSavePhase.SAVED, restored.uiState.value.phase)
+        assertEquals(vm.state.value.savedAccountId, restored.state.value.savedAccountId)
+        assertEquals(AccountSavePhase.SAVED, restored.state.value.phase)
         assertEquals(1, repository.requests.size)
     }
 
@@ -330,7 +330,7 @@ class AccountRegistrationViewModelTest {
         }
         val vm = viewModel(repository, saved)
         advanceUntilIdle()
-        assertEquals(AccountProblem.INVALID_RECOVERY, vm.uiState.value.problem)
+        assertEquals(AccountProblem.INVALID_RECOVERY, vm.state.value.problem)
         assertEquals(0, repository.initializations)
         val valid = handle()
         val original = ready(repository, valid)
@@ -339,7 +339,7 @@ class AccountRegistrationViewModelTest {
         valid[AccountRegistrationViewModel.STORAGE_GENERATION] = "00000000-0000-0000-0000-000000000003"
         val changed = viewModel(repository, valid)
         advanceUntilIdle()
-        assertEquals(AccountProblem.INVALID_RECOVERY, changed.uiState.value.problem)
+        assertEquals(AccountProblem.INVALID_RECOVERY, changed.state.value.problem)
         assertEquals(1, repository.requests.size)
     }
 
@@ -356,15 +356,15 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        assertEquals(AccountProblem.CONFLICT, vm.uiState.value.problem)
-        assertEquals(AccountSavePhase.UNAVAILABLE, vm.uiState.value.phase)
+        assertEquals(AccountProblem.CONFLICT, vm.state.value.problem)
+        assertEquals(AccountSavePhase.UNAVAILABLE, vm.state.value.phase)
         assertEquals(0, repository.receiptReads)
         val other = FakeRepository().apply { mismatchReceipt = true }
         val otherVm = ready(other)
         otherVm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        assertEquals(AccountProblem.RESULT_MISMATCH, otherVm.uiState.value.problem)
-        assertNull(otherVm.uiState.value.savedAccountId)
+        assertEquals(AccountProblem.RESULT_MISMATCH, otherVm.state.value.problem)
+        assertNull(otherVm.state.value.savedAccountId)
     }
 
     /**
@@ -377,11 +377,11 @@ class AccountRegistrationViewModelTest {
         val repository = FakeRepository().apply { beforeInitialize = { throw IOException() } }
         val vm = viewModel(repository)
         advanceUntilIdle()
-        assertEquals(AccountProblem.INITIALIZATION_FAILED, vm.uiState.value.problem)
+        assertEquals(AccountProblem.INITIALIZATION_FAILED, vm.state.value.problem)
         repository.beforeInitialize = {}
         vm.onAction(AccountRegistrationAction.RetryInitialization)
         advanceUntilIdle()
-        assertTrue(vm.uiState.value.editable)
+        assertTrue(vm.state.value.editable)
         assertEquals(2, repository.initializations)
         assertTrue(repository.requests.isEmpty())
     }
@@ -400,13 +400,13 @@ class AccountRegistrationViewModelTest {
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         runCurrent()
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
         stores.first().clear()
         advanceUntilIdle()
         assertTrue(finished)
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
-        assertNotNull(vm.uiState.value.savedAccountId)
-        assertEquals(AccountReadPhase.FAILED, vm.uiState.value.readPhase)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
+        assertNotNull(vm.state.value.savedAccountId)
+        assertEquals(AccountReadPhase.FAILED, vm.state.value.readPhase)
         assertEquals(1, repository.requests.size)
     }
 
@@ -418,7 +418,7 @@ class AccountRegistrationViewModelTest {
         assertFalse(saved.contains(AccountRegistrationViewModel.SUBMISSION))
         val restored = viewModel(repository, saved)
         advanceUntilIdle()
-        assertEquals("", restored.uiState.value.draft.name)
+        assertEquals("", restored.state.value.uiState.draft.name)
         assertTrue(repository.requests.isEmpty())
     }
 
@@ -440,17 +440,17 @@ class AccountRegistrationViewModelTest {
         vm.onAction(AccountRegistrationAction.CheckResult)
         vm.onAction(AccountRegistrationAction.RetrySave)
         runCurrent()
-        assertEquals(AccountSavePhase.CHECKING_RESULT, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.CHECKING_RESULT, vm.state.value.phase)
         assertEquals(2, repository.receiptReads)
         gate.complete(Unit)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.RETRY_AVAILABLE, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.RETRY_AVAILABLE, vm.state.value.phase)
         assertEquals(1, repository.requests.size)
         repository.beforeReceipt = { throw IOException() }
         vm.onAction(AccountRegistrationAction.CheckResult)
         advanceUntilIdle()
         assertEquals(1, repository.requests.size)
-        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.uiState.value.problem)
+        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.state.value.problem)
     }
 
     /**
@@ -484,7 +484,7 @@ class AccountRegistrationViewModelTest {
         assertEquals("00000000-0000-0000-0000-000000000004", request.value.id)
         assertEquals("00000000-0000-0000-0000-000000000005", request.value.anchorId)
         assertEquals("복원 계좌", request.value.name)
-        assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+        assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
     }
 
     /** 잘못된 v2는 초기화·조회·쓰기 없이 명시적인 복원 불가 상태가 된다. */
@@ -497,7 +497,7 @@ class AccountRegistrationViewModelTest {
             vm.onAction(AccountRegistrationAction.CheckResult)
             vm.onAction(AccountRegistrationAction.RetrySave)
             advanceUntilIdle()
-            assertEquals(AccountProblem.INVALID_RECOVERY, vm.uiState.value.problem)
+            assertEquals(AccountProblem.INVALID_RECOVERY, vm.state.value.problem)
             assertEquals(0, repository.initializations)
             assertEquals(0, repository.receiptReads)
             assertTrue(repository.requests.isEmpty())
@@ -518,13 +518,13 @@ class AccountRegistrationViewModelTest {
             val vm = ready(repository)
             vm.onAction(AccountRegistrationAction.Submit)
             runCurrent()
-            assertEquals(AccountSavePhase.SAVED, vm.uiState.value.phase)
+            assertEquals(AccountSavePhase.SAVED, vm.state.value.phase)
             vm.onAction(AccountRegistrationAction.StartNew)
             gate.complete(Unit)
             advanceUntilIdle()
-            assertEquals(AccountSavePhase.EDITING, vm.uiState.value.phase)
-            assertEquals("", vm.uiState.value.draft.name)
-            assertEquals(AccountReadPhase.NOT_REQUESTED, vm.uiState.value.readPhase)
+            assertEquals(AccountSavePhase.EDITING, vm.state.value.phase)
+            assertEquals("", vm.state.value.uiState.draft.name)
+            assertEquals(AccountReadPhase.NOT_REQUESTED, vm.state.value.readPhase)
         }
     }
 
@@ -550,10 +550,10 @@ class AccountRegistrationViewModelTest {
         assertFalse(firstVm.viewModelScope.isActive)
         assertTrue(firstCleanedUp.isCompleted)
         assertTrue(secondVm.viewModelScope.isActive)
-        assertEquals(AccountSavePhase.INITIALIZING, secondVm.uiState.value.phase)
+        assertEquals(AccountSavePhase.INITIALIZING, secondVm.state.value.phase)
         secondGate.complete(Unit)
         advanceUntilIdle()
-        assertEquals(AccountSavePhase.EDITING, secondVm.uiState.value.phase)
+        assertEquals(AccountSavePhase.EDITING, secondVm.state.value.phase)
     }
 
     /** 오류 진단에는 작업·예외 타입만 남기고 예외 메시지·계좌 입력·Throwable은 기록하지 않는다. */
@@ -564,7 +564,7 @@ class AccountRegistrationViewModelTest {
         vm.onAction(AccountRegistrationAction.NameChanged(sensitive))
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.uiState.value.problem)
+        assertEquals(AccountProblem.RESULT_UNCONFIRMED, vm.state.value.problem)
         val log = ShadowLog.getLogsForTag("AccountRegistration").single()
         assertEquals("write: IllegalStateException", log.msg)
         assertNull(log.throwable)
