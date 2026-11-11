@@ -16,6 +16,10 @@ android {
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
+tasks.withType<Test>().configureEach {
+    systemProperty("monit.roomSchemas", layout.projectDirectory.dir("schemas").asFile.absolutePath)
+}
+
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))

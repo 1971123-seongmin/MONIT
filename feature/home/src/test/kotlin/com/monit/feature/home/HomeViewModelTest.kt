@@ -49,6 +49,7 @@ class HomeViewModelTest {
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
+
     @After
     fun tearDown() {
         store.clear(); Dispatchers.resetMain()
@@ -139,6 +140,15 @@ class HomeViewModelTest {
 }
 
 private class HomeRepository : LedgerRepository {
+    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot =
+        error("이 테스트는 제출 발견을 호출하지 않는다")
+
+    override suspend fun finishSubmissionRecovery(
+        context: LedgerContext,
+        operationId: String
+    ): com.monit.core.model.FinishSubmissionRecoveryResult =
+        error("이 테스트는 제출 종료를 호출하지 않는다")
+
     val dates = mutableListOf<LocalDate>()
     var onSnapshot: suspend () -> LedgerSnapshot = { snapshot(0) }
     override suspend fun snapshot(context: LedgerContext, asOf: LocalDate): LedgerSnapshot {

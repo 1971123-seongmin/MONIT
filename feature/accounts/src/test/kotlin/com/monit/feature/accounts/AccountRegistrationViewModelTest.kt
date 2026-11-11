@@ -60,14 +60,17 @@ class AccountRegistrationViewModelTest {
         "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002",
     )
 
-    @Before fun setUp() = Dispatchers.setMain(dispatcher)
-    @After fun tearDown() {
+    @Before
+    fun setUp() = Dispatchers.setMain(dispatcher)
+    @After
+    fun tearDown() {
         stores.forEach { it.clear() }
         Dispatchers.resetMain()
     }
 
     /** 장부 식별자가 없으면 새 장부를 임의 생성하거나 저장하지 않는다. */
-    @Test fun missingContextDoesNotInitializeOrWrite() = runTest(dispatcher) {
+    @Test
+    fun missingContextDoesNotInitializeOrWrite() = runTest(dispatcher) {
         val repository = FakeRepository()
         val vm = viewModel(repository, SavedStateHandle())
         advanceUntilIdle()
@@ -78,7 +81,8 @@ class AccountRegistrationViewModelTest {
     }
 
     /** UTC Clock에서도 기본 기준일은 서울 어제이고 빈 이름은 입력 그대로 보존한다. */
-    @Test fun seoulDateAndValidationPreserveInput() = runTest(dispatcher) {
+    @Test
+    fun seoulDateAndValidationPreserveInput() = runTest(dispatcher) {
         val repository = FakeRepository()
         val vm = viewModel(repository)
         advanceUntilIdle()
@@ -91,7 +95,8 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 기준일은 엄격한 ISO 날짜·1900년부터 서울 어제까지 허용한다. */
-    @Test fun anchorDateBoundariesAreStrict() = runTest(dispatcher) {
+    @Test
+    fun anchorDateBoundariesAreStrict() = runTest(dispatcher) {
         for (date in listOf("1899-12-31", "2026-11-11", "2026-11-12", "2026-02-30")) {
             val repository = FakeRepository()
             val vm = ready(repository)
@@ -111,7 +116,8 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 모델과 같은 UTF-8·Unicode·미확인 사유 검증을 적용한다. */
-    @Test fun invalidTextDoesNotCreateSubmission() = runTest(dispatcher) {
+    @Test
+    fun invalidTextDoesNotCreateSubmission() = runTest(dispatcher) {
         val repository = FakeRepository()
         val vm = ready(repository)
         for (name in listOf("가".repeat(6000), "\uD800")) {
@@ -132,7 +138,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 제출 두 번·편집 시도 후 gate를 해제한다.
      * 기대: 요청 하나·원래 이름·미확인 잔액 null이다.
      */
-    @Test fun duplicateTapsFreezeOneSubmission() = runTest(dispatcher) {
+    @Test
+    fun duplicateTapsFreezeOneSubmission() = runTest(dispatcher) {
         val repository = FakeRepository()
         val gate = CompletableDeferred<Unit>()
         repository.beforeWrite = { gate.await() }
@@ -158,7 +165,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 제출과 동일 operation 영수증 조회를 완료한다.
      * 기대: SAVED·저장 한 번·결과 조회 한 번이다.
      */
-    @Test fun lostResponseChecksReceiptWithoutSecondWrite() = runTest(dispatcher) {
+    @Test
+    fun lostResponseChecksReceiptWithoutSecondWrite() = runTest(dispatcher) {
         val repository = FakeRepository().apply { loseResponse = true }
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
@@ -174,7 +182,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 실패 확인·편집 시도 후 Retry를 두 번 누른다.
      * 기대: 두 요청 전체가 같고 두 번째 Retry는 무시된다.
      */
-    @Test fun explicitRetryUsesIdenticalSnapshot() = runTest(dispatcher) {
+    @Test
+    fun explicitRetryUsesIdenticalSnapshot() = runTest(dispatcher) {
         val repository = FakeRepository().apply { beforeWrite = { throw IOException() } }
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
@@ -197,7 +206,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 제출 후 명시 Retry까지 진행한다.
      * 기대: 미확정 상태·추가 쓰기 없음·입력 유지다.
      */
-    @Test fun failedResultCheckNeverAutomaticallyResubmits() = runTest(dispatcher) {
+    @Test
+    fun failedResultCheckNeverAutomaticallyResubmits() = runTest(dispatcher) {
         val repository = FakeRepository().apply {
             beforeWrite = { throw IOException() }
             beforeReceipt = { throw IOException() }
@@ -218,7 +228,8 @@ class AccountRegistrationViewModelTest {
      * 절차: ReloadSavedAccount로 조회만 재시도한다.
      * 기대: SAVED 유지·쓰기 한 번·조회 두 번이다.
      */
-    @Test fun readFailureKeepsConfirmedSave() = runTest(dispatcher) {
+    @Test
+    fun readFailureKeepsConfirmedSave() = runTest(dispatcher) {
         val repository = FakeRepository().apply { beforeSnapshot = { throw IOException() } }
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
@@ -240,7 +251,8 @@ class AccountRegistrationViewModelTest {
      * 절차: StartNew 후 gate를 해제한다.
      * 기대: 편집 가능·새 빈 이름·조회 전 상태를 유지한다.
      */
-    @Test fun lateReadCannotOverwriteNewDraft() = runTest(dispatcher) {
+    @Test
+    fun lateReadCannotOverwriteNewDraft() = runTest(dispatcher) {
         val repository = FakeRepository()
         val gate = CompletableDeferred<Unit>()
         repository.beforeSnapshot = { gate.await() }
@@ -257,7 +269,8 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 새 등록을 명시하면 같은 이름이어도 별도 ID의 새 계좌가 된다. */
-    @Test fun separateSameNameIntentGetsNewIdentifiers() = runTest(dispatcher) {
+    @Test
+    fun separateSameNameIntentGetsNewIdentifiers() = runTest(dispatcher) {
         val repository = FakeRepository()
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
@@ -279,11 +292,18 @@ class AccountRegistrationViewModelTest {
      * 절차: 저장 스냅샷을 별도 handle로 복원 후 명시 Retry한다.
      * 기대: 취소 정리 완료·자동 쓰기 없음·재시도 요청 전체 동일이다.
      */
-    @Test fun cancelledSubmissionRestoresSameIntent() = runTest(dispatcher) {
+    @Test
+    fun cancelledSubmissionRestoresSameIntent() = runTest(dispatcher) {
         val repository = FakeRepository()
         val gate = CompletableDeferred<Unit>()
         var finished = false
-        repository.beforeWrite = { try { gate.await() } finally { finished = true } }
+        repository.beforeWrite = {
+            try {
+                gate.await()
+            } finally {
+                finished = true
+            }
+        }
         val saved = handle()
         val vm = ready(repository, saved)
         vm.onAction(AccountRegistrationAction.Submit)
@@ -311,7 +331,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 새 ViewModel 초기화를 완료한다.
      * 기대: 같은 계좌 ID·SAVED이며 저장 호출은 한 번이다.
      */
-    @Test fun committedSubmissionReentryOnlyReads() = runTest(dispatcher) {
+    @Test
+    fun committedSubmissionReentryOnlyReads() = runTest(dispatcher) {
         val repository = FakeRepository()
         val saved = handle()
         val vm = ready(repository, saved)
@@ -325,7 +346,8 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 손상되거나 다른 저장소 세대의 제출을 재생성·실행하지 않는다. */
-    @Test fun corruptOrCrossGenerationRecoveryIsBlocked() = runTest(dispatcher) {
+    @Test
+    fun corruptOrCrossGenerationRecoveryIsBlocked() = runTest(dispatcher) {
         val repository = FakeRepository()
         val saved = handle().apply {
             this[AccountRegistrationViewModel.SUBMISSION] = arrayListOf("broken")
@@ -338,7 +360,8 @@ class AccountRegistrationViewModelTest {
         val original = ready(repository, valid)
         original.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
-        valid[AccountRegistrationViewModel.STORAGE_GENERATION] = "00000000-0000-0000-0000-000000000003"
+        valid[AccountRegistrationViewModel.STORAGE_GENERATION] =
+            "00000000-0000-0000-0000-000000000003"
         val changed = viewModel(repository, valid)
         advanceUntilIdle()
         assertEquals(AccountProblem.INVALID_RECOVERY, changed.state.value.problem)
@@ -351,7 +374,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 각각의 제출을 완료한다.
      * 기대: UNAVAILABLE·각 오류 코드·성공한 계좌 ID 없음이다.
      */
-    @Test fun conflictAndMismatchedReceiptNeverShowSuccess() = runTest(dispatcher) {
+    @Test
+    fun conflictAndMismatchedReceiptNeverShowSuccess() = runTest(dispatcher) {
         val repository = FakeRepository().apply {
             beforeWrite = { throw LedgerConflictException(LedgerConflict.DUPLICATE_REQUEST) }
         }
@@ -375,7 +399,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 명시 Retry로 초기화만 재실행한다.
      * 기대: 편집 가능·초기화 두 번·금융 쓰기 없음이다.
      */
-    @Test fun initializationFailureHasExplicitRetry() = runTest(dispatcher) {
+    @Test
+    fun initializationFailureHasExplicitRetry() = runTest(dispatcher) {
         val repository = FakeRepository().apply { beforeInitialize = { throw IOException() } }
         val vm = viewModel(repository)
         advanceUntilIdle()
@@ -394,11 +419,18 @@ class AccountRegistrationViewModelTest {
      * 절차: 저장 확정 확인 후 ViewModelStore를 지우고 취소 정리를 완료한다.
      * 기대: SAVED·계좌 ID 유지·조회만 FAILED이며 금융 쓰기는 한 번이다.
      */
-    @Test fun readCancellationKeepsConfirmedSave() = runTest(dispatcher) {
+    @Test
+    fun readCancellationKeepsConfirmedSave() = runTest(dispatcher) {
         val repository = FakeRepository()
         val gate = CompletableDeferred<Unit>()
         var finished = false
-        repository.beforeSnapshot = { try { gate.await() } finally { finished = true } }
+        repository.beforeSnapshot = {
+            try {
+                gate.await()
+            } finally {
+                finished = true
+            }
+        }
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
         runCurrent()
@@ -413,7 +445,8 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 제출하지 않은 이름은 새 handle에서 복원되지 않아 영속 초안 지원으로 오인하지 않는다. */
-    @Test fun unsubmittedDraftIsNotPromisedAsDurable() = runTest(dispatcher) {
+    @Test
+    fun unsubmittedDraftIsNotPromisedAsDurable() = runTest(dispatcher) {
         val repository = FakeRepository()
         val saved = handle()
         ready(repository, saved)
@@ -430,7 +463,8 @@ class AccountRegistrationViewModelTest {
      * 절차: gate로 조회 중 중복 탭을 제어하고 순서대로 두 조건을 확인한다.
      * 기대: 추가 저장 없이 미확정 상태이며 CheckResult 연타는 한 번의 조회다.
      */
-    @Test fun checkResultIsReadOnlyAndRejectsDuplicateTaps() = runTest(dispatcher) {
+    @Test
+    fun checkResultIsReadOnlyAndRejectsDuplicateTaps() = runTest(dispatcher) {
         val repository = FakeRepository().apply { beforeWrite = { throw IOException() } }
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.Submit)
@@ -461,7 +495,8 @@ class AccountRegistrationViewModelTest {
      * 절차: 복원·조회 전용 확인 후 명시 RetrySave한다.
      * 기대: v2로 기록·복원 중 쓰기 없음·재시도는 원래 ID와 값이다.
      */
-    @Test fun legacyTaskMigratesWithoutNewSubmission() = runTest(dispatcher) {
+    @Test
+    fun legacyTaskMigratesWithoutNewSubmission() = runTest(dispatcher) {
         val repository = FakeRepository()
         val saved = handle().apply {
             this[AccountRegistrationViewModel.SUBMISSION] = arrayListOf(
@@ -474,7 +509,10 @@ class AccountRegistrationViewModelTest {
         }
         val vm = viewModel(repository, saved)
         advanceUntilIdle()
-        assertEquals(2, saved.get<Bundle>(AccountRegistrationViewModel.SUBMISSION)?.getInt("version"))
+        assertEquals(
+            2,
+            saved.get<Bundle>(AccountRegistrationViewModel.SUBMISSION)?.getInt("version")
+        )
         assertTrue(repository.requests.isEmpty())
         vm.onAction(AccountRegistrationAction.CheckResult)
         advanceUntilIdle()
@@ -490,8 +528,11 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 잘못된 v2는 초기화·조회·쓰기 없이 명시적인 복원 불가 상태가 된다. */
-    @Test fun malformedBundleRecoveryNeverWrites() = runTest(dispatcher) {
-        for (raw in listOf(Bundle().apply { putInt("version", 99) }, Bundle().apply { putString("version", "2") })) {
+    @Test
+    fun malformedBundleRecoveryNeverWrites() = runTest(dispatcher) {
+        for (raw in listOf(
+            Bundle().apply { putInt("version", 99) },
+            Bundle().apply { putString("version", "2") })) {
             val repository = FakeRepository()
             val saved = handle().apply { this[AccountRegistrationViewModel.SUBMISSION] = raw }
             val vm = viewModel(repository, saved)
@@ -512,7 +553,8 @@ class AccountRegistrationViewModelTest {
      * 절차: StartNew 후 IOException 또는 CancellationException으로 조회를 종료한다.
      * 기대: 새 편집 상태·빈 이름·조회 전 상태가 유지된다.
      */
-    @Test fun lateReadFailureAndCancellationCannotOverwriteNewDraft() = runTest(dispatcher) {
+    @Test
+    fun lateReadFailureAndCancellationCannotOverwriteNewDraft() = runTest(dispatcher) {
         for (failure in listOf(IOException(), kotlinx.coroutines.CancellationException())) {
             val repository = FakeRepository()
             val gate = CompletableDeferred<Unit>()
@@ -536,12 +578,19 @@ class AccountRegistrationViewModelTest {
      * 절차: 첫 ViewModelStore만 clear하고 취소 정리를 실행한 뒤 두 번째 gate를 해제한다.
      * 기대: 첫 Scope와 초기화는 취소·정리되고 두 번째 Scope는 살아서 편집 상태로 진입한다.
      */
-    @Test fun defaultScopesFollowEachViewModelLifetime() = runTest(dispatcher) {
+    @Test
+    fun defaultScopesFollowEachViewModelLifetime() = runTest(dispatcher) {
         val firstGate = CompletableDeferred<Unit>()
         val secondGate = CompletableDeferred<Unit>()
         val firstCleanedUp = CompletableDeferred<Unit>()
         val first = FakeRepository().apply {
-            beforeInitialize = { try { firstGate.await() } finally { firstCleanedUp.complete(Unit) } }
+            beforeInitialize = {
+                try {
+                    firstGate.await()
+                } finally {
+                    firstCleanedUp.complete(Unit)
+                }
+            }
         }
         val second = FakeRepository().apply { beforeInitialize = { secondGate.await() } }
         val firstVm = viewModel(first)
@@ -559,9 +608,11 @@ class AccountRegistrationViewModelTest {
     }
 
     /** 오류 진단에는 작업·예외 타입만 남기고 예외 메시지·계좌 입력·Throwable은 기록하지 않는다. */
-    @Test fun diagnosticsExcludeExceptionMessagesAndFinancialInput() = runTest(dispatcher) {
+    @Test
+    fun diagnosticsExcludeExceptionMessagesAndFinancialInput() = runTest(dispatcher) {
         val sensitive = "합성 계좌명 987654원"
-        val repository = FakeRepository().apply { beforeWrite = { throw IllegalStateException(sensitive) } }
+        val repository =
+            FakeRepository().apply { beforeWrite = { throw IllegalStateException(sensitive) } }
         val vm = ready(repository)
         vm.onAction(AccountRegistrationAction.NameChanged(sensitive))
         vm.onAction(AccountRegistrationAction.Submit)
@@ -572,15 +623,22 @@ class AccountRegistrationViewModelTest {
         assertNull(log.throwable)
     }
 
-    private fun handle() = SavedStateHandle(mapOf(
-        AccountRegistrationViewModel.LEDGER_ID to context.ledgerId,
-        AccountRegistrationViewModel.STORAGE_GENERATION to context.storageGeneration,
-    ))
+    private fun handle() = SavedStateHandle(
+        mapOf(
+            AccountRegistrationViewModel.LEDGER_ID to context.ledgerId,
+            AccountRegistrationViewModel.STORAGE_GENERATION to context.storageGeneration,
+        )
+    )
+
     private fun viewModel(repository: FakeRepository, saved: SavedStateHandle = handle()) =
         AccountRegistrationViewModel(repository, clock, saved).also { vm ->
             stores += ViewModelStore().also { it.put("account", vm) }
         }
-    private fun ready(repository: FakeRepository, saved: SavedStateHandle = handle()): AccountRegistrationViewModel {
+
+    private fun ready(
+        repository: FakeRepository,
+        saved: SavedStateHandle = handle()
+    ): AccountRegistrationViewModel {
         val vm = viewModel(repository, saved)
         dispatcher.scheduler.advanceUntilIdle()
         vm.onAction(AccountRegistrationAction.NameChanged("합성 계좌"))
@@ -588,9 +646,22 @@ class AccountRegistrationViewModelTest {
     }
 }
 
-private data class AccountRequest(val context: LedgerContext, val operationId: String, val value: CreateAccount)
+private data class AccountRequest(
+    val context: LedgerContext,
+    val operationId: String,
+    val value: CreateAccount
+)
 
 private class FakeRepository : LedgerRepository {
+    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot =
+        error("이 테스트는 제출 발견을 호출하지 않는다")
+
+    override suspend fun finishSubmissionRecovery(
+        context: LedgerContext,
+        operationId: String
+    ): com.monit.core.model.FinishSubmissionRecoveryResult =
+        error("이 테스트는 제출 종료를 호출하지 않는다")
+
     var beforeInitialize: suspend () -> Unit = {}
     var beforeWrite: suspend () -> Unit = {}
     var beforeReceipt: suspend () -> Unit = {}
@@ -606,34 +677,65 @@ private class FakeRepository : LedgerRepository {
 
     override suspend fun openLedger(): LedgerEntryResult =
         error("계좌 등록 상태 시험은 준비된 장부 context를 전달합니다")
+
     override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot =
         error("계좌 등록 상태 시험에서 복구 대상 선택을 대신하지 않습니다")
-    override suspend fun initialize(context: LedgerContext) { initializations++; beforeInitialize() }
-    override suspend fun createAccount(context: LedgerContext, operationId: String, value: CreateAccount): WriteReceipt {
+
+    override suspend fun initialize(context: LedgerContext) {
+        initializations++; beforeInitialize()
+    }
+
+    override suspend fun createAccount(
+        context: LedgerContext,
+        operationId: String,
+        value: CreateAccount
+    ): WriteReceipt {
         requests += AccountRequest(context, operationId, value)
         beforeWrite()
         val receipt = receipts.getOrPut(operationId) {
-            accounts[value.id] = LedgerAccount(value.id, value.name, value.nature, AccountStatus.ACTIVE, 1,
-                BalanceAnchor(value.anchorId, value.anchorDate, null, null, value.unknownReason))
-            WriteReceipt(operationId, 2, listOf(EntityRef("accounts", value.id, 1), EntityRef("anchors", value.anchorId, 1)))
+            accounts[value.id] = LedgerAccount(
+                value.id, value.name, value.nature, AccountStatus.ACTIVE, 1,
+                BalanceAnchor(value.anchorId, value.anchorDate, null, null, value.unknownReason)
+            )
+            WriteReceipt(
+                operationId,
+                2,
+                listOf(EntityRef("accounts", value.id, 1), EntityRef("anchors", value.anchorId, 1))
+            )
         }
         if (loseResponse) throw IOException()
         return if (mismatchReceipt) receipt.copy(operationId = "other") else receipt
     }
+
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? {
         receiptReads++
         beforeReceipt()
         return receipts[operationId]
     }
+
     override suspend fun snapshot(context: LedgerContext, asOf: LocalDate): LedgerSnapshot {
         snapshotReads++
         beforeSnapshot()
-        return LedgerSnapshot(2, accounts.values.toList(), emptyList(), accounts.keys.associateWith { null }, 0, 0)
+        return LedgerSnapshot(
+            2,
+            accounts.values.toList(),
+            emptyList(),
+            accounts.keys.associateWith { null },
+            0,
+            0
+        )
     }
-    override suspend fun createTransaction(context: LedgerContext, operationId: String, value: CreateTransaction): WriteReceipt =
+
+    override suspend fun createTransaction(
+        context: LedgerContext,
+        operationId: String,
+        value: CreateTransaction
+    ): WriteReceipt =
         error("계좌 등록에서 거래 쓰기를 호출하면 안 됩니다")
+
     override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> =
         error("계좌 등록에서 불투명한 다른 제출을 실행하면 안 됩니다")
+
     override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt =
         error("계좌 등록은 캡처한 typed 요청만 재시도합니다")
 }
