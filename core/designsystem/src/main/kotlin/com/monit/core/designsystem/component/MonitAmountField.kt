@@ -46,8 +46,30 @@ fun MonitAmountField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ) {
-    val colors = MonitTheme.colors
     val focused by interactionSource.collectIsFocusedAsState()
+    MonitAmountFieldContent(
+        value = value, onValueChange = onValueChange, modifier = modifier, label = label,
+        errorMessage = errorMessage, supportingText = supportingText, enabled = enabled, loading = loading,
+        keyboardActions = keyboardActions, interactionSource = interactionSource, focused = focused,
+    )
+}
+
+/** 입력과 정적 상태 Preview의 공통 본문. 편집·IME·접근성 계약도 같은 경로를 사용한다. */
+@Composable
+internal fun MonitAmountFieldContent(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.monit_amount_label),
+    errorMessage: String? = null,
+    supportingText: String? = null,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    focused: Boolean = false,
+) {
+    val colors = MonitTheme.colors
     val active = enabled && !loading
     val saving = stringResource(R.string.monit_saving)
     val borderColor = when {

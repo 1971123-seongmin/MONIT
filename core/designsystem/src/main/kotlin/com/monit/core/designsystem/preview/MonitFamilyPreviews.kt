@@ -1,9 +1,6 @@
 package com.monit.core.designsystem.preview
 
 import android.content.res.Configuration
-import androidx.compose.foundation.interaction.FocusInteraction
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,21 +8,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.monit.core.designsystem.component.MonitAccountCard
 import com.monit.core.designsystem.component.MonitAccountOption
 import com.monit.core.designsystem.component.MonitAccountSheetContent
-import com.monit.core.designsystem.component.MonitAmountField
+import com.monit.core.designsystem.component.MonitAmountFieldContent
 import com.monit.core.designsystem.component.MonitBadge
 import com.monit.core.designsystem.component.MonitBadgeTone
 import com.monit.core.designsystem.component.MonitBottomNavigation
-import com.monit.core.designsystem.component.MonitButton
+import com.monit.core.designsystem.component.MonitButtonContent
 import com.monit.core.designsystem.component.MonitCalendarHeader
 import com.monit.core.designsystem.component.MonitDateCell
 import com.monit.core.designsystem.component.MonitDatePicker
@@ -57,6 +50,18 @@ internal enum class ComponentFamily {
 @Preview(name = "Dark 320 200%", widthDp = 320, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
 private annotation class FamilyPreview
 
+@Preview(name = "Light 360", widthDp = 360, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(name = "Dark 360", widthDp = 360, heightDp = 1200, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Light 320 200%", widthDp = 320, heightDp = 1900, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(name = "Dark 320 200%", widthDp = 320, heightDp = 1900, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+private annotation class StatusPanelPreviewSize
+
+@Preview(name = "Light 360", widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(name = "Dark 360", widthDp = 360, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Light 320 200%", widthDp = 320, heightDp = 1440, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_NO)
+@Preview(name = "Dark 320 200%", widthDp = 320, heightDp = 1440, fontScale = 2f, uiMode = Configuration.UI_MODE_NIGHT_YES)
+private annotation class DatePickerPreviewSize
+
 @Composable
 internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Modifier) {
     val today = LocalDate.of(2026, 11, 3)
@@ -67,26 +72,17 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
             verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.section)) {
             when (family) {
                 ComponentFamily.ActionButton -> {
-                    val pressed = remember { MutableInteractionSource() }
-                    val focused = remember { MutableInteractionSource() }
-                    LaunchedEffect(Unit) {
-                        withFrameNanos { }
-                        pressed.emit(PressInteraction.Press(Offset.Zero))
-                        focused.emit(FocusInteraction.Focus())
-                    }
-                    MonitButton("계속하기", {}, full)
-                    MonitButton("계속하기", {}, full, interactionSource = pressed)
-                    MonitButton("계속하기", {}, full, interactionSource = focused)
-                    MonitButton("계속하기", {}, full, enabled = false)
-                    MonitButton("계속하기", {}, full, loading = true)
+                    MonitButtonContent("계속하기", {}, full)
+                    MonitButtonContent("계속하기", {}, full, pressed = true)
+                    MonitButtonContent("계속하기", {}, full, focused = true)
+                    MonitButtonContent("계속하기", {}, full, enabled = false)
+                    MonitButtonContent("계속하기", {}, full, loading = true)
                 }
                 ComponentFamily.Field -> {
-                    val focused = remember { MutableInteractionSource() }
-                    LaunchedEffect(Unit) { withFrameNanos { }; focused.emit(FocusInteraction.Focus()) }
-                    MonitAmountField("30,000", {})
-                    MonitAmountField("30,000", {}, interactionSource = focused)
-                    MonitAmountField("0", {}, errorMessage = "0원보다 큰 금액을 입력해주세요.")
-                    MonitAmountField("30,000", {}, enabled = false)
+                    MonitAmountFieldContent("30,000", {})
+                    MonitAmountFieldContent("30,000", {}, focused = true)
+                    MonitAmountFieldContent("0", {}, errorMessage = "0원보다 큰 금액을 입력해주세요.")
+                    MonitAmountFieldContent("30,000", {}, enabled = false)
                 }
                 ComponentFamily.AccountCard -> {
                     MonitAccountCard("생활비 · 일반", null, "현재 잔액 합계에서 제외", false, {})
@@ -184,7 +180,7 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
 @FamilyPreview @Composable internal fun FilterChipPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.FilterChip) }
 @FamilyPreview @Composable internal fun TopBarPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.TopBar) }
 @FamilyPreview @Composable internal fun SegmentedControlPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.SegmentedControl) }
-@FamilyPreview @Composable internal fun StatusPanelPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.StatusPanel) }
+@StatusPanelPreviewSize @Composable internal fun StatusPanelPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.StatusPanel) }
 @FamilyPreview @Composable internal fun MonthSummaryPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.MonthSummary) }
 @FamilyPreview @Composable internal fun BottomNavigationPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.BottomNavigation) }
 @FamilyPreview @Composable internal fun BottomSheetPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.BottomSheet) }
@@ -193,4 +189,4 @@ internal fun MonitFamilyCatalog(family: ComponentFamily, modifier: Modifier = Mo
 @FamilyPreview @Composable internal fun SkeletonPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.Skeleton) }
 @FamilyPreview @Composable internal fun CalendarHeaderPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.CalendarHeader) }
 @FamilyPreview @Composable internal fun PaymentStatusRowPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.PaymentStatusRow) }
-@FamilyPreview @Composable internal fun DatePickerPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.DatePicker) }
+@DatePickerPreviewSize @Composable internal fun DatePickerPreview() = MonitTheme { MonitFamilyCatalog(ComponentFamily.DatePicker) }

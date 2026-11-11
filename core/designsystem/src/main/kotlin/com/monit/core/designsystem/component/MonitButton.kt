@@ -32,7 +32,6 @@ import com.monit.core.designsystem.theme.MonitTheme
 
 /** Loading은 입력을 잠그고 상태를 알린다. 외부 포커스 링을 위해 주변 4dp를 clip하지 않는다. */
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun MonitButton(
     text: String,
     onClick: () -> Unit,
@@ -43,10 +42,32 @@ fun MonitButton(
     loadingText: String = stringResource(R.string.monit_loading),
     loadingDescription: String = stringResource(R.string.monit_saving),
 ) {
-    val colors = MonitTheme.colors
-    val sizes = MonitTheme.sizes
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
+    MonitButtonContent(
+        text = text, onClick = onClick, modifier = modifier, enabled = enabled, loading = loading,
+        interactionSource = interactionSource, loadingText = loadingText, loadingDescription = loadingDescription,
+        pressed = pressed, focused = focused,
+    )
+}
+
+/** 실제 버튼과 정적 상태 Preview가 공유하는 시각 본문. 입력 상태 수집은 공개 컴포넌트가 담당한다. */
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun MonitButtonContent(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    loadingText: String = stringResource(R.string.monit_loading),
+    loadingDescription: String = stringResource(R.string.monit_saving),
+    pressed: Boolean = false,
+    focused: Boolean = false,
+) {
+    val colors = MonitTheme.colors
+    val sizes = MonitTheme.sizes
     val primary = colors.primary
     // MONIT 누름 색상과 포커스 링을 직접 적용하므로 M3 state layer를 중첩하지 않는다.
     CompositionLocalProvider(LocalRippleConfiguration provides null) {

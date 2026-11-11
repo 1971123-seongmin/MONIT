@@ -66,6 +66,10 @@ cooldown Modifier는 대상마다 별도로 생성한다. 반환한 하나의 Mo
 
 [MonitFamilyPreviews.kt](src/main/kotlin/com/monit/core/designsystem/preview/MonitFamilyPreviews.kt)는 family별 Light/Dark 360dp와 Light/Dark 320dp·200%를 제공한다. Hilt·DB·네트워크 없이 고정 날짜와 합성 데이터만 사용한다. [Figma Prevue 대응표](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=98-796)와 함께 비교한다.
 
+버튼과 입력의 정적 상태 Preview는 공개 컴포넌트와 같은 internal 시각 본문에 누름·포커스 값을 명시한다. 색상·레이아웃·접근성을 복제하지 않으며 공개 컴포넌트는 실제 interaction을 수집한다. 정적 상태의 시각 재현과 실제 포커스·클릭 동작은 별도로 검증한다. 이미지 생성 성공만으로 상태 일치를 판정하지 않고, 기본 상태 유지·버튼 누름 색·포커스 링·입력 테두리를 실제 PNG에서 확인한다.
+
+긴 상태 패널과 큰 글꼴 날짜 선택기 카탈로그는 실측한 내용 높이에 맞춰 Preview 캡처 높이를 지정한다. 제품 화면의 고정 높이가 아니다. 마지막 Success 행동과 두 번째 날짜 선택기의 오류 문구까지 들어오는지 확인하며, wrap-content 렌더 상한에 잘린 이미지를 상태 전체의 검증 결과로 사용하지 않는다.
+
 ```powershell
 .\gradlew.bat :core:designsystem:testDebugUnitTest :app:assembleDebug :core:designsystem:lintDebug :app:lintDebug --console=plain
 ```
@@ -73,6 +77,12 @@ cooldown Modifier는 대상마다 별도로 생성한다. 반환한 하나의 Mo
 `MonitComponentTest`는 테마·대비·문자열/IME·잠금·ID 선택·미확인/0원·최소 터치·큰 글꼴·키보드를 검사한다. `MonitInteractionTest`는 cooldown의 첫/경계 클릭·인스턴스 분리·재구성·최신 callback·disabled, no-ripple의 role/label/focus/Enter, 명시적 계좌 적용·조회 상태·날짜 정책·확인 중 잠금을 검사한다.
 
 `MonitCatalogRenderTest`는 19 family × 네 조건의 호스트 PNG 76개를 `build/reports/designsystem/screenshots/testDebugUnitTest`에 만든다. 실제 View의 Native Canvas를 사용한다. 이는 Prevue renderer·자동 픽셀 회귀·실기기 렌더의 성공 증거가 아니다. 필터 실행 때는 해당 조건 이미지만 남으며 전체 실행으로 다시 생성한다. 실제 Prevue 비교의 대상 head·조건·결과는 해당 PR에 별도로 기록한다.
+
+다음은 **Prevue 정적 첫 캡처**다. 같은 시각 본문의 누름·포커스 상태 재현을 보여주며 실제 입력 동작 검증과 구분한다.
+
+| Light 버튼 · 360dp | Dark 입력 · 320dp/200% |
+|---|---|
+| ![기본·누름·포커스·비활성·로딩](docs/prevue-light-button.png) | ![기본·포커스·오류·비활성](docs/prevue-dark-large-field.png) |
 
 다음은 코드 검토용 **호스트** 렌더이며 Prevue 증거가 아니다.
 

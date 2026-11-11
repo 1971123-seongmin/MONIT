@@ -1,8 +1,5 @@
 package com.monit.core.designsystem.preview
 
-import androidx.compose.foundation.interaction.FocusInteraction
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,16 +8,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.tooling.preview.Preview
 import com.monit.core.designsystem.component.MonitAccountOption
 import com.monit.core.designsystem.component.MonitAccountPicker
-import com.monit.core.designsystem.component.MonitAmountField
-import com.monit.core.designsystem.component.MonitButton
+import com.monit.core.designsystem.component.MonitAmountFieldContent
+import com.monit.core.designsystem.component.MonitButtonContent
 import com.monit.core.designsystem.component.MonitDateCell
 import com.monit.core.designsystem.component.MonitTransactionRow
 import com.monit.core.designsystem.theme.MonitTheme
@@ -39,33 +32,20 @@ internal fun MonitComponentCatalog(section: CatalogSection, modifier: Modifier =
             when (section) {
                 CatalogSection.Buttons -> {
                     Text("버튼 상태", style = MaterialTheme.typography.titleLarge)
-                    val pressed = remember { MutableInteractionSource() }
-                    val focused = remember { MutableInteractionSource() }
-                    LaunchedEffect(Unit) {
-                        // 자식 버튼의 interaction 수집이 시작된 다음 상태를 전달한다.
-                        withFrameNanos { }
-                        pressed.emit(PressInteraction.Press(Offset.Zero))
-                        focused.emit(FocusInteraction.Focus())
-                    }
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth())
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), interactionSource = pressed)
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), interactionSource = focused)
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), enabled = false)
-                    MonitButton("계속하기", {}, Modifier.fillMaxWidth(), loading = true)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth())
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), pressed = true)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), focused = true)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), enabled = false)
+                    MonitButtonContent("계속하기", {}, Modifier.fillMaxWidth(), loading = true)
                 }
                 CatalogSection.Amounts -> {
                     Text("금액 입력", style = MaterialTheme.typography.titleLarge)
-                    val focused = remember { MutableInteractionSource() }
-                    LaunchedEffect(Unit) {
-                        withFrameNanos { }
-                        focused.emit(FocusInteraction.Focus())
-                    }
-                    MonitAmountField("", {}, supportingText = "금액을 입력해주세요.")
-                    MonitAmountField("30000", {})
-                    MonitAmountField("30000", {}, interactionSource = focused)
-                    MonitAmountField("0", {}, errorMessage = "0원보다 큰 금액을 입력하세요.")
-                    MonitAmountField("-", {}, label = "기준 잔액", supportingText = "편집 중인 문자열")
-                    MonitAmountField("30000", {}, loading = true)
+                    MonitAmountFieldContent("", {}, supportingText = "금액을 입력해주세요.")
+                    MonitAmountFieldContent("30000", {})
+                    MonitAmountFieldContent("30000", {}, focused = true)
+                    MonitAmountFieldContent("0", {}, errorMessage = "0원보다 큰 금액을 입력하세요.")
+                    MonitAmountFieldContent("-", {}, label = "기준 잔액", supportingText = "편집 중인 문자열")
+                    MonitAmountFieldContent("30000", {}, loading = true)
                 }
                 CatalogSection.Accounts -> {
                     Text("계좌 선택", style = MaterialTheme.typography.titleLarge)
