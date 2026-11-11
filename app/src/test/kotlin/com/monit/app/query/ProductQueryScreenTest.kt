@@ -1,10 +1,12 @@
 package com.monit.app.query
 
 import android.app.Application
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -12,6 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.app.ui.MonitAppShell
 import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.feature.accounts.list.AccountRowUiState
@@ -22,8 +29,13 @@ import com.monit.feature.home.HomeScreen
 import com.monit.feature.home.HomeState
 import com.monit.feature.transactions.*
 import java.time.LocalDate
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.time.YearMonth
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
+import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -87,6 +99,69 @@ class ProductQueryScreenTest {
         compose.onNodeWithText("거래", useUnmergedTree = true).performClick()
         compose.waitForIdle()
         compose.onNodeWithText("선택 월 2026-08").assertIsDisplayed()
+    }
+
+    /**
+     * 목적: 시스템 Back이 앱 탭 저장 정책을 사용해 실제 거래 VM의 월·필터를 보존한다.
+     * 조건: 실제 셸·거래 Route/Screen과 entry 범위 VM, 읽기 전용 Repository를 사용한다.
+     * 절차: 거래 진입 → 이전 월/지출 선택 → Activity BackDispatcher → 홈 → 거래 재진입 순서다.
+     * 기대: 홈 복귀 후 동일 VM과 월·필터 복원. 수동 Navigator 호출로 이벤트 우선순위를 우회하지 않는다.
+     */
+    @Test
+    fun systemBackPreservesTransactionMonthAndFilter() {
+        lateinit var dispatcher: androidx.activity.OnBackPressedDispatcher
+        lateinit var observed: TransactionsViewModel
+        val repository = QueryRepository()
+        val clock = Clock.fixed(Instant.parse("2026-11-10T16:00:00Z"), ZoneOffset.UTC)
+        val contexts = object : CoroutineContextProvider {
+            override val main = Dispatchers.Main.immediate
+            override val io = Dispatchers.Main.immediate
+            override val default = Dispatchers.Main.immediate
+        }
+        compose.setContent {
+            dispatcher =
+                checkNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
+            MonitTheme {
+                MonitAppShell(
+                    home = { Text("홈 본문") },
+                    transactions = {
+                        val factory = remember {
+                            viewModelFactory {
+                                initializer {
+                                    TransactionsViewModel(
+                                        repository,
+                                        clock,
+                                        createSavedStateHandle(),
+                                        contexts
+                                    )
+                                }
+                            }
+                        }
+                        val vm: TransactionsViewModel = viewModel(factory = factory)
+                        androidx.compose.runtime.SideEffect { observed = vm }
+                        TransactionsRoute(testContext, vm)
+                    },
+                    accounts = { Text("계좌 본문") },
+                )
+            }
+        }
+        compose.onNodeWithText("거래", useUnmergedTree = true).performClick()
+        compose.waitForIdle()
+        val first = observed
+        compose.onNodeWithContentDescription("이전 달").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("지출").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("2026년 10월").assertExists()
+        compose.onNodeWithText("지출").assertIsOn()
+        compose.runOnIdle { dispatcher.onBackPressed() }
+        compose.waitForIdle()
+        compose.onNodeWithText("홈 본문").assertIsDisplayed()
+        compose.onNodeWithText("거래", useUnmergedTree = true).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("2026년 10월").assertExists()
+        compose.onNodeWithText("지출").assertIsOn()
+        assertSame(first, observed)
     }
 
     /** 실패·진행·정상 빈 상태를 구별하고 재시도는 전달된 조회 콜백 한 번만 호출한다. */

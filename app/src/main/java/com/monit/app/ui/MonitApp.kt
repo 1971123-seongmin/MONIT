@@ -30,7 +30,10 @@ fun MonitApp(context: LedgerContext) {
     )
 }
 
-/** 공통 셸은 feature의 상태/조회/금융 모델을 직접 소유하지 않는다. */
+/**
+ * 공통 셸은 feature의 상태/조회/금융 모델을 직접 소유하지 않는다.
+ * 탭 Back은 현재 entry의 목적지 내용 안에 등록해 탭 상태 저장 경로를 사용한다.
+ */
 @Composable
 internal fun MonitAppShell(
     home: @Composable () -> Unit,
@@ -42,9 +45,6 @@ internal fun MonitAppShell(
     val appState = rememberMonitAppState(controller)
     val currentEntry = appState.currentEntry
     val selected = appState.currentTopLevelDestination
-    BackHandler(enabled = selected == TopLevelDestination.TRANSACTIONS || selected == TopLevelDestination.ACCOUNTS) {
-        currentEntry?.let(navigator::onTopLevelBack)
-    }
     Scaffold(
         modifier = Modifier.fillMaxSize().safeDrawingPadding(),
         containerColor = MonitTheme.colors.surfaceContainer,
@@ -73,8 +73,22 @@ internal fun MonitAppShell(
         MonitNavHost(
             controller = controller,
             home = { home() },
-            transactions = { transactions() },
-            accounts = { accounts() },
+            transactions = { entry ->
+                BackHandler(enabled = appState.currentEntry === entry) {
+                    navigator.onTopLevelBack(
+                        entry
+                    )
+                }
+                transactions()
+            },
+            accounts = { entry ->
+                BackHandler(enabled = appState.currentEntry === entry) {
+                    navigator.onTopLevelBack(
+                        entry
+                    )
+                }
+                accounts()
+            },
             modifier = Modifier.padding(padding),
         )
     }
