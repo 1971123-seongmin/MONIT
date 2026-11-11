@@ -6,7 +6,7 @@
 
 사용자가 요청한 날짜별 학습 기록에는 [learning-log](../../.agents/skills/learning-log/SKILL.md)를 사용한다. 관련 증거를 수집해 기존 날짜 기록을 갱신하는 절차이며 예약 실행·무인 외부 쓰기 설정이 아니다.
 
-Android CI의 `build` 작업은 문서 검사 후 `:core:model:test`·assembleDebug·testDebugUnitTest·lintDebug를 수행한다. 문서 검사 실패도 같은 필수 검사를 실패 처리하며 보호 규칙을 별도로 변경하지 않는다. CodeRabbit은 아래 선택적 리뷰 기준을 적용하며 필수 CI와 구분한다. 과거 PR의 성공 결과는 현재 미커밋 변경의 검증 결과가 아니다.
+Android CI의 `build` 작업은 문서 검사 후 `:core:model:test`·assembleDebug·testDebugUnitTest·lintDebug를 수행한다. 문서 검사 실패도 같은 필수 검사를 실패 처리하며 보호 규칙을 별도로 변경하지 않는다. CodeRabbit은 아래 현재 OFF 운영 기준을 적용하며 필수 CI와 구분한다. 과거 PR의 성공 결과는 현재 미커밋 변경의 검증 결과가 아니다.
 
 ## 검증 선택
 
@@ -53,18 +53,13 @@ Android CI의 `build` 작업은 문서 검사 후 `:core:model:test`·assembleDe
 
 ## CodeRabbit 선택적 리뷰
 
-2026-11-10 사용자 요청에 따라 PM이 변경 영향으로 리뷰 필요 여부를 판단한다. 파일 수·확장자만으로 결정하지 않으며, 판단은 현재 PR head를 기준으로 본문의 참고 사항에 `CodeRabbit: 요청 / 생략 · 대상 head · 이유 · 관련 검증`으로 남긴다. 필요성 판단을 매번 사용자에게 재승인받지 않는다. PM 부재나 영향 불명확은 자동 생략 사유가 아니다.
+**현재 상태: OFF.** 2026-11-12 사용자의 지속 중단 지시가 이전 선택적 리뷰 정책을 대체한다. 사용자가 재활성화를 명시 요청하기 전까지 MONIT의 자동·수동 CodeRabbit 리뷰를 요청하거나 대기하지 않는다. 특정 PR만의 예외가 아니다. 기존 링크 호환을 위해 이 절의 제목을 유지한다.
 
-| 판단 | 대표 변경 |
-|---|---|
-| 요청 | 금융 계산·저장/복구·동기화·인증/권한·민감 데이터·동시성, 주요 앱 동작·공통 아키텍처, 빌드/배포/CI·보호 규칙처럼 실패 영향이 큰 설정 |
-| 생략 가능 | 의미·동작이 바뀌지 않는 오타·문서 표현·링크·단순 정렬, 이미 검증한 결과 기록 등 PM이 영향 범위와 근거를 확인한 변경 |
-
-- `.coderabbit.yaml`의 `reviews.auto_review.enabled`와 `auto_incremental_review`를 `false`로 두고, 필요한 PR에만 담당자가 `@coderabbitai review` 댓글로 요청한다. 새 push마다 자동 재실행하지 않으며 변경된 head의 영향에 따라 다시 요청한다. 전체 재검토가 필요한 경우에만 `@coderabbitai full review`를 사용한다. 추가 과금 옵션은 사용하지 않는다.
-- 이미 자동 리뷰 중인 PR을 생략하기로 판단하면 `@coderabbitai pause`만 담은 댓글로 이후 자동 리뷰를 중지 요청한다. 전송만으로 진행 중인 실행이 즉시 취소되었다고 보고하지 않으며 실제 응답·상태를 확인한다. 이미 나온 지적은 읽고 필요한 조치를 유지한다.
-- main 보호 규칙의 필수 검사에서는 CodeRabbit만 제외한다. Android CI의 `build`, 최신 base 요구, 관리자 적용 및 PR 보호 등 다른 설정은 유지한다. CodeRabbit을 요청한 PR은 PM·QA가 실제 리뷰와 필요한 수정·재검증을 확인한 뒤에만 사용자에게 병합을 요청한다. 이 조건은 GitHub의 필수 검사로 자동 강제되는 것이 아니므로 PR 기록과 최종 검토로 확인한다.
-- 리뷰 생략은 테스트·보안 검증·로컬 변경 검토 생략이나 사용자 병합 승인 대체가 아니다. 새 변경·rebase 충돌 해결·새 위험이 있으면 판단을 갱신한다. 기존 미해결 지적이나 실패를 없애기 위해 생략으로 바꾸지 않는다.
-- 정책 파일은 main 병합 후 공통 기준이 된다. 반영 전 열린 PR에는 기존 자동 리뷰가 남을 수 있으므로 PR별 상태와 중지 요청을 구분한다. 보호 규칙의 원격 변경과 파일의 PR 반영도 별도로 확인한다.
+- `.coderabbit.yaml`의 `reviews.auto_review.enabled`, `auto_incremental_review`, `chat.auto_reply`는 `false`를 유지한다. `@coderabbitai review`, `full review`, `resume`을 요청하지 않는다. 다른 저장소의 앱 설치·권한은 변경하지 않는다.
+- 이미 진행 중인 PR에는 필요 시 `@coderabbitai pause`로 후속 리뷰 중지를 요청하고 실제 응답을 확인한다. 중지 요청이나 SKIPPED/NEUTRAL 표시는 실제 리뷰 완료가 아니다.
+- PR에는 `CodeRabbit: OFF · 사용자 지속 중단 지시 · 대상 head · 수행한 검토/검증`을 기록한다. 담당 역할과 PM은 변경 영향에 맞는 코드·계약 검토와 테스트를 수행하며 금융 무결성·보안 검증을 생략하지 않는다. 기존 리뷰의 미해결 결함과 보류 근거는 유지한다.
+- 최신 head의 필수 CI `build`와 main 보호 규칙은 유지한다. CodeRabbit 미실행·호출 한도·재요청 대기를 병합의 선행 조건으로 삼지 않는다. 최종 병합 권한과 merge commit 방식은 기존 승인·공통 지침을 따른다.
+- 재활성화는 사용자의 명시 요청 후 설정과 이 운영 기준을 함께 갱신한다. 자동 비활성 설정과 수동 요청 중단을 구분하며 GitHub 앱 제거·모든 수동 호출의 기술적 차단으로 표현하지 않는다.
 
 공식 근거: [자동 리뷰 설정](https://docs.coderabbit.ai/reference/configuration), [리뷰 요청·일시 중지 명령](https://docs.coderabbit.ai/reference/review-commands).
 
