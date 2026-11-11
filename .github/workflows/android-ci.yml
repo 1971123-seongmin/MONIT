@@ -4,6 +4,10 @@ run-name: 'Cold comparison · ${{ inputs.mode }} · workers ${{ inputs.workers }
 on:
   workflow_dispatch:
     inputs:
+      configuration_cache:
+        description: '일반 검증의 구성 캐시 호환성과 실행 병렬화 비교'
+        type: boolean
+        default: false
       cold_compilation:
         description: '이력 없는 CI에서 Kotlin/KSP 전체 컴파일 비교'
         type: boolean
@@ -27,9 +31,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  MONIT_PRODUCT_SHA: 13b7a1b2d2b0ac4d03fba76227112314d4d82740
+  MONIT_PRODUCT_SHA: bd4cc2cd51a6e96439b3cc8f0ba1dc6de4a61fa0
   MONIT_WORKERS: ${{ inputs.workers }}
   MONIT_COLD_COMPILATION: ${{ inputs.cold_compilation }}
+  MONIT_CONFIGURATION_CACHE: ${{ inputs.configuration_cache }}
 
 defaults:
   run:
@@ -53,7 +58,7 @@ jobs:
           path: harness
       - uses: actions/checkout@v4
         with:
-          ref: 13b7a1b2d2b0ac4d03fba76227112314d4d82740
+          ref: bd4cc2cd51a6e96439b3cc8f0ba1dc6de4a61fa0
           path: product
           fetch-depth: 0
       - name: Verify fixed product revision

@@ -8,6 +8,8 @@ const scope = process.env.MONIT_SCOPE ?? 'all';
 if (!['all', 'independent', 'assemble', 'tests', 'lint'].includes(scope)) throw new Error('Invalid validation scope');
 const coldCompilation = process.env.MONIT_COLD_COMPILATION === 'true';
 if (!['true', 'false'].includes(process.env.MONIT_COLD_COMPILATION ?? 'false')) throw new Error('Invalid compilation mode');
+const configurationCache = process.env.MONIT_CONFIGURATION_CACHE === 'true';
+if (!['true', 'false'].includes(process.env.MONIT_CONFIGURATION_CACHE ?? 'false')) throw new Error('Invalid configuration cache mode');
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 if (revision !== process.env.MONIT_PRODUCT_SHA) throw new Error('Unexpected product revision');
 const gradleHome = process.env.GRADLE_USER_HOME;
@@ -78,7 +80,8 @@ try {
       await runGradle(`independent-${family}`, [':core:designsystem:compileDebugKotlin',
         '--init-script', 'scripts/verify-component.init.gradle.kts', `-Pmonit.component=${family}`,
         '-Pkotlin.incremental=false', '--project-cache-dir',
-        `core/designsystem/build/component-compilation/project-cache/${family}`, '--max-workers=2']);
+        `core/designsystem/build/component-compilation/project-cache/${family}`, '--max-workers=2',
+        ...(configurationCache ? ['--no-configuration-cache'] : [])]);
     }
   }
   const targets = {
@@ -87,7 +90,8 @@ try {
   };
   if (targets[scope]) await runGradle(scope === 'all' ? 'build-tests-lint' : scope,
     [...targets[scope], '--parallel', `--max-workers=${workers}`,
-      ...(coldCompilation ? ['-Pkotlin.incremental=false', '-Pksp.incremental=false'] : [])]);
+      ...(coldCompilation ? ['-Pkotlin.incremental=false', '-Pksp.incremental=false'] : []),
+      ...(configurationCache ? ['--configuration-cache', '--configuration-cache-problems=fail'] : [])]);
 } finally {
   clearInterval(memoryTimer);
   sampleMemory();
@@ -95,7 +99,8 @@ try {
   // Linux guest ticks are already included in user/nice: sum only the first eight counters.
   const delta = afterCpu.slice(0, 8).map((value, index) => value - beforeCpu[index]);
   const total = delta.reduce((sum, value) => sum + value, 0);
-  const summary = { revision, scope, workers: Number(workers), coldCompilation, restoredOrSavedGithubCache: false,
+  const summary = { revision, scope, workers: Number(workers), coldCompilation, configurationCache,
+    restoredOrSavedGithubCache: false,
     peakVmUsedMiB: Math.round(peakVmUsedMiB),
     averageVmCpuBusyPercent: total ? Math.round((1 - (delta[3] + delta[4]) / total) * 100) : null,
     memoryScope: 'Whole VM MemTotal - MemAvailable; not a per-JVM heap measurement', results };
