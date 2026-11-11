@@ -1,5 +1,7 @@
 package com.monit.core.model
 
+// CI #30 측정 입력: 소스 변경 경로만 검증하며 금융 계산 동작은 바꾸지 않는다.
+
 import java.time.LocalDate
 import java.time.YearMonth
 
