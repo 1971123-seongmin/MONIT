@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      cold_cache:
+        description: 'Restore 없이 전체 검증 (Gradle cache 성능 진단)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,18 +24,40 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine validation impact
+        id: impact
+        continue-on-error: true
+        run: node .github/scripts/ci-impact.mjs
       - name: Check documentation
         shell: pwsh
         run: ./scripts/Test-AiDocs.ps1
+      - name: Check diff whitespace
+        run: node .github/scripts/ci-impact.mjs --check-diff
+      - name: Test validation classifier
+        if: steps.impact.outputs.ci_tests != 'false'
+        run: node --test .github/scripts/ci-impact.test.mjs
       - uses: actions/setup-java@v4
+        if: steps.impact.outputs.android != 'false'
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.impact.outputs.android != 'false'
+        with:
+          # PRs restore base caches without paying for a PR-scoped cache upload.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+          cache-write-only: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
       - name: Check independent UI components
-        run: |
-          for component in button chip textfield; do
-            bash ./gradlew :core:designsystem:compileDebugKotlin --init-script scripts/verify-component.init.gradle.kts "-Pmonit.component=$component" -Pkotlin.incremental=false --project-cache-dir "core/designsystem/build/component-compilation/project-cache/$component" --console=plain
-          done
+        if: steps.impact.outcome != 'success' || steps.impact.outputs.components != ''
+        env:
+          MONIT_COMPONENTS: ${{ steps.impact.outputs.components }}
+          IMPACT_OUTCOME: ${{ steps.impact.outcome }}
+        run: node .github/scripts/independent-components.mjs
       - name: Build, unit tests and lint
-        run: bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug --console=plain
+        if: steps.impact.outputs.android != 'false'
+        run: bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug --parallel --max-workers=2 --console=plain
+      - name: Report classifier fallback
+        if: always() && steps.impact.outcome != 'success'
+        run: echo 'Change classification failed; Android and independent checks were requested in full.'
