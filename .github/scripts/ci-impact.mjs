@@ -57,6 +57,9 @@ export function classifyChanges(records) {
       if (!/^(?:app|core\/[^/]+|feature\/[^/]+)\/src\//.test(file)) {
         return fullValidation('unknown-input');
       }
+      if (file.startsWith(`${ds}src/`) && !/^core\/designsystem\/src\/(?:main|test|androidTest)\//.test(file)) {
+        return fullValidation('unknown-designsystem-source-set');
+      }
       if (file.startsWith(`${sourceRoot}theme/`) ||
           (file.startsWith(`${ds}src/main/`) && !file.startsWith(`${sourceRoot}`))) {
         families.forEach(family => components.add(family));
@@ -118,14 +121,17 @@ function contextFromEnvironment() {
   };
 }
 
-function main() {
-  if (process.argv.includes('--check-diff')) {
-    let range;
-    try { range = resolveRange(contextFromEnvironment()); } catch { /* Check the checked-out commit below. */ }
-    if (range) git(['diff', '--check', range.base, range.target, '--']);
-    else git(['show', '--format=', '--check', 'HEAD', '--']);
-    return;
+export function checkDiff(context, runGit = git) {
+  if (context.eventName === 'workflow_dispatch') {
+    runGit(['show', '--first-parent', '--format=', '--check', 'HEAD', '--']);
+  } else {
+    const range = resolveRange(context, runGit);
+    runGit(['diff', '--check', range.base, range.target, '--']);
   }
+}
+
+function main() {
+  if (process.argv.includes('--check-diff')) return checkDiff(contextFromEnvironment());
   let result;
   try { result = determineImpact(contextFromEnvironment()); }
   catch { result = fullValidation('unreadable-event'); }

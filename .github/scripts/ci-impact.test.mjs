@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { classifyChanges, determineImpact, families, parseChanges, resolveRange } from './ci-impact.mjs';
+import { checkDiff, classifyChanges, determineImpact, families, parseChanges, resolveRange } from './ci-impact.mjs';
 import { runIndependentComponents } from './independent-components.mjs';
 
 const changed = (...paths) => classifyChanges(paths.map(file => ({ status: 'M', paths: [file] })));
@@ -30,6 +30,14 @@ test('component source changes request only that independent family', () => {
 test('theme, DS resources, fonts and manifest affect all families', () => {
   for (const file of [`${kt}theme/MonitTheme.kt`, `${ds}res/values/strings.xml`,
     `${ds}assets/fonts/font.ttf`, `${ds}AndroidManifest.xml`]) assert.deepEqual(changed(file).components, families);
+});
+
+test('DS debug resources and unknown source sets fail closed to all families', () => {
+  for (const file of ['core/designsystem/src/debug/res/values/colors.xml',
+    'core/designsystem/src/debug/AndroidManifest.xml', 'core/designsystem/src/debug/kotlin/DebugTheme.kt',
+    'core/designsystem/src/demo/res/values/colors.xml', 'core/designsystem/src/testFixtures/kotlin/Fixture.kt']) {
+    assert.deepEqual(changed(file).components, families);
+  }
 });
 test('DS preview, unrelated components and host tests retain Android but not independent compilation', () => {
   for (const file of [`${kt}preview/MonitFamilyPreviews.kt`, `${kt}component/MonitDialog.kt`,
@@ -128,6 +136,26 @@ test('manual event, missing history, zero SHA, moved base and broken diff select
 });
 test('revision strings cannot inject git options or shell commands', () => {
   assert.deepEqual(determineImpact({ ...context, sha: '--output=/tmp/hacked' }, fakeGit()).components, families);
+});
+
+test('whitespace checks use the whole verified range and propagate unresolved PR/push errors', () => {
+  const calls = [];
+  checkDiff(context, args => { calls.push(args); return fakeGit()(args); });
+  assert.deepEqual(calls.at(-1), ['diff', '--check', base, merge, '--']);
+  for (const eventName of ['pull_request', 'push']) {
+    assert.throws(() => checkDiff({ ...context, eventName }, () => { throw new Error('Missing history'); }));
+  }
+  assert.throws(() => checkDiff(context, args => {
+    if (args[0] === 'diff') throw new Error('Whitespace');
+    return fakeGit()(args);
+  }));
+});
+
+test('only manual whitespace checks use the first-parent single-commit fallback', () => {
+  const calls = [];
+  checkDiff({ eventName: 'workflow_dispatch' }, args => calls.push(args));
+  assert.deepEqual(calls, [['show', '--first-parent', '--format=', '--check', 'HEAD', '--']]);
+  assert.throws(() => checkDiff({ eventName: 'unsupported' }, () => ''));
 });
 test('real Git rename/deletion output and PR merge parents are parsed correctly', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'monit-ci-impact-'));

@@ -9,7 +9,7 @@
 | 허용된 Markdown·문서 이미지·루트 라이선스만 | 실행 | 해당 없음 | 해당 없음 |
 | 앱·core·feature의 제품/테스트 소스 | 실행 | 실행 | 해당 family/theme 입력을 확인 |
 | DS button/chip/textfield 소스 | 실행 | 실행 | 바뀐 family만 |
-| DS theme·리소스·Manifest·assets | 실행 | 실행 | 3개 모두 |
+| DS theme·리소스·Manifest·assets·debug/미인식 소스 집합 | 실행 | 실행 | 3개 모두 |
 | DS의 다른 컴포넌트·Preview·호스트 테스트 | 실행 | 실행 | 선택 소스 집합에 영향 없어 생략 |
 | 공통 빌드·의존성·환경·CI·검증 스크립트 | 실행 | 실행 | 3개 모두 |
 | 알 수 없는 경로/파일 형식·diff 판별 실패·수동 실행 | 실행 | 실행 | 3개 모두 |
@@ -18,7 +18,7 @@
 
 PR은 이벤트의 base/head와 실제 checkout merge 부모를 확인하고 **base→검사할 merge tree** 전체를 비교한다. 마지막 커밋만 보고 앞선 미검증 제품 변경을 숨기지 않는다. 따라서 제품 변경이 남아 있는 PR에 문서 커밋을 추가하면 Android 명령은 계속 요청될 수 있다. 변경되지 않은 task는 Gradle이 입력에 따라 캐시를 재사용한다. 삭제·이름변경은 이전/새 경로 모두를 검사한다. main push는 before→after 전체를 비교하며 누락 이력·잘못된 SHA·예상하지 않은 병합이면 전체 검사로 돌아간다.
 
-필터는 NUL 구분 Git 출력과 인자 배열을 사용한다. 이벤트 값·파일명을 셸 코드에 삽입하지 않는다. 필터 프로세스가 실패해도 출력 기본값은 전체 검사이며, 필요한 검사 단계의 실패는 필수 `build`를 실패 처리한다.
+필터는 NUL 구분 Git 출력과 인자 배열을 사용한다. 이벤트 값·파일명을 셸 코드에 삽입하지 않는다. 필터 프로세스가 실패해도 출력 기본값은 전체 검사이며, 필요한 검사 단계의 실패는 필수 `build`를 실패 처리한다. PR·push의 비교 범위를 확인하지 못하면 공백 검사도 실패 처리한다. 수동 실행에서만 HEAD의 첫 부모 기준 공백 검사를 사용한다.
 
 ## 독립 컴파일과 캐시
 
@@ -26,7 +26,7 @@ PR은 이벤트의 base/head와 실제 checkout merge 부모를 확인하고 **b
 
 일반 빌드에는 `org.gradle.caching=true`를 사용한다. 기존 `gradle/actions/setup-gradle@v4`가 Gradle User Home의 의존성·변환 결과·로컬 build cache를 저장/복원한다. `FROM-CACHE`는 Gradle이 task 입력으로 재사용을 판정한 결과이며, 단순히 cache restore가 성공했다는 이유로 테스트 실행 성공을 주장하지 않는다.
 
-동일 저장소 PR·브랜치는 GitHub가 허용한 해당 ref 범위에 캐시를 쓴다. fork PR은 읽기 전용이며 fork의 캐시를 main으로 가져오는 별도 키나 외부 저장소를 만들지 않는다. 인증정보·서명키·기기 데이터·원격 build cache는 추가하지 않는다. [GitHub 캐시 접근 경계](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)와 [setup-gradle](https://github.com/gradle/actions/blob/v4/setup-gradle/action.yml)을 따른다.
+모든 PR은 base/main의 캐시를 읽기만 하며 PR 전용 캐시 업로드 시간을 줄인다. main·수동 실행은 GitHub가 허용한 해당 ref 범위에 캐시를 쓴다. PR의 새 작업 결과는 병합 전까지 후속 PR 실행의 캐시에 축적되지 않는 절충이 있다. fork의 캐시를 main으로 가져오는 별도 키나 외부 저장소를 만들지 않는다. 인증정보·서명키·기기 데이터·원격 build cache는 추가하지 않는다. [GitHub 캐시 접근 경계](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)와 [setup-gradle](https://github.com/gradle/actions/blob/v4/setup-gradle/action.yml)을 따른다.
 
 일반 Android 단계만 `--parallel --max-workers=2`로 제한한다. 독립 컴파일 3개를 동시에 띄우지 않는다. 기존 Gradle heap 2GB를 유지하며, 측정 없이 6~8GB heap·GC 변경을 추가하지 않는다. KSP·고정 버전·정적 debug 값·멀티모듈은 기존 적용 사항이다. AGP 기본 non-transitive/non-constant R와 debug PNG crunch 비활성은 새 개선 성과로 계산하지 않는다.
 

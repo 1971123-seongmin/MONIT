@@ -46,8 +46,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: steps.impact.outputs.android != 'false'
         with:
-          # Fork PRs only read caches. Writes stay in GitHub's branch/PR cache scope.
-          cache-read-only: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          # PRs restore base caches without paying for a PR-scoped cache upload.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
           cache-write-only: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
       - name: Check independent UI components
         if: steps.impact.outcome != 'success' || steps.impact.outputs.components != ''
