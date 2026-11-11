@@ -11,7 +11,9 @@ data class SubmittedAccountState(
     val operationId: String,
     val value: CreateAccount,
 ) {
-    init { requireLedgerId(operationId) }
+    init {
+        requireLedgerId(operationId)
+    }
 
     internal fun draft() = AccountDraftUiState(value.name, value.nature, value.anchorDate.toString(), value.unknownReason)
 }

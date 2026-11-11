@@ -14,17 +14,27 @@ import com.monit.core.designsystem.theme.MonitTheme
     name = "Home / Empty / Dark",
     widthDp = 360,
     heightDp = 708,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Preview(name = "Home / 320dp / 200%", widthDp = 320, heightDp = 480, fontScale = 2f)
 @Composable
 internal fun HomeEmptyPreview() {
     MonitTheme {
         Surface(
-            Modifier.fillMaxSize(), color = MonitTheme.colors.surfaceContainer,
-            contentColor = MonitTheme.colors.onSurface
+            Modifier.fillMaxSize(),
+            color = MonitTheme.colors.surfaceContainer,
+            contentColor = MonitTheme.colors.onSurface,
         ) {
-            HomeScreen(HomeState.Ready(HomeUiState("2026년 11월 전체", "0원", "0원")), onRetry = {})
+            HomeScreen(
+                HomeState.Ready(
+                    HomeUiState(
+                        "2026년 11월 전체",
+                        "0원",
+                        "0원",
+                    ),
+                ),
+                onRetry = {},
+            )
         }
     }
 }

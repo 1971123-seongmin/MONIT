@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const targets = {
   assemble: [':app:assembleDebug'],
   tests: [':core:model:test', 'testDebugUnitTest'],
-  lint: ['lintDebug'],
+  lint: ['ktlintCheck', 'lintDebug'],
 };
 
 export function validationTasks(scope) {

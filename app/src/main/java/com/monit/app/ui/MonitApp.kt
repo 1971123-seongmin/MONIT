@@ -24,9 +24,15 @@ import com.monit.feature.transactions.TransactionsRoute
 @Composable
 fun MonitApp(context: LedgerContext) {
     MonitAppShell(
-        home = { HomeRoute(context) },
-        transactions = { TransactionsRoute(context) },
-        accounts = { AccountsRoute(context) },
+        home = {
+            HomeRoute(context)
+        },
+        transactions = {
+            TransactionsRoute(context)
+        },
+        accounts = {
+            AccountsRoute(context)
+        },
     )
 }
 
@@ -45,22 +51,34 @@ internal fun MonitAppShell(
     val appState = rememberMonitAppState(controller)
     val currentEntry = appState.currentEntry
     val selected = appState.currentTopLevelDestination
+
     Scaffold(
-        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding(),
         containerColor = MonitTheme.colors.surfaceContainer,
         contentColor = MonitTheme.colors.onSurface,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        contentWindowInsets = WindowInsets(
+            0,
+            0,
+            0,
+            0,
+        ),
         bottomBar = {
             if (appState.showBottomBar && selected != null) {
                 Column(Modifier.padding(MonitTheme.spacing.content)) {
                     MonitBottomNavigation(
-                        labels = listOf("홈", "거래", "계좌"),
+                        labels = listOf(
+                            "홈",
+                            "거래",
+                            "계좌",
+                        ),
                         selectedIndex = selected.ordinal,
                         onSelected = { index ->
                             currentEntry?.let {
                                 navigator.navigateToTopLevel(
                                     it,
-                                    TopLevelDestination.entries[index]
+                                    TopLevelDestination.entries[index],
                                 )
                             }
                         },
@@ -76,17 +94,19 @@ internal fun MonitAppShell(
             transactions = { entry ->
                 BackHandler(enabled = appState.currentEntry === entry) {
                     navigator.onTopLevelBack(
-                        entry
+                        entry,
                     )
                 }
+
                 transactions()
             },
             accounts = { entry ->
                 BackHandler(enabled = appState.currentEntry === entry) {
                     navigator.onTopLevelBack(
-                        entry
+                        entry,
                     )
                 }
+
                 accounts()
             },
             modifier = Modifier.padding(padding),

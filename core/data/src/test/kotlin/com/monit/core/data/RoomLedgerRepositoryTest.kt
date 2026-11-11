@@ -1,9 +1,9 @@
 package com.monit.core.data
 
-import com.monit.core.common.coroutines.CoroutineContextProvider
 import android.app.Application
 import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.AccountNature
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.CreateTransaction
@@ -11,6 +11,15 @@ import com.monit.core.model.LedgerConflict
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
 import com.monit.core.model.TransactionKind
+import java.time.Clock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.util.UUID
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -30,15 +39,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import java.time.Clock
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
-import java.util.UUID
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /** 실제 Room 생성 DAO와 파일 SQLite를 쓰는 JVM 통합 시험. Android 기기/전원 손실 시험과 구분한다. */
 @RunWith(RobolectricTestRunner::class)
@@ -55,6 +55,7 @@ class RoomLedgerRepositoryTest {
         override val default = Dispatchers.Default
     }
     private val today = LocalDate.of(2026, 11, 3)
+
     // UTC로는 전날이다. Repository가 서울 날짜를 사용하는지도 함께 검증한다.
     private val clock = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC)
 
@@ -79,8 +80,12 @@ class RoomLedgerRepositoryTest {
     }
 
     private fun accountValue(number: Long, name: String = "같은 이름") = CreateAccount(
-        id(number), id(number + 50), name, AccountNature.GENERAL,
-        LocalDate.of(2026, 10, 31), "사용자 확인 전",
+        id(number),
+        id(number + 50),
+        name,
+        AccountNature.GENERAL,
+        LocalDate.of(2026, 10, 31),
+        "사용자 확인 전",
     )
 
     private suspend fun account(number: Long): CreateAccount = accountValue(number).also {
@@ -88,7 +93,13 @@ class RoomLedgerRepositoryTest {
     }
 
     private fun transfer(number: Long = 10) = CreateTransaction(
-        id(number), TransactionKind.TRANSFER, today, 50, id(1), id(2), "이체",
+        id(number),
+        TransactionKind.TRANSFER,
+        today,
+        50,
+        id(1),
+        id(2),
+        "이체",
     )
 
     /** 조회 계산용 합성 기준 fixture다. 제품 CONFIRM_ANCHOR API 구현을 뜻하지 않는다. */
@@ -129,9 +140,12 @@ class RoomLedgerRepositoryTest {
         assertEquals(first, repository.createAccount(context, id(101), value))
         assertEquals(first, repository.receipt(context, id(101)))
         assertEquals(3L, repository.snapshot(context, today).revision)
-        assertEquals(LedgerConflict.DUPLICATE_REQUEST, assertFailsWith<LedgerConflictException> {
-            repository.createAccount(context, id(101), value.copy(name = "변경"))
-        }.conflict)
+        assertEquals(
+            LedgerConflict.DUPLICATE_REQUEST,
+            assertFailsWith<LedgerConflictException> {
+                repository.createAccount(context, id(101), value.copy(name = "변경"))
+            }.conflict,
+        )
     }
 
     /** 이체는 한 행이며 두 계좌 효과·수입/지출·기준일 경계를 같은 스냅샷에서 계산한다. */
@@ -142,12 +156,9 @@ class RoomLedgerRepositoryTest {
         confirmedFixture(1, 10_000)
         confirmedFixture(2, 20_000)
         repository.createTransaction(context, id(210), transfer())
-        repository.createTransaction(context, id(211), CreateTransaction(
-            id(11), TransactionKind.INCOME, today, 1_000, creditAccountId = id(1)))
-        repository.createTransaction(context, id(212), CreateTransaction(
-            id(12), TransactionKind.EXPENSE, today, 200, debitAccountId = id(1)))
-        repository.createTransaction(context, id(213), CreateTransaction(
-            id(13), TransactionKind.INCOME, LocalDate.of(2026, 10, 31), 999, creditAccountId = id(1)))
+        repository.createTransaction(context, id(211), CreateTransaction(id(11), TransactionKind.INCOME, today, 1_000, creditAccountId = id(1)))
+        repository.createTransaction(context, id(212), CreateTransaction(id(12), TransactionKind.EXPENSE, today, 200, debitAccountId = id(1)))
+        repository.createTransaction(context, id(213), CreateTransaction(id(13), TransactionKind.INCOME, LocalDate.of(2026, 10, 31), 999, creditAccountId = id(1)))
         val snapshot = repository.snapshot(context, today)
         assertEquals(4, snapshot.transactions.size)
         assertEquals(1, snapshot.transactions.count { it.kind == TransactionKind.TRANSFER })
@@ -163,8 +174,7 @@ class RoomLedgerRepositoryTest {
     fun confirmedZeroCanBecomeNegative() = runTest {
         account(1)
         confirmedFixture(1, 0)
-        repository.createTransaction(context, id(201), CreateTransaction(
-            id(10), TransactionKind.EXPENSE, today, 500, debitAccountId = id(1)))
+        repository.createTransaction(context, id(201), CreateTransaction(id(10), TransactionKind.EXPENSE, today, 500, debitAccountId = id(1)))
         assertEquals(-500L, repository.snapshot(context, today).balances[id(1)])
     }
 
@@ -176,9 +186,12 @@ class RoomLedgerRepositoryTest {
     @Test
     fun missingReferencePreservesSubmissionForRetry() = runTest {
         account(1)
-        assertEquals(LedgerConflict.MISSING_REFERENCE, assertFailsWith<LedgerConflictException> {
-            repository.createTransaction(context, id(210), transfer())
-        }.conflict)
+        assertEquals(
+            LedgerConflict.MISSING_REFERENCE,
+            assertFailsWith<LedgerConflictException> {
+                repository.createTransaction(context, id(210), transfer())
+            }.conflict,
+        )
         assertEquals(2L, repository.snapshot(context, today).revision)
         assertTrue(repository.snapshot(context, today).transactions.isEmpty())
         assertNull(repository.receipt(context, id(210)))
@@ -197,9 +210,12 @@ class RoomLedgerRepositoryTest {
         val other = LedgerContext(id(800), id(801))
         repository.initialize(other)
         repository.createAccount(other, id(102), accountValue(2))
-        assertEquals(LedgerConflict.MISSING_REFERENCE, assertFailsWith<LedgerConflictException> {
-            repository.createTransaction(context, id(210), transfer())
-        }.conflict)
+        assertEquals(
+            LedgerConflict.MISSING_REFERENCE,
+            assertFailsWith<LedgerConflictException> {
+                repository.createTransaction(context, id(210), transfer())
+            }.conflict,
+        )
         assertTrue(repository.snapshot(context, today).transactions.isEmpty())
         assertTrue(repository.snapshot(other, today).transactions.isEmpty())
     }
@@ -212,10 +228,14 @@ class RoomLedgerRepositoryTest {
         repository.createTransaction(context, id(210), transfer())
         database.openHelper.writableDatabase.execSQL(
             "UPDATE accounts SET status='ARCHIVED', nature='INVESTMENT' WHERE ledgerId=? AND id=?",
-            arrayOf(context.ledgerId, id(1)))
-        assertEquals(LedgerConflict.ARCHIVED_ACCOUNT, assertFailsWith<LedgerConflictException> {
-            repository.createTransaction(context, id(211), transfer(11))
-        }.conflict)
+            arrayOf(context.ledgerId, id(1)),
+        )
+        assertEquals(
+            LedgerConflict.ARCHIVED_ACCOUNT,
+            assertFailsWith<LedgerConflictException> {
+                repository.createTransaction(context, id(211), transfer(11))
+            }.conflict,
+        )
         val snapshot = repository.snapshot(context, today)
         assertEquals(1, snapshot.transactions.size)
         assertEquals(AccountNature.GENERAL, snapshot.transactions.single().debitNature)
@@ -226,12 +246,18 @@ class RoomLedgerRepositoryTest {
     @Test
     fun duplicateEntityCannotBeReplaced() = runTest {
         val first = repository.createAccount(context, id(101), accountValue(1))
-        assertEquals(LedgerConflict.DUPLICATE_ENTITY, assertFailsWith<LedgerConflictException> {
-            repository.createAccount(context, id(201), accountValue(1).copy(name = "덮어쓰기"))
-        }.conflict)
-        assertEquals(LedgerConflict.DUPLICATE_ENTITY, assertFailsWith<LedgerConflictException> {
-            repository.createAccount(context, id(202), accountValue(2).copy(anchorId = id(51)))
-        }.conflict)
+        assertEquals(
+            LedgerConflict.DUPLICATE_ENTITY,
+            assertFailsWith<LedgerConflictException> {
+                repository.createAccount(context, id(201), accountValue(1).copy(name = "덮어쓰기"))
+            }.conflict,
+        )
+        assertEquals(
+            LedgerConflict.DUPLICATE_ENTITY,
+            assertFailsWith<LedgerConflictException> {
+                repository.createAccount(context, id(202), accountValue(2).copy(anchorId = id(51)))
+            }.conflict,
+        )
         assertEquals(first, repository.receipt(context, id(101)))
         assertEquals(listOf("같은 이름"), repository.snapshot(context, today).accounts.map { it.name })
         assertEquals(2L, repository.snapshot(context, today).revision)
@@ -246,11 +272,13 @@ class RoomLedgerRepositoryTest {
     fun operationFailureRollsBackTransferAndRevision() = runTest {
         account(1)
         account(2)
-        database.openHelper.writableDatabase.execSQL("""
+        database.openHelper.writableDatabase.execSQL(
+            """
             CREATE TRIGGER fail_operation BEFORE INSERT ON operations
             WHEN NEW.kind='CREATE_TRANSACTION'
             BEGIN SELECT RAISE(ABORT, 'injected failure'); END
-        """.trimIndent())
+            """.trimIndent(),
+        )
         assertFailsWith<SQLiteException> { repository.createTransaction(context, id(210), transfer()) }
         val snapshot = repository.snapshot(context, today)
         assertTrue(snapshot.transactions.isEmpty())
@@ -275,11 +303,13 @@ class RoomLedgerRepositoryTest {
         val value = accountValue(1, name).copy(unknownReason = "\u0002".repeat(16 * 1024))
         assertEquals(16 * 1024, value.name.toByteArray(Charsets.UTF_8).size)
         assertEquals(16 * 1024, value.unknownReason.toByteArray(Charsets.UTF_8).size)
-        database.openHelper.writableDatabase.execSQL("""
+        database.openHelper.writableDatabase.execSQL(
+            """
             CREATE TRIGGER fail_account BEFORE INSERT ON operations
             WHEN NEW.kind='UPDATE_ACCOUNT'
             BEGIN SELECT RAISE(ABORT, 'injected failure'); END
-        """.trimIndent())
+            """.trimIndent(),
+        )
         assertFailsWith<SQLiteException> { repository.createAccount(context, id(101), value) }
         assertTrue(database.ledgerDao().accounts(context.ledgerId).isEmpty())
         assertTrue(database.ledgerDao().anchors(context.ledgerId).isEmpty())
@@ -370,8 +400,12 @@ class RoomLedgerRepositoryTest {
         val release = CompletableDeferred<Unit>()
         val child = launch(Dispatchers.Default) {
             database.withTransaction {
-                database.ledgerDao().insertTransaction(TransactionEntity(context.ledgerId, id(10),
-                    "TRANSFER", today.toString(), 50, id(1), id(2), "GENERAL", "GENERAL", "", 1, 1))
+                database.ledgerDao().insertTransaction(
+                    TransactionEntity(
+                        context.ledgerId, id(10),
+                        "TRANSFER", today.toString(), 50, id(1), id(2), "GENERAL", "GENERAL", "", 1, 1,
+                    ),
+                )
                 inserted.complete(Unit)
                 release.await()
             }
@@ -392,8 +426,12 @@ class RoomLedgerRepositoryTest {
     fun sqliteForeignKeyRejectsMissingAccount() = runTest {
         account(1)
         assertFailsWith<SQLiteException> {
-            database.ledgerDao().insertTransaction(TransactionEntity(context.ledgerId, id(10),
-                "TRANSFER", today.toString(), 50, id(1), id(2), "GENERAL", "GENERAL", "", 1, 1))
+            database.ledgerDao().insertTransaction(
+                TransactionEntity(
+                    context.ledgerId, id(10),
+                    "TRANSFER", today.toString(), 50, id(1), id(2), "GENERAL", "GENERAL", "", 1, 1,
+                ),
+            )
         }
         assertTrue(repository.snapshot(context, today).transactions.isEmpty())
     }
@@ -410,11 +448,16 @@ class RoomLedgerRepositoryTest {
     /** 판 증가가 불가능한 조건부 갱신 0행을 성공으로 바꾸지 않고 계좌/기준도 rollback한다. */
     @Test
     fun revisionExhaustionRollsBackAllFinancialRows() = runTest {
-        database.openHelper.writableDatabase.execSQL("UPDATE ledgers SET revision=? WHERE id=?",
-            arrayOf<Any>(Long.MAX_VALUE, context.ledgerId))
-        assertEquals(LedgerConflict.STALE_REVISION, assertFailsWith<LedgerConflictException> {
-            repository.createAccount(context, id(101), accountValue(1))
-        }.conflict)
+        database.openHelper.writableDatabase.execSQL(
+            "UPDATE ledgers SET revision=? WHERE id=?",
+            arrayOf<Any>(Long.MAX_VALUE, context.ledgerId),
+        )
+        assertEquals(
+            LedgerConflict.STALE_REVISION,
+            assertFailsWith<LedgerConflictException> {
+                repository.createAccount(context, id(101), accountValue(1))
+            }.conflict,
+        )
         assertTrue(database.ledgerDao().accounts(context.ledgerId).isEmpty())
         assertTrue(database.ledgerDao().anchors(context.ledgerId).isEmpty())
         assertNull(repository.receipt(context, id(101)))
@@ -430,17 +473,28 @@ class RoomLedgerRepositoryTest {
     fun generationFenceRejectsOldCallsAndOperationReuse() = runTest {
         account(1)
         val changed = context.copy(storageGeneration = id(902))
-        database.openHelper.writableDatabase.execSQL("UPDATE ledgers SET storageGeneration=? WHERE id=?",
-            arrayOf(changed.storageGeneration, context.ledgerId))
-        assertEquals(LedgerConflict.STALE_GENERATION, assertFailsWith<LedgerConflictException> {
-            repository.receipt(context, id(101))
-        }.conflict)
-        assertEquals(LedgerConflict.STALE_GENERATION, assertFailsWith<LedgerConflictException> {
-            repository.retryPending(context, id(101))
-        }.conflict)
-        assertEquals(LedgerConflict.DUPLICATE_REQUEST, assertFailsWith<LedgerConflictException> {
-            repository.createAccount(changed, id(101), accountValue(1))
-        }.conflict)
+        database.openHelper.writableDatabase.execSQL(
+            "UPDATE ledgers SET storageGeneration=? WHERE id=?",
+            arrayOf(changed.storageGeneration, context.ledgerId),
+        )
+        assertEquals(
+            LedgerConflict.STALE_GENERATION,
+            assertFailsWith<LedgerConflictException> {
+                repository.receipt(context, id(101))
+            }.conflict,
+        )
+        assertEquals(
+            LedgerConflict.STALE_GENERATION,
+            assertFailsWith<LedgerConflictException> {
+                repository.retryPending(context, id(101))
+            }.conflict,
+        )
+        assertEquals(
+            LedgerConflict.DUPLICATE_REQUEST,
+            assertFailsWith<LedgerConflictException> {
+                repository.createAccount(changed, id(101), accountValue(1))
+            }.conflict,
+        )
         assertEquals(1, repository.snapshot(changed, today).accounts.size)
     }
 
@@ -450,8 +504,7 @@ class RoomLedgerRepositoryTest {
         account(1)
         for ((number, date) in listOf(10L to today.plusDays(1), 11L to LocalDate.of(1899, 12, 31))) {
             assertFailsWith<IllegalArgumentException> {
-                repository.createTransaction(context, id(200 + number), CreateTransaction(
-                    id(number), TransactionKind.INCOME, date, 10, creditAccountId = id(1)))
+                repository.createTransaction(context, id(200 + number), CreateTransaction(id(number), TransactionKind.INCOME, date, 10, creditAccountId = id(1)))
             }
             assertNull(repository.receipt(context, id(200 + number)))
         }

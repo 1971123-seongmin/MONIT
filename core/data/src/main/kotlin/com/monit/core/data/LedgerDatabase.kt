@@ -21,80 +21,122 @@ internal data class LedgerEntity(
 )
 
 @Entity(
-    tableName = "accounts", primaryKeys = ["ledgerId", "id"],
-    foreignKeys = [ForeignKey(
-        entity = LedgerEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["ledgerId"]
-    )],
-)
-internal data class AccountEntity(
-    val ledgerId: String, val id: String, val name: String, val nature: String,
-    val status: String, val revision: Long,
-)
-
-@Entity(
-    tableName = "anchors", primaryKeys = ["ledgerId", "id"],
-    indices = [Index(value = ["ledgerId", "accountId"], unique = true)],
-    foreignKeys = [ForeignKey(
-        entity = AccountEntity::class, parentColumns = ["ledgerId", "id"],
-        childColumns = ["ledgerId", "accountId"]
-    )],
-)
-internal data class AnchorEntity(
-    val ledgerId: String, val id: String, val accountId: String, val date: String,
-    val amount: Long?, val confirmedAt: String?, val unknownReason: String?, val revision: Long,
-)
-
-@Entity(
-    tableName = "transactions", primaryKeys = ["ledgerId", "id"],
-    indices = [Index(value = ["ledgerId", "debitAccountId"]),
-        Index(value = ["ledgerId", "creditAccountId"]), Index(value = ["ledgerId", "date"])],
+    tableName = "accounts",
+    primaryKeys = ["ledgerId", "id"],
     foreignKeys = [
         ForeignKey(
             entity = LedgerEntity::class,
             parentColumns = ["id"],
-            childColumns = ["ledgerId"]
+            childColumns = ["ledgerId"],
+        ),
+    ],
+)
+internal data class AccountEntity(
+    val ledgerId: String,
+    val id: String,
+    val name: String,
+    val nature: String,
+    val status: String,
+    val revision: Long,
+)
+
+@Entity(
+    tableName = "anchors",
+    primaryKeys = ["ledgerId", "id"],
+    indices = [Index(value = ["ledgerId", "accountId"], unique = true)],
+    foreignKeys = [
+        ForeignKey(
+            entity = AccountEntity::class,
+            parentColumns = ["ledgerId", "id"],
+            childColumns = ["ledgerId", "accountId"],
+        ),
+    ],
+)
+internal data class AnchorEntity(
+    val ledgerId: String,
+    val id: String,
+    val accountId: String,
+    val date: String,
+    val amount: Long?,
+    val confirmedAt: String?,
+    val unknownReason: String?,
+    val revision: Long,
+)
+
+@Entity(
+    tableName = "transactions",
+    primaryKeys = ["ledgerId", "id"],
+    indices = [
+        Index(value = ["ledgerId", "debitAccountId"]),
+        Index(value = ["ledgerId", "creditAccountId"]), Index(value = ["ledgerId", "date"]),
+    ],
+    foreignKeys = [
+        ForeignKey(
+            entity = LedgerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["ledgerId"],
         ),
         ForeignKey(
-            entity = AccountEntity::class, parentColumns = ["ledgerId", "id"],
-            childColumns = ["ledgerId", "debitAccountId"]
+            entity = AccountEntity::class,
+            parentColumns = ["ledgerId", "id"],
+            childColumns = ["ledgerId", "debitAccountId"],
         ),
         ForeignKey(
-            entity = AccountEntity::class, parentColumns = ["ledgerId", "id"],
-            childColumns = ["ledgerId", "creditAccountId"]
+            entity = AccountEntity::class,
+            parentColumns = ["ledgerId", "id"],
+            childColumns = ["ledgerId", "creditAccountId"],
         ),
     ],
 )
 internal data class TransactionEntity(
-    val ledgerId: String, val id: String, val kind: String, val date: String, val amount: Long,
-    val debitAccountId: String?, val creditAccountId: String?,
-    val debitNature: String?, val creditNature: String?, val memo: String,
-    val revision: Long, val financialRevision: Long,
+    val ledgerId: String,
+    val id: String,
+    val kind: String,
+    val date: String,
+    val amount: Long,
+    val debitAccountId: String?,
+    val creditAccountId: String?,
+    val debitNature: String?,
+    val creditNature: String?,
+    val memo: String,
+    val revision: Long,
+    val financialRevision: Long,
 )
 
 @Entity(
-    tableName = "operations", primaryKeys = ["ledgerId", "operationId"],
-    foreignKeys = [ForeignKey(
-        entity = LedgerEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["ledgerId"]
-    )],
+    tableName = "operations",
+    primaryKeys = ["ledgerId", "operationId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = LedgerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["ledgerId"],
+        ),
+    ],
 )
 internal data class OperationEntity(
-    val ledgerId: String, val operationId: String, val storageGeneration: String, val kind: String,
-    val requestJson: String, val requestSha256: String, val committedAt: String,
-    val ledgerRevision: Long, val resultJson: String,
+    val ledgerId: String,
+    val operationId: String,
+    val storageGeneration: String,
+    val kind: String,
+    val requestJson: String,
+    val requestSha256: String,
+    val committedAt: String,
+    val ledgerRevision: Long,
+    val resultJson: String,
 )
 
 /** 제출 의도는 복구 자료이며 성공 원장 operations와 분리한다. */
 @Entity(
-    tableName = "submissions", primaryKeys = ["ledgerId", "operationId"],
-    foreignKeys = [ForeignKey(
-        entity = LedgerEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["ledgerId"]
-    )],
+    tableName = "submissions",
+    primaryKeys = ["ledgerId", "operationId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = LedgerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["ledgerId"],
+        ),
+    ],
 )
 internal data class SubmissionEntity(
     val ledgerId: String,
@@ -105,15 +147,20 @@ internal data class SubmissionEntity(
 
 /** 성공 후 pending이 소비되어도 명시적 종료 전까지 최초 제출을 발견한다. */
 @Entity(
-    tableName = "submission_references", primaryKeys = ["ledgerId", "operationId"],
-    foreignKeys = [ForeignKey(
-        entity = LedgerEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["ledgerId"]
-    )],
+    tableName = "submission_references",
+    primaryKeys = ["ledgerId", "operationId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = LedgerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["ledgerId"],
+        ),
+    ],
 )
 internal data class SubmissionReferenceEntity(
-    val ledgerId: String, val operationId: String, val storageGeneration: String,
+    val ledgerId: String,
+    val operationId: String,
+    val storageGeneration: String,
 )
 
 @Dao
@@ -127,7 +174,7 @@ internal interface LedgerDao {
             OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM operations)
             OR EXISTS(SELECT 1 FROM submissions)
             OR EXISTS(SELECT 1 FROM submission_references)
-    """
+    """,
     )
     suspend fun hasBusinessRecords(): Boolean
 
@@ -139,7 +186,7 @@ internal interface LedgerDao {
             OR EXISTS(SELECT 1 FROM operations b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM submissions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM submission_references b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
-    """
+    """,
     )
     suspend fun hasRecordsWithoutLedger(): Boolean
 
@@ -211,9 +258,12 @@ internal interface LedgerDao {
 }
 
 @Database(
-    entities = [LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
-        TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class],
-    version = 2, exportSchema = true,
+    entities = [
+        LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
+        TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class,
+    ],
+    version = 2,
+    exportSchema = true,
 )
 internal abstract class LedgerDatabase : RoomDatabase() {
     abstract fun ledgerDao(): LedgerDao
@@ -232,13 +282,12 @@ internal abstract class LedgerDatabase : RoomDatabase() {
     }
 }
 
-internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase =
-    Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
-        .addMigrations(LedgerMigration1To2)
-        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        .addCallback(object : RoomDatabase.Callback() {
-            override fun onOpen(db: SupportSQLiteDatabase) {
-                db.execSQL("PRAGMA synchronous=FULL")
-            }
-        })
-        .build()
+internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase = Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
+    .addMigrations(LedgerMigration1To2)
+    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+    .addCallback(object : RoomDatabase.Callback() {
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            db.execSQL("PRAGMA synchronous=FULL")
+        }
+    })
+    .build()

@@ -3,11 +3,11 @@ package com.monit.feature.transactions
 import com.monit.core.model.LedgerSnapshot
 import com.monit.core.model.TransactionKind
 import com.monit.core.model.sumSignedAmounts
-import java.text.NumberFormat
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.format.DateTimeFormatter
+import java.text.NumberFormat
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** 월 전체 합계는 필터에 영향받지 않으며 이체는 금액 합계에 포함하지 않는다. */
@@ -31,21 +31,31 @@ internal fun LedgerSnapshot.toTransactionsUiState(selection: TransactionsUiState
         null,
         TransactionKind.EXPENSE,
         TransactionKind.INCOME,
-        TransactionKind.TRANSFER
+        TransactionKind.TRANSFER,
     )[selection.selectedKindIndex]
     val filtered = monthRows.filter {
-        (kind == null || it.kind == kind) && (selection.selectedAccountId == null ||
-                it.debitAccountId == selection.selectedAccountId || it.creditAccountId == selection.selectedAccountId)
+        (kind == null || it.kind == kind) && (
+            selection.selectedAccountId == null ||
+                it.debitAccountId == selection.selectedAccountId || it.creditAccountId == selection.selectedAccountId
+            )
     }
     val names = accounts.associate { it.id to it.name }
     val days = filtered.groupBy { it.date }
     val dateFormat = DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN)
     return selection.copy(
         accountOptions = accounts.map { AccountFilterUiState(it.id, it.name) },
-        income = money(sumSignedAmounts(monthRows.filter { it.kind == TransactionKind.INCOME }
-            .map { it.amount })),
-        expense = money(sumSignedAmounts(monthRows.filter { it.kind == TransactionKind.EXPENSE }
-            .map { it.amount })),
+        income = money(
+            sumSignedAmounts(
+                monthRows.filter { it.kind == TransactionKind.INCOME }
+                    .map { it.amount },
+            ),
+        ),
+        expense = money(
+            sumSignedAmounts(
+                monthRows.filter { it.kind == TransactionKind.EXPENSE }
+                    .map { it.amount },
+            ),
+        ),
         dates = (1..selection.month.lengthOfMonth()).map { day ->
             val date = selection.month.atDay(day)
             val rows = days[date].orEmpty()
@@ -68,7 +78,7 @@ internal fun LedgerSnapshot.toTransactionsUiState(selection: TransactionsUiState
             TransactionDateUiState(
                 date,
                 compactSummary.joinToString("\n"),
-                summaries.joinToString(", ")
+                summaries.joinToString(", "),
             )
         },
         rows = filtered.filter { !selection.calendar || it.date == selection.selectedDate }
@@ -83,12 +93,16 @@ internal fun LedgerSnapshot.toTransactionsUiState(selection: TransactionsUiState
                     it.id,
                     it.date.format(dateFormat),
                     if (it.memo.isBlank()) kindLabel else "$kindLabel · ${it.memo}",
-                    (when (it.kind) {
-                        TransactionKind.EXPENSE -> "−"; TransactionKind.INCOME -> "+"; else -> ""
-                    }) + money(it.amount),
+                    (
+                        when (it.kind) {
+                            TransactionKind.EXPENSE -> "−"
+                            TransactionKind.INCOME -> "+"
+                            else -> ""
+                        }
+                        ) + money(it.amount),
                     listOfNotNull(
                         it.debitAccountId?.let(names::get),
-                        it.creditAccountId?.let(names::get)
+                        it.creditAccountId?.let(names::get),
                     ).joinToString(" → "),
                     it.kind == TransactionKind.INCOME,
                 )

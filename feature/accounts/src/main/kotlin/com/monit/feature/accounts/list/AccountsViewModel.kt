@@ -36,7 +36,7 @@ class AccountsViewModel @Inject constructor(
             try {
                 val snapshot = repository.snapshot(
                     context,
-                    LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
+                    LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul"))),
                 )
                 val ui = withContext(contexts.default) { snapshot.toAccountsUiState() }
                 if (request == generation) mutableState.value = AccountsState.Ready(ui)

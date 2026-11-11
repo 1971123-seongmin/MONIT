@@ -23,11 +23,19 @@ fun RegisteredAccountResultEffect(
     val currentOnResult by rememberUpdatedState(onResult)
     val currentOnInvalidResult by rememberUpdatedState(onInvalidResult)
     val key = RegisteredAccountResult.key(selectionRequestId)
-    LaunchedEffect(entry, key) {
+
+    LaunchedEffect(
+        entry,
+        key,
+    ) {
         entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            entry.savedStateHandle.getStateFlow<Any?>(key, null).collect { raw ->
+            entry.savedStateHandle.getStateFlow<Any?>(
+                key,
+                null,
+            ).collect { raw ->
                 if (raw != null) {
                     val result = (raw as? Bundle)?.let(RegisteredAccountResult::fromBundle)
+
                     if (result == null || result.selectionRequestId != selectionRequestId) {
                         currentOnInvalidResult()
                     } else if (currentOnResult(result)) {

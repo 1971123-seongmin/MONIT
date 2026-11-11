@@ -37,5 +37,4 @@ fun recurringDueDate(month: YearMonth, ruleDayOfMonth: Int): LocalDate {
  * 현재 선택일의 일자를 이동 월 길이로 clamp한다. 숨겨진 원래 일자 anchor를 유지하지 않는다.
  * 미래 월 조회도 허용하며 거래일 저장 검사는 별도다. 표현 범위를 넘는 이동은 예외를 전파한다.
  */
-fun moveCalendarSelection(selectedDate: LocalDate, monthOffset: Long): LocalDate =
-    selectedDate.plusMonths(monthOffset)
+fun moveCalendarSelection(selectedDate: LocalDate, monthOffset: Long): LocalDate = selectedDate.plusMonths(monthOffset)

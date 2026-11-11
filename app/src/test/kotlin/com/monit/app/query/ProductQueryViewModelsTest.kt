@@ -46,15 +46,15 @@ class ProductQueryViewModelsTest {
     private val store = ViewModelStore()
     private var nextKey = 0
     private fun <T : ViewModel> own(vm: T) = vm.also { store.put("query-" + nextKey++, it) }
-    private fun transactions(repo: QueryRepository, state: SavedStateHandle = SavedStateHandle()) =
-        own(TransactionsViewModel(repo, clock, state, contexts))
+    private fun transactions(repo: QueryRepository, state: SavedStateHandle = SavedStateHandle()) = own(TransactionsViewModel(repo, clock, state, contexts))
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After
     fun tearDown() {
-        store.clear(); Dispatchers.resetMain()
+        store.clear()
+        Dispatchers.resetMain()
     }
 
     /**
@@ -76,7 +76,7 @@ class ProductQueryViewModelsTest {
         advanceUntilIdle()
         assertEquals(
             LedgerEntryState.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA),
-            vm.state.value
+            vm.state.value,
         )
         repo.onOpen = { LedgerEntryResult.Ready(testContext) }
         vm.retry()
@@ -244,7 +244,7 @@ class ProductQueryViewModelsTest {
                     emptyList(),
                     mapOf(queryId(11) to null, queryId(12) to 0L, queryId(13) to 999L),
                     0,
-                    0
+                    0,
                 )
             }
         }
@@ -259,7 +259,11 @@ class ProductQueryViewModelsTest {
     }
 
     private fun account(id: Int, status: AccountStatus = AccountStatus.ACTIVE) = LedgerAccount(
-        queryId(id), "합성 계좌 $id", AccountNature.GENERAL, status, 1,
+        queryId(id),
+        "합성 계좌 $id",
+        AccountNature.GENERAL,
+        status,
+        1,
         BalanceAnchor(queryId(id + 100), LocalDate.of(2026, 1, 1), null, null, "미확인"),
     )
 
@@ -276,7 +280,7 @@ class ProductQueryViewModelsTest {
                 AccountNature.GENERAL,
                 "합성 수입",
                 1,
-                1
+                1,
             ),
             LedgerTransaction(
                 queryId(22),
@@ -289,7 +293,7 @@ class ProductQueryViewModelsTest {
                 null,
                 "",
                 1,
-                1
+                1,
             ),
             LedgerTransaction(
                 queryId(23),
@@ -302,7 +306,7 @@ class ProductQueryViewModelsTest {
                 AccountNature.GENERAL,
                 "",
                 1,
-                1
+                1,
             ),
             LedgerTransaction(
                 queryId(24),
@@ -315,16 +319,20 @@ class ProductQueryViewModelsTest {
                 null,
                 "",
                 1,
-                1
+                1,
             ),
         )
         onSnapshot = { asOf ->
             val rows = transactions.filter { it.date <= asOf }
             val monthly = rows.filter { YearMonth.from(it.date) == YearMonth.from(asOf) }
             LedgerSnapshot(
-                1, listOf(account(11), account(12)), rows, emptyMap(),
+                1,
+                listOf(account(11), account(12)),
+                rows,
+                emptyMap(),
                 monthly.filter { it.kind == TransactionKind.INCOME }.sumOf { it.amount },
-                monthly.filter { it.kind == TransactionKind.EXPENSE }.sumOf { it.amount })
+                monthly.filter { it.kind == TransactionKind.EXPENSE }.sumOf { it.amount },
+            )
         }
     }
 }

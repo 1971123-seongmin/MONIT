@@ -32,8 +32,11 @@ import org.robolectric.annotation.Config
 class AccountRegistrationModelsTest {
     private val context = LedgerContext(id(1), id(2))
     private val date = LocalDate.of(2026, 11, 10)
-    private val submission = SubmittedAccountState(context, id(3),
-        CreateAccount(id(4), id(5), "합성 계좌", AccountNature.GENERAL, date, "미확인"))
+    private val submission = SubmittedAccountState(
+        context,
+        id(3),
+        CreateAccount(id(4), id(5), "합성 계좌", AccountNature.GENERAL, date, "미확인"),
+    )
 
     /** v2는 실제 Bundle Parcel 왕복에서도 context·ID·원문을 보존한다. */
     @Test fun versionTwoSurvivesParcelRoundTrip() {
@@ -55,9 +58,12 @@ class AccountRegistrationModelsTest {
     /** 필수 필드 누락·틀린 타입·다른 세대·잘못된 ID·미지원 버전을 허용하지 않는다. */
     @Test fun invalidVersionTwoIsRejected() {
         val changes: List<(Bundle) -> Unit> = listOf(
-            { it.remove("name") }, { it.putInt("operationId", 3) },
-            { it.putString("generation", id(9)) }, { it.putString("accountId", "invalid") },
-            { it.putInt("version", 3) }, { it.putString("anchorDate", "2026-02-30") },
+            { it.remove("name") },
+            { it.putInt("operationId", 3) },
+            { it.putString("generation", id(9)) },
+            { it.putString("accountId", "invalid") },
+            { it.putInt("version", 3) },
+            { it.putString("anchorDate", "2026-02-30") },
         )
         for (change in changes) {
             val raw = AccountSubmissionCodec.encode(submission).apply(change)
@@ -77,7 +83,8 @@ class AccountRegistrationModelsTest {
         val good = WriteReceipt(id(3), 2, listOf(EntityRef("accounts", id(4), 1), EntityRef("anchors", id(5), 1)))
         assertTrue(good.matches(submission))
         val wrong = listOf(
-            good.copy(operationId = id(9)), good.copy(ledgerRevision = 0),
+            good.copy(operationId = id(9)),
+            good.copy(ledgerRevision = 0),
             good.copy(entities = listOf(EntityRef("accounts", id(9), 1), good.entities[1])),
             good.copy(entities = listOf(good.entities[0], good.entities[0])),
             good.copy(entities = listOf(good.entities[0], EntityRef("anchors", id(5), 0))),
@@ -88,8 +95,14 @@ class AccountRegistrationModelsTest {
     /** 미확인 null은 표시하지만 map의 키 누락을 미확인으로 숨기지 않는다. */
     @Test fun mapperDistinguishesUnknownFromMissingBalance() {
         val value = submission.value
-        val account = LedgerAccount(value.id, value.name, value.nature, AccountStatus.ACTIVE, 1,
-            BalanceAnchor(value.anchorId, date, null, null, value.unknownReason))
+        val account = LedgerAccount(
+            value.id,
+            value.name,
+            value.nature,
+            AccountStatus.ACTIVE,
+            1,
+            BalanceAnchor(value.anchorId, date, null, null, value.unknownReason),
+        )
         val ui = account.toAccountUiState(mapOf(account.id to null))
         assertNull(ui.balance)
         assertEquals("미확인", ui.unknownReason)
@@ -101,10 +114,14 @@ class AccountRegistrationModelsTest {
         val draft = AccountDraftUiState(name = "  ", anchorDate = "2026-02-30", unknownReason = "")
         assertEquals(AccountInputError.NAME, validateAccountDraft(draft, date.plusDays(1)))
         assertEquals("  ", draft.name)
-        assertEquals(AccountInputError.ANCHOR_DATE,
-            validateAccountDraft(draft.copy(name = "계좌"), date.plusDays(1)))
-        assertEquals(AccountInputError.UNKNOWN_REASON,
-            validateAccountDraft(draft.copy(name = "계좌", anchorDate = date.toString()), date.plusDays(1)))
+        assertEquals(
+            AccountInputError.ANCHOR_DATE,
+            validateAccountDraft(draft.copy(name = "계좌"), date.plusDays(1)),
+        )
+        assertEquals(
+            AccountInputError.UNKNOWN_REASON,
+            validateAccountDraft(draft.copy(name = "계좌", anchorDate = date.toString()), date.plusDays(1)),
+        )
         assertNull(validateAccountDraft(draft.copy(name = "계좌", anchorDate = "1900-01-01", unknownReason = "미확인"), date))
     }
 

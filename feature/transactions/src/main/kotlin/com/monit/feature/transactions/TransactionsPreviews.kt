@@ -16,35 +16,57 @@ import java.time.YearMonth
     name = "Transactions / Empty / Dark",
     widthDp = 360,
     heightDp = 708,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
 )
 @Preview(name = "Transactions / 320dp / 200%", widthDp = 320, heightDp = 480, fontScale = 2f)
 @Composable
 internal fun TransactionsEmptyPreview() {
     MonitTheme {
         Surface(
-            Modifier.fillMaxSize(), color = MonitTheme.colors.surfaceContainer,
-            contentColor = MonitTheme.colors.onSurface
+            Modifier.fillMaxSize(),
+            color = MonitTheme.colors.surfaceContainer,
+            contentColor = MonitTheme.colors.onSurface,
         ) {
             TransactionsScreen(
                 TransactionsState(
                     TransactionsUiState(
-                        YearMonth.of(2026, 11),
-                        LocalDate.of(2026, 11, 11),
-                        LocalDate.of(2026, 11, 11),
+                        YearMonth.of(
+                            2026,
+                            11,
+                        ),
+                        LocalDate.of(
+                            2026,
+                            11,
+                            11,
+                        ),
+                        LocalDate.of(
+                            2026,
+                            11,
+                            11,
+                        ),
                         income = "0원",
                         expense = "0원",
                         dates = (1..30).map {
                             TransactionDateUiState(
-                                LocalDate.of(2026, 11, it),
+                                LocalDate.of(
+                                    2026,
+                                    11,
+                                    it,
+                                ),
                                 "",
-                                ""
+                                "",
                             )
                         },
                     ),
                     TransactionsLoadState.READY,
                 ),
-                {}, {}, {}, {}, {}, {}, {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
+                {},
             )
         }
     }

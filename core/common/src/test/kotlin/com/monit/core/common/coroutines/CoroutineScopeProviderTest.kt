@@ -31,12 +31,18 @@ class CoroutineScopeProviderTest {
         )
         val provider = DefaultCoroutineScopeProvider(contexts)
         try {
-            assertSame(contexts.io, provider.ioScope.async {
-                currentCoroutineContext()[ContinuationInterceptor]
-            }.await())
-            assertSame(contexts.default, provider.defaultScope.async {
-                currentCoroutineContext()[ContinuationInterceptor]
-            }.await())
+            assertSame(
+                contexts.io,
+                provider.ioScope.async {
+                    currentCoroutineContext()[ContinuationInterceptor]
+                }.await(),
+            )
+            assertSame(
+                contexts.default,
+                provider.defaultScope.async {
+                    currentCoroutineContext()[ContinuationInterceptor]
+                }.await(),
+            )
             assertNotSame(provider.ioScope.coroutineContext[Job], provider.defaultScope.coroutineContext[Job])
         } finally {
             provider.ioScope.cancel()
@@ -56,8 +62,17 @@ class CoroutineScopeProviderTest {
         val gate = CompletableDeferred<Unit>()
         val defaultCleanedUp = CompletableDeferred<Unit>()
         try {
-            val sibling = provider.ioScope.async { gate.await(); "completed" }
-            provider.defaultScope.async { try { awaitCancellation() } finally { defaultCleanedUp.complete(Unit) } }
+            val sibling = provider.ioScope.async {
+                gate.await()
+                "completed"
+            }
+            provider.defaultScope.async {
+                try {
+                    awaitCancellation()
+                } finally {
+                    defaultCleanedUp.complete(Unit)
+                }
+            }
             val failed = provider.ioScope.async { throw IOException("synthetic failure") }
             runCurrent()
             assertFailsWith<IOException> { failed.await() }

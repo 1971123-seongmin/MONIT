@@ -18,7 +18,7 @@ object MonitTextFieldDefaults {
             outline,
             primary,
             disabledBackground,
-            error
+            error,
         )
     }
 
@@ -30,7 +30,7 @@ object MonitTextFieldDefaults {
         shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
         contentPadding = PaddingValues(
             horizontal = MonitTheme.spacing.content,
-            vertical = MonitTheme.spacing.inline
+            vertical = MonitTheme.spacing.inline,
         ),
         minHeight = MonitTheme.sizes.inputMinHeight,
         supportingSpacing = MonitTheme.spacing.inline,

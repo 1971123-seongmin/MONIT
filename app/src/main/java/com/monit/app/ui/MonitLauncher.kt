@@ -21,26 +21,39 @@ import com.monit.core.model.LedgerEntryProblem
 @Composable
 fun MonitLauncher(viewModel: LedgerEntryViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
     MonitTheme {
         Surface(
-            Modifier.fillMaxSize(), color = MonitTheme.colors.surfaceContainer,
-            contentColor = MonitTheme.colors.onSurface
+            Modifier.fillMaxSize(),
+            color = MonitTheme.colors.surfaceContainer,
+            contentColor = MonitTheme.colors.onSurface,
         ) {
             when (val entry = state) {
                 is LedgerEntryState.Ready -> MonitApp(entry.context)
+
                 else -> Box(
-                    Modifier.fillMaxSize().safeDrawingPadding().padding(MonitTheme.spacing.content),
+                    Modifier
+                        .fillMaxSize()
+                        .safeDrawingPadding()
+                        .padding(MonitTheme.spacing.content),
                     contentAlignment = Alignment.Center,
                 ) {
                     when (entry) {
                         LedgerEntryState.Loading -> MonitStatusPanel(
                             "장부 확인 중",
-                            "기존 기록을 안전하게 확인하고 있어요."
+                            "기존 기록을 안전하게 확인하고 있어요.",
                         )
 
                         LedgerEntryState.Failed -> MonitStatusPanel(
-                            "장부를 열지 못했어요", "기존 자료는 그대로 보존됩니다. 다시 확인해 주세요.", error = true,
-                            action = { MonitButton("다시 확인", onClick = viewModel::retry) },
+                            "장부를 열지 못했어요",
+                            "기존 자료는 그대로 보존됩니다. 다시 확인해 주세요.",
+                            error = true,
+                            action = {
+                                MonitButton(
+                                    "다시 확인",
+                                    onClick = viewModel::retry,
+                                )
+                            },
                         )
 
                         is LedgerEntryState.RecoveryRequired -> MonitStatusPanel(
@@ -51,7 +64,12 @@ fun MonitLauncher(viewModel: LedgerEntryViewModel = hiltViewModel()) {
                                 LedgerEntryProblem.MULTIPLE_LEDGERS -> "여러 장부 정보가 있어 안전하게 열 수 없습니다. 기존 자료를 보존했어요."
                             },
                             error = true,
-                            action = { MonitButton("장부 다시 확인", onClick = viewModel::retry) },
+                            action = {
+                                MonitButton(
+                                    "장부 다시 확인",
+                                    onClick = viewModel::retry,
+                                )
+                            },
                         )
 
                         is LedgerEntryState.Ready -> Unit

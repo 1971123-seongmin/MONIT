@@ -110,27 +110,36 @@ class MainNavigationTest {
     }
 
     private fun openEntry() {
-        assertEquals(NavigationResult.EXECUTED, move { navigation, source ->
-            navigation.openTransactionEntry(
-                source,
-                TransactionEntryDestination(
-                    "entry-one",
-                    TransactionEntryKind.TRANSFER,
-                    "2026-11-01"
+        assertEquals(
+            NavigationResult.EXECUTED,
+            move { navigation, source ->
+                navigation.openTransactionEntry(
+                    source,
+                    TransactionEntryDestination(
+                        "entry-one",
+                        TransactionEntryKind.TRANSFER,
+                        "2026-11-01",
+                    ),
                 )
-            )
-        })
+            },
+        )
     }
 
     private fun openRegistration(registrationId: String = "registration-one") {
-        assertEquals(NavigationResult.EXECUTED, move { navigation, source ->
-            navigation.openAccountRegistration(
-                source, AccountRegistrationDestination(
-                    registrationId, AccountRegistrationOrigin.TRANSACTION_ENTRY,
-                    callerEntryId = "entry-one", selectionRequestId = request.value,
+        assertEquals(
+            NavigationResult.EXECUTED,
+            move { navigation, source ->
+                navigation.openAccountRegistration(
+                    source,
+                    AccountRegistrationDestination(
+                        registrationId,
+                        AccountRegistrationOrigin.TRANSACTION_ENTRY,
+                        callerEntryId = "entry-one",
+                        selectionRequestId = request.value,
+                    ),
                 )
-            )
-        })
+            },
+        )
     }
 
     /** 기본 진입은 홈이며 같은 탭 재선택은 entry·실행기·AppState 객체를 바꾸지 않는다. */
@@ -147,9 +156,10 @@ class MainNavigationTest {
             move { navigation, source ->
                 navigation.navigateToTopLevel(
                     source,
-                    TopLevelDestination.HOME
+                    TopLevelDestination.HOME,
                 )
-            })
+            },
+        )
         assertSame(root, current())
         assertSame(navigator, main)
         assertSame(state, appState)
@@ -162,7 +172,7 @@ class MainNavigationTest {
         move { navigation, source ->
             navigation.navigateToTopLevel(
                 source,
-                TopLevelDestination.TRANSACTIONS
+                TopLevelDestination.TRANSACTIONS,
             )
         }
         val transactions = current()
@@ -170,13 +180,13 @@ class MainNavigationTest {
         move { navigation, source ->
             navigation.navigateToTopLevel(
                 source,
-                TopLevelDestination.ACCOUNTS
+                TopLevelDestination.ACCOUNTS,
             )
         }
         move { navigation, source ->
             navigation.navigateToTopLevel(
                 source,
-                TopLevelDestination.TRANSACTIONS
+                TopLevelDestination.TRANSACTIONS,
             )
         }
         val restored = current()
@@ -187,9 +197,10 @@ class MainNavigationTest {
             move { navigation, source ->
                 navigation.navigateToTopLevel(
                     source,
-                    TopLevelDestination.TRANSACTIONS
+                    TopLevelDestination.TRANSACTIONS,
                 )
-            })
+            },
+        )
         assertSame(restored, current())
     }
 
@@ -200,17 +211,19 @@ class MainNavigationTest {
         move { navigation, source ->
             navigation.navigateToTopLevel(
                 source,
-                TopLevelDestination.ACCOUNTS
+                TopLevelDestination.ACCOUNTS,
             )
         }
         assertEquals(
             NavigationResult.EXECUTED,
-            move { navigation, source -> navigation.onTopLevelBack(source) })
+            move { navigation, source -> navigation.onTopLevelBack(source) },
+        )
         assertTrue(current().destination.hasRoute<HomeDestination>())
         val home = current()
         assertEquals(
             NavigationResult.UNAVAILABLE,
-            move { navigation, source -> navigation.onTopLevelBack(source) })
+            move { navigation, source -> navigation.onTopLevelBack(source) },
+        )
         assertSame(home, current())
     }
 
@@ -222,7 +235,7 @@ class MainNavigationTest {
         val entry = current()
         assertEquals(
             TransactionEntryDestination("entry-one", TransactionEntryKind.TRANSFER, "2026-11-01"),
-            entry.toRoute<TransactionEntryDestination>()
+            entry.toRoute<TransactionEntryDestination>(),
         )
         assertFalse(appState.showBottomBar)
         assertEquals(
@@ -230,16 +243,19 @@ class MainNavigationTest {
             move { navigation, source ->
                 navigation.navigateToTopLevel(
                     source,
-                    TopLevelDestination.ACCOUNTS
+                    TopLevelDestination.ACCOUNTS,
                 )
-            })
+            },
+        )
         assertEquals(
             NavigationResult.UNAVAILABLE,
-            move { navigation, source -> navigation.onTopLevelBack(source) })
+            move { navigation, source -> navigation.onTopLevelBack(source) },
+        )
         assertSame(entry, current())
         assertEquals(
             NavigationResult.EXECUTED,
-            move { navigation, source -> navigation.closeConfirmedTransactionEntry(source) })
+            move { navigation, source -> navigation.closeConfirmedTransactionEntry(source) },
+        )
         assertTrue(appState.showBottomBar)
     }
 
@@ -249,16 +265,20 @@ class MainNavigationTest {
         installHost()
         openEntry()
         val caller = current()
-        assertEquals(NavigationResult.UNAVAILABLE, move { navigation, source ->
-            navigation.openAccountRegistration(
-                source, AccountRegistrationDestination(
-                    "registration",
-                    AccountRegistrationOrigin.TRANSACTION_ENTRY,
-                    "another-entry",
-                    "request",
+        assertEquals(
+            NavigationResult.UNAVAILABLE,
+            move { navigation, source ->
+                navigation.openAccountRegistration(
+                    source,
+                    AccountRegistrationDestination(
+                        "registration",
+                        AccountRegistrationOrigin.TRANSACTION_ENTRY,
+                        "another-entry",
+                        "request",
+                    ),
                 )
-            )
-        })
+            },
+        )
         assertSame(caller, current())
     }
 
@@ -275,7 +295,7 @@ class MainNavigationTest {
                     AccountRegistrationOrigin.TRANSACTION_ENTRY,
                     "another-entry",
                     "request-one",
-                )
+                ),
             )
         }
         compose.waitForIdle()
@@ -285,9 +305,10 @@ class MainNavigationTest {
             move { navigation, source ->
                 navigation.returnFromAccountRegistration(
                     source,
-                    "account-one"
+                    "account-one",
                 )
-            })
+            },
+        )
         assertSame(registration, current())
         assertFalse(caller.savedStateHandle.contains(RegisteredAccountResult.key("request-one")))
     }
@@ -311,9 +332,10 @@ class MainNavigationTest {
             move { navigation, source ->
                 navigation.returnFromAccountRegistration(
                     source,
-                    "account-one"
+                    "account-one",
                 )
-            })
+            },
+        )
         assertSame(caller, current())
         assertEquals(listOf(RegisteredAccountResult("request-one", "account-one")), accepted)
         assertFalse(caller.savedStateHandle.contains(RegisteredAccountResult.key("request-one")))
@@ -321,7 +343,7 @@ class MainNavigationTest {
         compose.runOnIdle {
             assertEquals(
                 NavigationResult.IGNORED,
-                main.returnFromAccountRegistration(registration, "account-one")
+                main.returnFromAccountRegistration(registration, "account-one"),
             )
         }
         compose.waitForIdle()
@@ -342,20 +364,23 @@ class MainNavigationTest {
         move { navigation, source ->
             navigation.returnFromAccountRegistration(
                 source,
-                "account-one"
+                "account-one",
             )
         }
         compose.runOnIdle {
             request.value = "request-two"
             handler.value =
-                { result -> accepted += result.copy(accountId = "latest-callback"); true }
+                { result ->
+                    accepted += result.copy(accountId = "latest-callback")
+                    true
+                }
         }
         compose.waitForIdle()
         openRegistration("registration-two")
         move { navigation, source ->
             navigation.returnFromAccountRegistration(
                 source,
-                "account-two"
+                "account-two",
             )
         }
         assertEquals(listOf("request-one", "request-two"), accepted.map { it.selectionRequestId })
@@ -401,7 +426,7 @@ class MainNavigationTest {
         move { navigation, source ->
             navigation.returnFromAccountRegistration(
                 source,
-                "account-one"
+                "account-one",
             )
         }
         assertTrue(accepted.isEmpty())
@@ -454,7 +479,7 @@ class MainNavigationTest {
         compose.runOnIdle {
             assertEquals(
                 NavigationResult.IGNORED,
-                oldMain.navigateToTopLevel(oldSource, TopLevelDestination.ACCOUNTS)
+                oldMain.navigateToTopLevel(oldSource, TopLevelDestination.ACCOUNTS),
             )
         }
         assertTrue(current().destination.hasRoute<HomeDestination>())
@@ -467,20 +492,20 @@ class MainNavigationTest {
         move { navigation, source ->
             navigation.navigateToTopLevel(
                 source,
-                TopLevelDestination.ACCOUNTS
+                TopLevelDestination.ACCOUNTS,
             )
         }
         val accounts = current()
         move { navigation, source ->
             navigation.openAccountRegistration(
                 source,
-                AccountRegistrationDestination("standalone", AccountRegistrationOrigin.ACCOUNTS)
+                AccountRegistrationDestination("standalone", AccountRegistrationOrigin.ACCOUNTS),
             )
         }
         move { navigation, source ->
             navigation.returnFromAccountRegistration(
                 source,
-                "account-one"
+                "account-one",
             )
         }
         assertSame(accounts, current())

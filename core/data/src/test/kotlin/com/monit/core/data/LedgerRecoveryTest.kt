@@ -1,8 +1,8 @@
 package com.monit.core.data
 
 import android.app.Application
-import android.database.sqlite.SQLiteException
 import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
 import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.AccountNature
@@ -85,11 +85,15 @@ class LedgerRecoveryTest {
     }
 
     private fun value(name: String = "합성 계좌") = CreateAccount(
-        id(1), id(2), name, AccountNature.GENERAL, LocalDate.of(2026, 10, 31), "확인 전",
+        id(1),
+        id(2),
+        name,
+        AccountNature.GENERAL,
+        LocalDate.of(2026, 10, 31),
+        "확인 전",
     )
 
-    private fun capture(value: CreateAccount = value()) =
-        captureWrite(context, WriteCommand.Account(value))
+    private fun capture(value: CreateAccount = value()) = captureWrite(context, WriteCommand.Account(value))
 
     private suspend fun pending(number: Long, raw: String, hash: String = requestHash(raw)) {
         database.ledgerDao()
@@ -101,11 +105,13 @@ class LedgerRecoveryTest {
         database.openHelper.writableDatabase.query("SELECT * FROM $table ORDER BY 1, 2")
             .use { cursor ->
                 buildList {
-                    while (cursor.moveToNext()) add((0 until cursor.columnCount).map {
-                        cursor.getString(
-                            it
-                        )
-                    })
+                    while (cursor.moveToNext()) add(
+                        (0 until cursor.columnCount).map {
+                            cursor.getString(
+                                it,
+                            )
+                        },
+                    )
                 }
             }
     }
@@ -170,7 +176,7 @@ class LedgerRecoveryTest {
             val before = rows()
             assertEquals(
                 LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.INVALID_METADATA),
-                repository.openLedger()
+                repository.openLedger(),
             )
             assertEquals(before, rows())
             database.openHelper.writableDatabase.execSQL("DELETE FROM ledgers")
@@ -184,7 +190,7 @@ class LedgerRecoveryTest {
         val before = rows()
         assertEquals(
             LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MULTIPLE_LEDGERS),
-            repository.openLedger()
+            repository.openLedger(),
         )
         assertEquals(before, rows())
     }
@@ -196,8 +202,9 @@ class LedgerRecoveryTest {
         orphanStatements.forEachIndexed { index, statement ->
             database.close()
             SQLiteDatabase.openDatabase(
-                application.getDatabasePath("recovery.db").path, null,
-                SQLiteDatabase.OPEN_READWRITE
+                application.getDatabasePath("recovery.db").path,
+                null,
+                SQLiteDatabase.OPEN_READWRITE,
             ).use { fixture ->
                 fixture.execSQL("PRAGMA foreign_keys=OFF")
                 fixture.execSQL(statement)
@@ -206,7 +213,7 @@ class LedgerRecoveryTest {
             val before = rows()
             assertEquals(
                 LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA),
-                repository.openLedger()
+                repository.openLedger(),
             )
             assertEquals(before, rows())
             database.openHelper.writableDatabase.execSQL("DELETE FROM ${tables[index + 1]}")
@@ -220,8 +227,9 @@ class LedgerRecoveryTest {
         orphanStatements.forEachIndexed { index, statement ->
             database.close()
             SQLiteDatabase.openDatabase(
-                application.getDatabasePath("recovery.db").path, null,
-                SQLiteDatabase.OPEN_READWRITE
+                application.getDatabasePath("recovery.db").path,
+                null,
+                SQLiteDatabase.OPEN_READWRITE,
             ).use { fixture ->
                 fixture.execSQL("PRAGMA foreign_keys=OFF")
                 fixture.execSQL(statement)
@@ -230,7 +238,8 @@ class LedgerRecoveryTest {
             val before = rows()
             assertEquals(
                 LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA),
-                repository.openLedger(), "Orphan table: ${tables[index + 1]}"
+                repository.openLedger(),
+                "Orphan table: ${tables[index + 1]}",
             )
             assertEquals(before, rows())
             database.openHelper.writableDatabase.execSQL("DELETE FROM ${tables[index + 1]}")
@@ -244,10 +253,15 @@ class LedgerRecoveryTest {
         repository.initialize(context)
         repository.createAccount(context, id(10), value())
         repository.createTransaction(
-            context, id(11), CreateTransaction(
-                id(12), TransactionKind.INCOME, LocalDate.of(2026, 11, 1), 100,
+            context,
+            id(11),
+            CreateTransaction(
+                id(12),
+                TransactionKind.INCOME,
+                LocalDate.of(2026, 11, 1),
+                100,
                 creditAccountId = id(1),
-            )
+            ),
         )
         pending(13, capture())
         val before = rows()
@@ -284,7 +298,10 @@ class LedgerRecoveryTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         val holder = launch(Dispatchers.Default) {
-            database.withTransaction { entered.complete(Unit); release.await() }
+            database.withTransaction {
+                entered.complete(Unit)
+                release.await()
+            }
         }
         try {
             withContext(Dispatchers.Default) {
@@ -352,7 +369,8 @@ class LedgerRecoveryTest {
                 PendingRecoveryItem.Corrupted(id(18), CorruptedSubmission.INVALID_PAYLOAD),
                 PendingRecoveryItem.Corrupted(id(19), CorruptedSubmission.INVALID_PAYLOAD),
                 PendingRecoveryItem.Corrupted(null, CorruptedSubmission.INVALID_OPERATION_ID),
-            ), repository.pendingRecovery(context).items
+            ),
+            repository.pendingRecovery(context).items,
         )
         assertEquals(before, rows())
     }
@@ -364,7 +382,7 @@ class LedgerRecoveryTest {
         val wrongContext = context.copy(storageGeneration = id(999))
         assertEquals(
             LedgerConflict.STALE_GENERATION,
-            assertFailsWith<LedgerConflictException> { repository.pendingRecovery(wrongContext) }.conflict
+            assertFailsWith<LedgerConflictException> { repository.pendingRecovery(wrongContext) }.conflict,
         )
         database.openHelper.writableDatabase.execSQL("DROP TABLE submissions")
         assertFailsWith<SQLiteException> { repository.pendingRecovery(context) }
@@ -385,7 +403,7 @@ class LedgerRecoveryTest {
         pending(10, capture())
         assertEquals(
             listOf(PendingRecoveryItem.AccountRegistration(id(10), value())),
-            repository.pendingRecovery(context).items
+            repository.pendingRecovery(context).items,
         )
         assertEquals(null, repository.receipt(context, id(10)))
         val receipt = repository.retryPending(context, id(10))
@@ -393,7 +411,7 @@ class LedgerRecoveryTest {
         assertEquals(receipt, repository.retryPending(context, id(10)))
         assertEquals(
             receipt.ledgerRevision,
-            database.ledgerDao().ledger(context.ledgerId)?.revision
+            database.ledgerDao().ledger(context.ledgerId)?.revision,
         )
     }
 

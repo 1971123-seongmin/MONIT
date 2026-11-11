@@ -35,76 +35,136 @@ fun TransactionsScreen(
     modifier: Modifier = Modifier,
 ) {
     val ui = state.ui
+
     LazyColumn(
         modifier.padding(
             horizontal = if (ui.calendar) MonitTheme.spacing.content - MonitTheme.spacing.compact
-            else MonitTheme.spacing.content
+            else MonitTheme.spacing.content,
         ),
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
     ) {
-        item("title") { MonitTopBar("거래") }
+        item("title") {
+            MonitTopBar("거래")
+        }
+
         item("view") {
             MonitSegmentedControl(
-                listOf("달력", "목록"), if (ui.calendar) 0 else 1,
-                { onCalendarSelected(it == 0) }, Modifier.fillMaxWidth()
+                listOf(
+                    "달력",
+                    "목록",
+                ),
+                if (ui.calendar) 0 else 1,
+                { onCalendarSelected(it == 0) },
+                Modifier.fillMaxWidth(),
             )
         }
-        item("filters") { TransactionsFilters(ui, onKindSelected, onAccountSelected) }
-        item("month") { TransactionsMonthHeader(ui, onMonthChange, onToday) }
+
+        item("filters") {
+            TransactionsFilters(
+                ui,
+                onKindSelected,
+                onAccountSelected,
+            )
+        }
+
+        item("month") {
+            TransactionsMonthHeader(
+                ui,
+                onMonthChange,
+                onToday,
+            )
+        }
+
         when (state.load) {
             TransactionsLoadState.LOADING -> item("loading") {
-                MonitStatusPanel("불러오는 중", "선택한 월의 거래를 확인하고 있어요.", Modifier.fillMaxWidth())
+                MonitStatusPanel(
+                    "불러오는 중",
+                    "선택한 월의 거래를 확인하고 있어요.",
+                    Modifier.fillMaxWidth(),
+                )
             }
 
             TransactionsLoadState.FAILED -> item("error") {
                 MonitStatusPanel(
-                    "조회하지 못했어요", "기존 기록은 그대로 보존됩니다. 다시 확인해 주세요.",
-                    Modifier.fillMaxWidth(), error = true,
-                    action = { MonitButton("다시 불러오기", onClick = onRetry) })
+                    "조회하지 못했어요",
+                    "기존 기록은 그대로 보존됩니다. 다시 확인해 주세요.",
+                    Modifier.fillMaxWidth(),
+                    error = true,
+                    action = {
+                        MonitButton(
+                            "다시 불러오기",
+                            onClick = onRetry,
+                        )
+                    },
+                )
             }
 
             TransactionsLoadState.READY -> {
                 item("summary") {
-                    MonitCard(Modifier.fillMaxWidth(), color = MonitTheme.colors.surface) {
+                    MonitCard(
+                        Modifier.fillMaxWidth(),
+                        color = MonitTheme.colors.surface,
+                    ) {
                         Text(
                             "${ui.month.monthValue}월 전체 · 필터 적용 전",
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelLarge,
                         )
-                        Text("수입 ${ui.income}", color = MonitTheme.colors.primary)
-                        Text("지출 ${ui.expense}")
+
                         Text(
-                            "내부 이체는 수입·지출 합계에서 제외", style = MaterialTheme.typography.labelSmall,
-                            color = MonitTheme.colors.muted
+                            "수입 ${ui.income}",
+                            color = MonitTheme.colors.primary,
+                        )
+
+                        Text("지출 ${ui.expense}")
+
+                        Text(
+                            "내부 이체는 수입·지출 합계에서 제외",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MonitTheme.colors.muted,
                         )
                     }
                 }
-                if (ui.calendar) item("calendar") { TransactionsCalendar(ui, onDateSelected) }
+
+                if (ui.calendar) item("calendar") {
+                    TransactionsCalendar(
+                        ui,
+                        onDateSelected,
+                    )
+                }
+
                 item("scope") {
                     Text(
                         if (ui.calendar) "${ui.selectedDate} · 필터 결과" else "${ui.month} 월 전체 목록 · 필터 결과",
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
+
                 if (ui.rows.isEmpty()) item("empty") {
                     MonitStatusPanel(
                         "거래가 없어요",
                         "선택한 날짜·월과 필터에 맞는 거래가 없어요.",
-                        Modifier.fillMaxWidth()
+                        Modifier.fillMaxWidth(),
                     )
                 }
+
                 items(
                     ui.rows,
                     key = { "transaction:" + it.id },
-                    contentType = { "transaction" }) { row ->
+                    contentType = { "transaction" },
+                ) { row ->
                     MonitListItem(
-                        headline = { Text(if (ui.calendar) row.headline else row.dateLabel + " · " + row.headline) },
+                        headline = {
+                            Text(if (ui.calendar) row.headline else row.dateLabel + " · " + row.headline)
+                        },
                         supportingContent = {
                             Text(
                                 row.amount,
-                                color = if (row.income) MonitTheme.colors.primary else MonitTheme.colors.onSurface
+                                color = if (row.income) MonitTheme.colors.primary else MonitTheme.colors.onSurface,
                             )
                         },
-                        detailContent = { Text(row.accounts) },
+                        detailContent = {
+                            Text(row.accounts)
+                        },
                     )
                 }
             }

@@ -28,15 +28,19 @@ internal object AccountSubmissionCodec {
         val fields = when (raw) {
             is Bundle -> {
                 require(raw.get("version") == 2)
-                listOf("ledgerId", "generation", "operationId", "accountId", "anchorId", "name",
-                    "nature", "anchorDate", "unknownReason").map { key ->
+                listOf(
+                    "ledgerId", "generation", "operationId", "accountId", "anchorId", "name",
+                    "nature", "anchorDate", "unknownReason",
+                ).map { key ->
                     requireNotNull(raw.get(key) as? String)
                 }
             }
+
             is ArrayList<*> -> {
                 require(raw.size == 10 && raw[0] == "1" && raw.all { it is String })
                 raw.drop(1).map { it as String }
             }
+
             else -> throw IllegalArgumentException("Unsupported submission state")
         }
         require(LedgerContext(fields[0], fields[1]) == context)
@@ -46,8 +50,17 @@ internal object AccountSubmissionCodec {
             throw IllegalArgumentException("Invalid submission date", error)
         }
         require(date.toString() == fields[7] && date >= LocalDate.of(1900, 1, 1))
-        return SubmittedAccountState(context, fields[2], CreateAccount(
-            fields[3], fields[4], fields[5], AccountNature.valueOf(fields[6]), date, fields[8],
-        ))
+        return SubmittedAccountState(
+            context,
+            fields[2],
+            CreateAccount(
+                fields[3],
+                fields[4],
+                fields[5],
+                AccountNature.valueOf(fields[6]),
+                date,
+                fields[8],
+            ),
+        )
     }
 }

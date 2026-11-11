@@ -70,8 +70,7 @@ class PendingRecoveryMapperTest {
         }
     }
 
-    private fun row(raw: String, ledgerId: String = context.ledgerId) =
-        SubmissionEntity(ledgerId, operationId, raw, requestHash(raw))
+    private fun row(raw: String, ledgerId: String = context.ledgerId) = SubmissionEntity(ledgerId, operationId, raw, requestHash(raw))
 
     private fun id(value: Long): String = UUID(0, value).toString()
 }

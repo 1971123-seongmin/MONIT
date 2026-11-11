@@ -59,19 +59,23 @@ class ProductQueryRenderTest {
         dark: Boolean,
         width: Int = 360,
         height: Int = 708,
-        scale: Float = 1f
+        scale: Float = 1f,
     ) {
         lateinit var view: View
         val date = LocalDate.of(2028, 2, 29)
         val transactions = TransactionsState(
             TransactionsUiState(
-                YearMonth.from(date), date, date, calendar = screen != "list",
-                income = "30,000원", expense = "20,000원",
+                YearMonth.from(date),
+                date,
+                date,
+                calendar = screen != "list",
+                income = "30,000원",
+                expense = "20,000원",
                 dates = (1..29).map {
                     TransactionDateUiState(
                         date.withDayOfMonth(it),
                         if (it == 29) "＋3만\n−2만\n이체 1건" else "",
-                        if (it == 29) "수입 30,000원, 지출 20,000원, 이체 1건" else ""
+                        if (it == 29) "수입 30,000원, 지출 20,000원, 이체 1건" else "",
                     )
                 },
                 rows = listOf(
@@ -81,7 +85,7 @@ class ProductQueryRenderTest {
                         "수입 · 합성 기록",
                         "+30,000원",
                         "합성 계좌",
-                        true
+                        true,
                     ),
                     TransactionRowUiState(
                         "two",
@@ -89,19 +93,20 @@ class ProductQueryRenderTest {
                         "지출 · 합성 기록",
                         "−20,000원",
                         "합성 계좌",
-                        false
+                        false,
                     ),
                 ),
-            ), TransactionsLoadState.READY
+            ),
+            TransactionsLoadState.READY,
         )
         compose.setContent {
             DeviceConfigurationOverride(
                 DeviceConfigurationOverride.ForcedSize(
                     DpSize(
                         width.dp,
-                        height.dp
-                    )
-                )
+                        height.dp,
+                    ),
+                ),
             ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(scale)) {
                     MonitTheme(dark) {
@@ -115,9 +120,11 @@ class ProductQueryRenderTest {
                                             HomeUiState(
                                                 "2028년 2월 전체",
                                                 "0원",
-                                                "0원"
-                                            )
-                                        ), {})
+                                                "0원",
+                                            ),
+                                        ),
+                                        {},
+                                    )
                                 },
                                 transactions = {
                                     TransactionsScreen(
@@ -128,28 +135,32 @@ class ProductQueryRenderTest {
                                         {},
                                         {},
                                         {},
-                                        {})
+                                        {},
+                                    )
                                 },
                                 accounts = {
                                     AccountsScreen(
                                         AccountsState.Ready(
                                             AccountsUiState(
-                                                "확인된 잔액 합계 0원 · 잔액 미확인 1개 제외", listOf(
+                                                "확인된 잔액 합계 0원 · 잔액 미확인 1개 제외",
+                                                listOf(
                                                     AccountRowUiState(
                                                         "unknown",
                                                         "합성 계좌 · 일반",
                                                         "잔액 미확인",
-                                                        "현재 잔액 합계에서 제외"
+                                                        "현재 잔액 합계에서 제외",
                                                     ),
                                                     AccountRowUiState(
                                                         "zero",
                                                         "확인한 합성 계좌 · 저축",
                                                         "0원",
-                                                        "장부 기준 잔액 · 은행 확인 금액이 아니에요"
+                                                        "장부 기준 잔액 · 은행 확인 금액이 아니에요",
                                                     ),
-                                                )
-                                            )
-                                        ), {})
+                                                ),
+                                            ),
+                                        ),
+                                        {},
+                                    )
                                 },
                             )
                         }
@@ -178,7 +189,7 @@ class ProductQueryRenderTest {
             val selectedBounds = selected.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
             assertTrue(
                 selectedBounds.height >= 48 * scale,
-                "선택 날짜 전체 터치 영역이 보여야 한다: $selectedBounds"
+                "선택 날짜 전체 터치 영역이 보여야 한다: $selectedBounds",
             )
             capture(view, prefix + "-date")
         }
@@ -189,7 +200,7 @@ class ProductQueryRenderTest {
         val bitmap = Bitmap.createBitmap(
             bounds.width.toInt(),
             bounds.height.toInt(),
-            Bitmap.Config.ARGB_8888
+            Bitmap.Config.ARGB_8888,
         )
         compose.runOnIdle {
             val canvas = Canvas(bitmap)

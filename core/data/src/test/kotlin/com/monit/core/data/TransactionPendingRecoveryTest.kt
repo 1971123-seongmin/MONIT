@@ -8,6 +8,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlin.test.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -17,7 +18,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import kotlin.test.*
 
 /** 기존 CREATE_TRANSACTION v1의 투영·명시 재시도만 실제 파일에서 확인한다. 자동 실행/UI 시험은 아니다. */
 @RunWith(RobolectricTestRunner::class)
@@ -42,7 +42,7 @@ class TransactionPendingRecoveryTest {
         "transactions",
         "operations",
         "submissions",
-        "submission_references"
+        "submission_references",
     )
 
     @Before
@@ -66,20 +66,29 @@ class TransactionPendingRecoveryTest {
         repository.initialize(context)
         for (number in listOf(1L, 3L)) {
             val receipt = repository.createAccount(
-                context, id(1000 + number), CreateAccount(
-                    id(number), id(number + 1),
-                    "합성 계좌 $number", AccountNature.GENERAL, LocalDate.of(2026, 10, 31), "확인 전"
-                )
+                context,
+                id(1000 + number),
+                CreateAccount(
+                    id(number),
+                    id(number + 1),
+                    "합성 계좌 $number",
+                    AccountNature.GENERAL,
+                    LocalDate.of(2026, 10, 31),
+                    "확인 전",
+                ),
             )
             assertEquals(
                 FinishSubmissionRecoveryResult.Finished,
-                repository.finishSubmissionRecovery(context, receipt.operationId)
+                repository.finishSubmissionRecovery(context, receipt.operationId),
             )
         }
     }
 
     private fun value(number: Long, kind: TransactionKind) = CreateTransaction(
-        id(number), kind, LocalDate.of(2026, 11, 1), 15 + number,
+        id(number),
+        kind,
+        LocalDate.of(2026, 11, 1),
+        15 + number,
         debitAccountId = if (kind != TransactionKind.INCOME) id(1) else null,
         creditAccountId = if (kind != TransactionKind.EXPENSE) id(3) else null,
         memo = "합성 \"${kind.name}\"\n메모 \\ 보존",
@@ -88,7 +97,7 @@ class TransactionPendingRecoveryTest {
     private suspend fun pending(
         operationId: String,
         value: CreateTransaction,
-        active: Boolean
+        active: Boolean,
     ): SubmissionEntity {
         val raw = captureWrite(context, WriteCommand.Transaction(value))
         val row = SubmissionEntity(context.ledgerId, operationId, raw, requestHash(raw))
@@ -97,8 +106,8 @@ class TransactionPendingRecoveryTest {
             SubmissionReferenceEntity(
                 context.ledgerId,
                 operationId,
-                context.storageGeneration
-            )
+                context.storageGeneration,
+            ),
         )
         return row
     }
@@ -106,11 +115,13 @@ class TransactionPendingRecoveryTest {
     private fun rows(): List<List<List<String?>>> = tables.map { table ->
         sql.query("SELECT * FROM $table ORDER BY 1, 2").use { cursor ->
             buildList {
-                while (cursor.moveToNext()) add((0 until cursor.columnCount).map {
-                    cursor.getString(
-                        it
-                    )
-                })
+                while (cursor.moveToNext()) add(
+                    (0 until cursor.columnCount).map {
+                        cursor.getString(
+                            it,
+                        )
+                    },
+                )
             }
         }
     }
@@ -127,7 +138,8 @@ class TransactionPendingRecoveryTest {
                 originals += Triple(pending(id(100 + number), original, active), active, original)
             }
         }
-        database.close(); reopen()
+        database.close()
+        reopen()
         val before = rows()
         val typed = repository.pendingRecovery(context).items
         val discovered = repository.submissionRecovery(context).items
@@ -135,13 +147,16 @@ class TransactionPendingRecoveryTest {
             val expected = PendingRecoveryItem.TransactionCreation(row.operationId, original)
             assertTrue(expected in typed)
             assertTrue(
-                (if (active) SubmissionRecoveryItem.Pending(
-                    SubmissionReference(
-                        context,
-                        row.operationId
-                    ), expected
-                )
-                else SubmissionRecoveryItem.LegacyPending(expected)) in discovered
+                (
+                    if (active) SubmissionRecoveryItem.Pending(
+                        SubmissionReference(
+                            context,
+                            row.operationId,
+                        ),
+                        expected,
+                    )
+                    else SubmissionRecoveryItem.LegacyPending(expected)
+                    ) in discovered,
             )
             assertEquals(row, dao.submission(context.ledgerId, row.operationId))
         }
@@ -164,7 +179,7 @@ class TransactionPendingRecoveryTest {
         val requests = TransactionKind.entries.mapIndexed { index, kind ->
             id(110L + index) to value(
                 10L + index,
-                kind
+                kind,
             )
         }
         for ((operationId, value) in requests) {
@@ -172,17 +187,18 @@ class TransactionPendingRecoveryTest {
                 repository.createTransaction(
                     context,
                     operationId,
-                    value
+                    value,
                 )
             }
         }
         val captured = dao.submissions(context.ledgerId)
         assertTrue(dao.transactions(context.ledgerId).isEmpty())
-        database.close(); reopen()
+        database.close()
+        reopen()
         val beforeRead = rows()
         assertEquals(
             3,
-            repository.submissionRecovery(context).items.filterIsInstance<SubmissionRecoveryItem.Pending>().size
+            repository.submissionRecovery(context).items.filterIsInstance<SubmissionRecoveryItem.Pending>().size,
         )
         assertEquals(beforeRead, rows())
         sql.execSQL("DROP TRIGGER fail_transaction")
@@ -194,7 +210,7 @@ class TransactionPendingRecoveryTest {
             assertEquals(original.requestSha256, operation.requestSha256)
             assertEquals(
                 value,
-                (decodeWrite(context, operation.requestJson) as WriteCommand.Transaction).value
+                (decodeWrite(context, operation.requestJson) as WriteCommand.Transaction).value,
             )
             assertEquals(value.id, receipt.entities.single().id)
             val after = rows()
@@ -220,13 +236,13 @@ class TransactionPendingRecoveryTest {
             pending(
                 id(110L + index),
                 value(10L + index, kind),
-                false
+                false,
             )
         }
         val before = rows()
         assertEquals(
             3,
-            repository.submissionRecovery(context).items.filterIsInstance<SubmissionRecoveryItem.LegacyPending>().size
+            repository.submissionRecovery(context).items.filterIsInstance<SubmissionRecoveryItem.LegacyPending>().size,
         )
         assertEquals(before, rows())
         for ((index, row) in originals.withIndex()) {
@@ -234,11 +250,12 @@ class TransactionPendingRecoveryTest {
             assertEquals(row.operationId, receipt.operationId)
             assertEquals(
                 row.requestJson,
-                dao.operation(context.ledgerId, row.operationId)!!.requestJson
+                dao.operation(context.ledgerId, row.operationId)!!.requestJson,
             )
             assertEquals(
                 originals.take(index + 1).map { it.operationId },
-                dao.submissionReferences(context.ledgerId).map { it.operationId })
+                dao.submissionReferences(context.ledgerId).map { it.operationId },
+            )
             assertEquals(originals.drop(index + 1), dao.submissions(context.ledgerId))
         }
     }
@@ -254,22 +271,23 @@ class TransactionPendingRecoveryTest {
         ready()
         val original = value(10, TransactionKind.TRANSFER)
         repository.createTransaction(context, id(110), original)
-        database.close(); reopen()
+        database.close()
+        reopen()
         val before = rows()
         val committed =
             repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Committed
         assertEquals(id(110), committed.reference.operationId)
         assertEquals(
             committed.receipt,
-            repository.receipt(context, committed.reference.operationId)
+            repository.receipt(context, committed.reference.operationId),
         )
         assertEquals(
             committed.receipt,
-            repository.retryPending(context, committed.reference.operationId)
+            repository.retryPending(context, committed.reference.operationId),
         )
         assertEquals(
             committed.receipt,
-            repository.createTransaction(context, committed.reference.operationId, original)
+            repository.createTransaction(context, committed.reference.operationId, original),
         )
         assertEquals(before, rows())
     }
@@ -297,7 +315,7 @@ class TransactionPendingRecoveryTest {
                 .let { changed(original, it) } to SubmissionRecoveryProblem.CORRUPTED,
             original.requestJson.replace(
                 "\"creditAccountId\":\"${id(3)}\"",
-                "\"creditAccountId\":null"
+                "\"creditAccountId\":null",
             )
                 .let { changed(original, it) } to SubmissionRecoveryProblem.CORRUPTED,
             original.requestJson.replace("\"kind\":\"TRANSFER\"", "\"kind\":\"INCOME\"")
@@ -312,14 +330,15 @@ class TransactionPendingRecoveryTest {
         for ((row, reason) in invalid) {
             sql.execSQL(
                 "UPDATE submissions SET requestJson=?,requestSha256=?",
-                arrayOf(row.requestJson, row.requestSha256)
+                arrayOf(row.requestJson, row.requestSha256),
             )
             val before = rows()
             assertEquals(
                 SubmissionRecoveryItem.Blocked(
                     SubmissionReference(context, id(110)),
-                    reason
-                ), repository.submissionRecovery(context).items.single()
+                    reason,
+                ),
+                repository.submissionRecovery(context).items.single(),
             )
             assertTrue(repository.pendingRecovery(context).items.single() !is PendingRecoveryItem.TypedSubmission)
             val error = assertFails { repository.retryPending(context, id(110)) }
@@ -338,34 +357,35 @@ class TransactionPendingRecoveryTest {
         assertEquals(
             SubmissionRecoveryItem.Blocked(
                 reference,
-                SubmissionRecoveryProblem.GENERATION_MISMATCH
-            ), repository.submissionRecovery(context).items.single()
+                SubmissionRecoveryProblem.GENERATION_MISMATCH,
+            ),
+            repository.submissionRecovery(context).items.single(),
         )
         assertEquals(
             LedgerConflict.STALE_GENERATION,
             assertFailsWith<LedgerConflictException> {
                 repository.retryPending(
                     context,
-                    id(110)
+                    id(110),
                 )
-            }.conflict
+            }.conflict,
         )
         assertEquals(before, rows())
         sql.execSQL(
             "UPDATE submission_references SET storageGeneration=?",
-            arrayOf(context.storageGeneration)
+            arrayOf(context.storageGeneration),
         )
         sql.execSQL("DELETE FROM submissions")
         val missing = rows()
         assertEquals(
             SubmissionRecoveryProblem.MISSING_RECORD,
-            (repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Blocked).reason
+            (repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Blocked).reason,
         )
         assertFailsWith<IllegalStateException> {
             repository.createTransaction(
                 context,
                 id(110),
-                value(10, TransactionKind.INCOME)
+                value(10, TransactionKind.INCOME),
             )
         }
         assertEquals(missing, rows())
@@ -380,7 +400,7 @@ class TransactionPendingRecoveryTest {
         val before = rows()
         assertEquals(
             SubmissionRecoveryProblem.CONFLICTING_RECORDS,
-            (repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Blocked).reason
+            (repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Blocked).reason,
         )
         assertFailsWith<IllegalStateException> { repository.retryPending(context, id(110)) }
         assertEquals(before, rows())
@@ -398,18 +418,25 @@ class TransactionPendingRecoveryTest {
         val other = LedgerContext(id(902), id(903))
         repository.initialize(other)
         repository.createAccount(
-            other, id(1500), CreateAccount(
-                id(999), id(998), "다른 장부 합성 계좌",
-                AccountNature.GENERAL, LocalDate.of(2026, 10, 31), "확인 전"
-            )
+            other,
+            id(1500),
+            CreateAccount(
+                id(999),
+                id(998),
+                "다른 장부 합성 계좌",
+                AccountNature.GENERAL,
+                LocalDate.of(2026, 10, 31),
+                "확인 전",
+            ),
         )
         sql.execSQL(
             "UPDATE accounts SET status='ARCHIVED' WHERE ledgerId=? AND id=?",
-            arrayOf(context.ledgerId, id(3))
+            arrayOf(context.ledgerId, id(3)),
         )
         val cases = listOf(
             id(997) to LedgerConflict.MISSING_REFERENCE,
-            id(999) to LedgerConflict.MISSING_REFERENCE, id(3) to LedgerConflict.ARCHIVED_ACCOUNT
+            id(999) to LedgerConflict.MISSING_REFERENCE,
+            id(3) to LedgerConflict.ARCHIVED_ACCOUNT,
         )
         for (active in listOf(false, true)) {
             for ((index, case) in cases.withIndex()) {
@@ -423,15 +450,18 @@ class TransactionPendingRecoveryTest {
                 val expected = PendingRecoveryItem.TransactionCreation(operationId, original)
                 assertTrue(expected in repository.pendingRecovery(context).items)
                 assertTrue(
-                    (if (active) SubmissionRecoveryItem.Pending(
-                        SubmissionReference(
-                            context,
-                            operationId
-                        ), expected
-                    )
-                    else SubmissionRecoveryItem.LegacyPending(expected)) in repository.submissionRecovery(
-                        context
-                    ).items
+                    (
+                        if (active) SubmissionRecoveryItem.Pending(
+                            SubmissionReference(
+                                context,
+                                operationId,
+                            ),
+                            expected,
+                        )
+                        else SubmissionRecoveryItem.LegacyPending(expected)
+                        ) in repository.submissionRecovery(
+                        context,
+                    ).items,
                 )
                 assertEquals(before, rows())
                 assertEquals(
@@ -439,25 +469,26 @@ class TransactionPendingRecoveryTest {
                     assertFailsWith<LedgerConflictException> {
                         repository.retryPending(
                             context,
-                            operationId
+                            operationId,
                         )
-                    }.conflict
+                    }.conflict,
                 )
                 assertEquals(before.take(6), rows().take(6))
-                val expectedRefs = if (active) beforeRefs else (beforeRefs +
+                val expectedRefs = if (active) beforeRefs else (
+                    beforeRefs +
                         SubmissionReferenceEntity(
                             context.ledgerId,
                             operationId,
-                            context.storageGeneration
-                        )).sortedBy { it.operationId }
+                            context.storageGeneration,
+                        )
+                    ).sortedBy { it.operationId }
                 assertEquals(expectedRefs, dao.submissionReferences(context.ledgerId))
                 assertNull(dao.operation(context.ledgerId, operationId))
             }
         }
     }
 
-    private fun changed(original: SubmissionEntity, raw: String) =
-        original.copy(requestJson = raw, requestSha256 = requestHash(raw))
+    private fun changed(original: SubmissionEntity, raw: String) = original.copy(requestJson = raw, requestSha256 = requestHash(raw))
 
     private fun id(number: Long) = "00000000-0000-0000-0000-" + number.toString().padStart(12, '0')
 }

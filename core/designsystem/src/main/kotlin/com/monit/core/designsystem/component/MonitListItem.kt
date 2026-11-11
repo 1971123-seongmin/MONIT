@@ -4,10 +4,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
@@ -33,10 +33,12 @@ fun MonitListItem(
     onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+        modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {},
         color = MonitTheme.colors.surfaceContainer,
         contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     ) {
         Row(
             Modifier
@@ -44,27 +46,44 @@ fun MonitListItem(
                     if (onClick != null) Modifier.clickable(
                         enabled = enabled,
                         role = Role.Button,
-                        onClick = onClick
-                    ) else Modifier
+                        onClick = onClick,
+                    ) else Modifier,
                 )
                 .padding(MonitTheme.spacing.content),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            horizontalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
         ) {
             leadingContent?.invoke()
+
             Column(
                 Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
             ) {
-                ProvideTextStyle(MaterialTheme.typography.labelLarge, headline)
-                supportingContent?.let { ProvideTextStyle(MaterialTheme.typography.bodyLarge, it) }
+                ProvideTextStyle(
+                    MaterialTheme.typography.labelLarge,
+                    headline,
+                )
+
+                supportingContent?.let {
+                    ProvideTextStyle(
+                        MaterialTheme.typography.bodyLarge,
+                        it,
+                    )
+                }
+
                 detailContent?.let {
                     CompositionLocalProvider(LocalContentColor provides MonitTheme.colors.muted) {
-                        ProvideTextStyle(MaterialTheme.typography.labelSmall, it)
+                        ProvideTextStyle(
+                            MaterialTheme.typography.labelSmall,
+                            it,
+                        )
                     }
                 }
             }
-            trailingContent?.let { Box(contentAlignment = Alignment.Center) { it() } }
+
+            trailingContent?.let {
+                Box(contentAlignment = Alignment.Center) { it() }
+            }
         }
     }
 }

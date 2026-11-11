@@ -17,8 +17,8 @@ import com.monit.core.model.LedgerContext
 import com.monit.core.model.LedgerEntryResult
 import com.monit.core.model.LedgerRepository
 import com.monit.core.model.LedgerSnapshot
-import com.monit.core.model.PendingWrite
 import com.monit.core.model.PendingRecoverySnapshot
+import com.monit.core.model.PendingWrite
 import com.monit.core.model.WriteReceipt
 import java.io.IOException
 import java.time.Clock
@@ -37,9 +37,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
@@ -57,11 +57,13 @@ class AccountRegistrationViewModelTest {
     private val clock = Clock.fixed(Instant.parse("2026-11-10T15:30:00Z"), ZoneOffset.UTC)
     private val stores = mutableListOf<ViewModelStore>()
     private val context = LedgerContext(
-        "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002",
+        "00000000-0000-0000-0000-000000000001",
+        "00000000-0000-0000-0000-000000000002",
     )
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
+
     @After
     fun tearDown() {
         stores.forEach { it.clear() }
@@ -511,7 +513,7 @@ class AccountRegistrationViewModelTest {
         advanceUntilIdle()
         assertEquals(
             2,
-            saved.get<Bundle>(AccountRegistrationViewModel.SUBMISSION)?.getInt("version")
+            saved.get<Bundle>(AccountRegistrationViewModel.SUBMISSION)?.getInt("version"),
         )
         assertTrue(repository.requests.isEmpty())
         vm.onAction(AccountRegistrationAction.CheckResult)
@@ -532,7 +534,8 @@ class AccountRegistrationViewModelTest {
     fun malformedBundleRecoveryNeverWrites() = runTest(dispatcher) {
         for (raw in listOf(
             Bundle().apply { putInt("version", 99) },
-            Bundle().apply { putString("version", "2") })) {
+            Bundle().apply { putString("version", "2") },
+        )) {
             val repository = FakeRepository()
             val saved = handle().apply { this[AccountRegistrationViewModel.SUBMISSION] = raw }
             val vm = viewModel(repository, saved)
@@ -558,7 +561,10 @@ class AccountRegistrationViewModelTest {
         for (failure in listOf(IOException(), kotlinx.coroutines.CancellationException())) {
             val repository = FakeRepository()
             val gate = CompletableDeferred<Unit>()
-            repository.beforeSnapshot = { gate.await(); throw failure }
+            repository.beforeSnapshot = {
+                gate.await()
+                throw failure
+            }
             val vm = ready(repository)
             vm.onAction(AccountRegistrationAction.Submit)
             runCurrent()
@@ -627,17 +633,16 @@ class AccountRegistrationViewModelTest {
         mapOf(
             AccountRegistrationViewModel.LEDGER_ID to context.ledgerId,
             AccountRegistrationViewModel.STORAGE_GENERATION to context.storageGeneration,
-        )
+        ),
     )
 
-    private fun viewModel(repository: FakeRepository, saved: SavedStateHandle = handle()) =
-        AccountRegistrationViewModel(repository, clock, saved).also { vm ->
-            stores += ViewModelStore().also { it.put("account", vm) }
-        }
+    private fun viewModel(repository: FakeRepository, saved: SavedStateHandle = handle()) = AccountRegistrationViewModel(repository, clock, saved).also { vm ->
+        stores += ViewModelStore().also { it.put("account", vm) }
+    }
 
     private fun ready(
         repository: FakeRepository,
-        saved: SavedStateHandle = handle()
+        saved: SavedStateHandle = handle(),
     ): AccountRegistrationViewModel {
         val vm = viewModel(repository, saved)
         dispatcher.scheduler.advanceUntilIdle()
@@ -649,18 +654,16 @@ class AccountRegistrationViewModelTest {
 private data class AccountRequest(
     val context: LedgerContext,
     val operationId: String,
-    val value: CreateAccount
+    val value: CreateAccount,
 )
 
 private class FakeRepository : LedgerRepository {
-    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot =
-        error("이 테스트는 제출 발견을 호출하지 않는다")
+    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot = error("이 테스트는 제출 발견을 호출하지 않는다")
 
     override suspend fun finishSubmissionRecovery(
         context: LedgerContext,
-        operationId: String
-    ): com.monit.core.model.FinishSubmissionRecoveryResult =
-        error("이 테스트는 제출 종료를 호출하지 않는다")
+        operationId: String,
+    ): com.monit.core.model.FinishSubmissionRecoveryResult = error("이 테스트는 제출 종료를 호출하지 않는다")
 
     var beforeInitialize: suspend () -> Unit = {}
     var beforeWrite: suspend () -> Unit = {}
@@ -675,32 +678,35 @@ private class FakeRepository : LedgerRepository {
     private val receipts = mutableMapOf<String, WriteReceipt>()
     private val accounts = mutableMapOf<String, LedgerAccount>()
 
-    override suspend fun openLedger(): LedgerEntryResult =
-        error("계좌 등록 상태 시험은 준비된 장부 context를 전달합니다")
+    override suspend fun openLedger(): LedgerEntryResult = error("계좌 등록 상태 시험은 준비된 장부 context를 전달합니다")
 
-    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot =
-        error("계좌 등록 상태 시험에서 복구 대상 선택을 대신하지 않습니다")
+    override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot = error("계좌 등록 상태 시험에서 복구 대상 선택을 대신하지 않습니다")
 
     override suspend fun initialize(context: LedgerContext) {
-        initializations++; beforeInitialize()
+        initializations++
+        beforeInitialize()
     }
 
     override suspend fun createAccount(
         context: LedgerContext,
         operationId: String,
-        value: CreateAccount
+        value: CreateAccount,
     ): WriteReceipt {
         requests += AccountRequest(context, operationId, value)
         beforeWrite()
         val receipt = receipts.getOrPut(operationId) {
             accounts[value.id] = LedgerAccount(
-                value.id, value.name, value.nature, AccountStatus.ACTIVE, 1,
-                BalanceAnchor(value.anchorId, value.anchorDate, null, null, value.unknownReason)
+                value.id,
+                value.name,
+                value.nature,
+                AccountStatus.ACTIVE,
+                1,
+                BalanceAnchor(value.anchorId, value.anchorDate, null, null, value.unknownReason),
             )
             WriteReceipt(
                 operationId,
                 2,
-                listOf(EntityRef("accounts", value.id, 1), EntityRef("anchors", value.anchorId, 1))
+                listOf(EntityRef("accounts", value.id, 1), EntityRef("anchors", value.anchorId, 1)),
             )
         }
         if (loseResponse) throw IOException()
@@ -722,20 +728,17 @@ private class FakeRepository : LedgerRepository {
             emptyList(),
             accounts.keys.associateWith { null },
             0,
-            0
+            0,
         )
     }
 
     override suspend fun createTransaction(
         context: LedgerContext,
         operationId: String,
-        value: CreateTransaction
-    ): WriteReceipt =
-        error("계좌 등록에서 거래 쓰기를 호출하면 안 됩니다")
+        value: CreateTransaction,
+    ): WriteReceipt = error("계좌 등록에서 거래 쓰기를 호출하면 안 됩니다")
 
-    override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> =
-        error("계좌 등록에서 불투명한 다른 제출을 실행하면 안 됩니다")
+    override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> = error("계좌 등록에서 불투명한 다른 제출을 실행하면 안 됩니다")
 
-    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt =
-        error("계좌 등록은 캡처한 typed 요청만 재시도합니다")
+    override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = error("계좌 등록은 캡처한 typed 요청만 재시도합니다")
 }

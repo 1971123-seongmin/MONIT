@@ -15,6 +15,5 @@ import javax.inject.Singleton
 internal object LedgerDatabaseModule {
     @Provides
     @Singleton
-    fun database(@ApplicationContext context: Context): LedgerDatabase =
-        createLedgerDatabase(context, "monit-ledger.db")
+    fun database(@ApplicationContext context: Context): LedgerDatabase = createLedgerDatabase(context, "monit-ledger.db")
 }

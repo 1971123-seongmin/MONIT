@@ -9,8 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import com.monit.core.designsystem.theme.MonitTheme
 
@@ -22,24 +22,34 @@ fun MonitStatusPanel(
     modifier: Modifier = Modifier,
     error: Boolean = false,
     icon: (@Composable () -> Unit)? = null,
-    action: (@Composable () -> Unit)? = null
+    action: (@Composable () -> Unit)? = null,
 ) {
     val colors = MonitTheme.colors
+
     Surface(
-        modifier.semantics { liveRegion = LiveRegionMode.Polite }, color = colors.surface,
-        contentColor = colors.onSurface, shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+        modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        color = colors.surface,
+        contentColor = colors.onSurface,
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     ) {
         Column(
             Modifier.padding(MonitTheme.spacing.content),
-            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+            verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
         ) {
             icon?.invoke()
+
             Text(
                 title,
                 style = MaterialTheme.typography.labelLarge,
-                color = if (error) colors.error else colors.onSurface
+                color = if (error) colors.error else colors.onSurface,
             )
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.muted)
+
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.muted,
+            )
+
             action?.invoke()
         }
     }

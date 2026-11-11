@@ -11,23 +11,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertHeightIsAtLeast
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertIsOn
-import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -39,39 +41,37 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.monit.core.designsystem.component.MonitBottomNavigation
 import com.monit.core.designsystem.component.MonitBottomSheetContent
-import com.monit.core.designsystem.component.button.MonitButton
-import com.monit.core.designsystem.component.button.MonitButtonSize
-import com.monit.core.designsystem.component.button.MonitButtonType
-import com.monit.core.designsystem.component.button.MonitButtonColors
-import com.monit.core.designsystem.component.button.MonitButtonLayout
-import com.monit.core.designsystem.component.chip.MonitFilterChip
-import com.monit.core.designsystem.component.chip.MonitChipSize
-import com.monit.core.designsystem.component.chip.MonitChipType
 import com.monit.core.designsystem.component.MonitCard
 import com.monit.core.designsystem.component.MonitDialogContent
 import com.monit.core.designsystem.component.MonitStatusPanel
+import com.monit.core.designsystem.component.button.MonitButton
+import com.monit.core.designsystem.component.button.MonitButtonColors
+import com.monit.core.designsystem.component.button.MonitButtonLayout
+import com.monit.core.designsystem.component.button.MonitButtonSize
+import com.monit.core.designsystem.component.button.MonitButtonType
+import com.monit.core.designsystem.component.chip.MonitChipSize
+import com.monit.core.designsystem.component.chip.MonitChipType
+import com.monit.core.designsystem.component.chip.MonitFilterChip
 import com.monit.core.designsystem.component.textfield.MonitTextField
 import com.monit.core.designsystem.theme.MonitTheme
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Rule
-import org.junit.runner.RunWith
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import org.robolectric.RobolectricTestRunner
 
 /** 화면이나 금융 모델 없이 호출자가 공통 API의 변형·콘텐츠·행동을 구성하는 시험. */
 @RunWith(RobolectricTestRunner::class)
@@ -98,7 +98,8 @@ class MonitCustomizationTest {
                             size = size,
                             loading = loading,
                             leadingIcon = { Text("+") },
-                            trailingIcon = { Text("→") }) { clicked += tag }
+                            trailingIcon = { Text("→") },
+                        ) { clicked += tag }
                     }
                 }
             }
@@ -116,8 +117,9 @@ class MonitCustomizationTest {
         compose.runOnIdle {
             assertEquals(
                 listOf("Primary-Compact", "Secondary-Compact"),
-                clicked
-            ); loading = true
+                clicked,
+            )
+            loading = true
         }
         compose.onNodeWithTag("Secondary-Compact").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(2, clicked.size) }
@@ -127,18 +129,32 @@ class MonitCustomizationTest {
     @Test
     fun buttonAcceptsResolvedValuesWithoutMonitTheme() {
         val colors = MonitButtonColors(
-            Color.Black, Color.White, Color.DarkGray, Color.White,
-            Color.Gray, Color.White, Color.Blue
+            Color.Black,
+            Color.White,
+            Color.DarkGray,
+            Color.White,
+            Color.Gray,
+            Color.White,
+            Color.Blue,
         )
         val layout = MonitButtonLayout(
-            PaddingValues(12.dp), TextStyle(fontSize = 14.sp),
-            48.dp, 8.dp, 16.dp, 4.dp, 2.dp, 2.dp
+            PaddingValues(12.dp),
+            TextStyle(fontSize = 14.sp),
+            48.dp,
+            8.dp,
+            16.dp,
+            4.dp,
+            2.dp,
+            2.dp,
         )
         var calls = 0
         compose.setContent {
             MonitButton(
-                "독립 버튼", colors = colors, layout = layout,
-                loadingText = "처리", loadingDescription = "진행"
+                "독립 버튼",
+                colors = colors,
+                layout = layout,
+                loadingText = "처리",
+                loadingDescription = "진행",
             ) { calls++ }
         }
         compose.onNodeWithText("독립 버튼").assertHeightIsAtLeast(48.dp).performClick()
@@ -166,7 +182,7 @@ class MonitCustomizationTest {
                             selected[tag] == true,
                             enabled = enabled,
                             type = type,
-                            size = size
+                            size = size,
                         ) {
                             calls++
                             selected[tag] = selected[tag] != true
@@ -179,7 +195,10 @@ class MonitCustomizationTest {
             compose.onNodeWithText("$type-$size").assertIsOff().assertHeightIsAtLeast(48.dp)
                 .performClick().assertIsOn()
         }
-        compose.runOnIdle { assertEquals(4, calls); enabled = false }
+        compose.runOnIdle {
+            assertEquals(4, calls)
+            enabled = false
+        }
         compose.onNodeWithText("Outlined-Compact").assertIsNotEnabled().performClick().assertIsOn()
         compose.runOnIdle { assertEquals(4, calls) }
     }
@@ -194,9 +213,9 @@ class MonitCustomizationTest {
                 DeviceConfigurationOverride.ForcedSize(
                     DpSize(
                         320.dp,
-                        2000.dp
-                    )
-                )
+                        2000.dp,
+                    ),
+                ),
             ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme {
@@ -207,7 +226,8 @@ class MonitCustomizationTest {
                                     type = type,
                                     size = size,
                                     leadingIcon = { Text("+") },
-                                    trailingIcon = { Text("→") }) {}
+                                    trailingIcon = { Text("→") },
+                                ) {}
                             }
                         }
                     }
@@ -222,11 +242,11 @@ class MonitCustomizationTest {
             val layout = layouts.single()
             assertTrue(
                 layout.lineCount > 1,
-                "버튼 $index: size=${layout.size}, font=${layout.layoutInput.style.fontSize}"
+                "버튼 $index: size=${layout.size}, font=${layout.layoutInput.style.fontSize}",
             )
             assertFalse(
                 layout.hasVisualOverflow,
-                "버튼 $index: size=${layout.size}, constraints=${layout.layoutInput.constraints}"
+                "버튼 $index: size=${layout.size}, constraints=${layout.layoutInput.constraints}",
             )
         }
     }
@@ -245,20 +265,26 @@ class MonitCustomizationTest {
         compose.setContent {
             MonitTheme {
                 MonitTextField(
-                    value, { value = it }, label = "검색어", readOnly = readOnly,
+                    value,
+                    { value = it },
+                    label = "검색어",
+                    readOnly = readOnly,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Search
+                        imeAction = ImeAction.Search,
                     ),
                     keyboardActions = KeyboardActions(onSearch = { submitted = value }),
-                    leadingIcon = { Text("⌕") }, trailingIcon = {
+                    leadingIcon = { Text("⌕") },
+                    trailingIcon = {
                         IconButton(
                             { value = "" },
                             enabled = !readOnly,
                             modifier = Modifier.semantics {
                                 contentDescription = "지우기"
-                            }) { Text("×") }
-                    })
+                            },
+                        ) { Text("×") }
+                    },
+                )
             }
         }
         val editable = compose.onNode(hasSetTextAction())
@@ -266,10 +292,13 @@ class MonitCustomizationTest {
         editable.performImeAction()
         compose.runOnIdle { assertEquals("Monit 검색", submitted) }
         compose.onNodeWithContentDescription("지우기").performClick()
-        compose.runOnIdle { assertEquals("", value); readOnly = true }
+        compose.runOnIdle {
+            assertEquals("", value)
+            readOnly = true
+        }
         compose.onNode(
             SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText),
-            useUnmergedTree = true
+            useUnmergedTree = true,
         )
             .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.SetText))
         compose.onNodeWithContentDescription("지우기").assertIsNotEnabled()
@@ -299,7 +328,10 @@ class MonitCustomizationTest {
         compose.onAllNodes(hasClickAction()).assertCountEquals(2)
         compose.onNodeWithText("연결").performClick()
         compose.onNodeWithText("이름순").performClick()
-        compose.runOnIdle { assertEquals(1, dialogs); assertEquals(1, sheets) }
+        compose.runOnIdle {
+            assertEquals(1, dialogs)
+            assertEquals(1, sheets)
+        }
     }
 
     /** 두 개·다섯 개 목적지와 아이콘 슬롯을 허용하며 선택과 비활성 동작을 소유자에게 전달한다. */
@@ -315,7 +347,8 @@ class MonitCustomizationTest {
                     selected,
                     { selected = it },
                     enabled = enabled,
-                    icon = { Text("◇") })
+                    icon = { Text("◇") },
+                )
             }
         }
         val tabs = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
@@ -323,7 +356,10 @@ class MonitCustomizationTest {
         compose.runOnIdle { count = 5 }
         compose.onAllNodes(tabs).assertCountEquals(5)
         compose.onNodeWithText("목적지 5").performClick().assertIsSelected()
-        compose.runOnIdle { assertEquals(4, selected); enabled = false }
+        compose.runOnIdle {
+            assertEquals(4, selected)
+            enabled = false
+        }
         compose.onNodeWithText("목적지 1").assertIsNotEnabled().performClick()
         compose.runOnIdle { assertEquals(4, selected) }
     }

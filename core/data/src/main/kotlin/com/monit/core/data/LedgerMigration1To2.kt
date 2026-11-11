@@ -13,7 +13,7 @@ internal object LedgerMigration1To2 : Migration(1, 2) {
                 PRIMARY KEY(`ledgerId`, `operationId`),
                 FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION
             )
-        """.trimIndent()
+            """.trimIndent(),
         )
     }
 }

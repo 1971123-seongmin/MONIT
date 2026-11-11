@@ -34,51 +34,64 @@ fun MonitDatePicker(
     onDateSelected: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     errorMessage: String? = null,
-    selectableDate: (LocalDate) -> Boolean = { true }
+    selectableDate: (LocalDate) -> Boolean = { true },
 ) {
-    val cellSize = MonitTheme.sizes.touchTarget * maxOf(1f, LocalDensity.current.fontScale)
+    val cellSize = MonitTheme.sizes.touchTarget * maxOf(
+        1f,
+        LocalDensity.current.fontScale,
+    )
     val firstOffset = displayedMonth.atDay(1).dayOfWeek.value % 7
     val rows = (firstOffset + displayedMonth.lengthOfMonth() + 6) / 7
+
     Surface(
         modifier,
         color = MonitTheme.colors.surfaceContainer,
         contentColor = MonitTheme.colors.onSurface,
-        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius)
+        shape = RoundedCornerShape(MonitTheme.sizes.controlRadius),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)) {
             MonitCalendarHeader(
                 displayedMonth.format(
                     DateTimeFormatter.ofPattern(
                         "yyyy년 M월",
-                        Locale.KOREAN
-                    )
+                        Locale.KOREAN,
+                    ),
                 ),
                 { onMonthChange(displayedMonth.minusMonths(1)) },
-                { onMonthChange(displayedMonth.plusMonths(1)) })
+                { onMonthChange(displayedMonth.plusMonths(1)) },
+            )
+
             Column(
-                Modifier.horizontalScroll(rememberScrollState()).width(cellSize * 7),
-                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline)
+                Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .width(cellSize * 7),
+                verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.inline),
             ) {
                 Row {
                     repeat(7) { day ->
                         Text(
                             DayOfWeek.SUNDAY.plus(day.toLong())
-                                .getDisplayName(TextStyle.SHORT, Locale.KOREAN),
+                                .getDisplayName(
+                                    TextStyle.SHORT,
+                                    Locale.KOREAN,
+                                ),
                             Modifier.width(cellSize),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MonitTheme.colors.muted
+                            color = MonitTheme.colors.muted,
                         )
                     }
                 }
+
                 repeat(rows) { week ->
                     Row {
                         repeat(7) { weekday ->
                             val day = week * 7 + weekday - firstOffset + 1
                             val date =
                                 if (day in 1..displayedMonth.lengthOfMonth()) displayedMonth.atDay(
-                                    day
+                                    day,
                                 ) else null
+
                             MonitDateCell(
                                 date,
                                 { date?.let(onDateSelected) },
@@ -86,16 +99,19 @@ fun MonitDatePicker(
                                 selected = date != null && date == selectedDate,
                                 today = date == today,
                                 enabled = date != null && selectableDate(date),
-                                future = date != null && date.isAfter(today)
+                                future = date != null && date.isAfter(today),
                             )
                         }
                     }
                 }
             }
+
             errorMessage?.let {
                 Text(
-                    it, Modifier.semantics { error(it) },
-                    style = MaterialTheme.typography.labelSmall, color = MonitTheme.colors.error
+                    it,
+                    Modifier.semantics { error(it) },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MonitTheme.colors.error,
                 )
             }
         }

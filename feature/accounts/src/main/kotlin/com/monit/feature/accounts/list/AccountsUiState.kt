@@ -5,5 +5,5 @@ data class AccountRowUiState(
     val id: String,
     val title: String,
     val balance: String,
-    val description: String
+    val description: String,
 )

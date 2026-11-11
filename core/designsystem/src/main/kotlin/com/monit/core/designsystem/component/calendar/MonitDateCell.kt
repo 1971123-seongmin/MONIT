@@ -14,8 +14,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -45,62 +45,108 @@ fun MonitDateCell(
     showStateLabel: Boolean = false,
     future: Boolean = false,
 ) {
-    val scale = maxOf(1f, LocalDensity.current.fontScale)
+    val scale = maxOf(
+        1f,
+        LocalDensity.current.fontScale,
+    )
     val minSize = MonitTheme.sizes.touchTarget * scale
     val indicatorSize = MonitTheme.sizes.dateIndicator * scale
+
     if (date == null) {
         Spacer(
-            modifier.defaultMinSize(minWidth = minSize, minHeight = minSize)
-                .clearAndSetSemantics {})
+            modifier
+                .defaultMinSize(
+                    minWidth = minSize,
+                    minHeight = minSize,
+                )
+                .clearAndSetSemantics {},
+        )
+
         return
     }
+
     val colors = MonitTheme.colors
     val todayLabel = stringResource(R.string.monit_today)
     val selectedLabel = stringResource(R.string.monit_selected)
-    val spokenDate = date.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일 EEEE", Locale.KOREAN))
-    val description = listOf(spokenDate, if (today) todayLabel else "", accessibilitySummary)
+    val spokenDate = date.format(
+        DateTimeFormatter.ofPattern(
+            "yyyy년 M월 d일 EEEE",
+            Locale.KOREAN,
+        ),
+    )
+    val description = listOf(
+        spokenDate,
+        if (today) todayLabel else "",
+        accessibilitySummary,
+    )
         .filter { it.isNotBlank() }.joinToString(", ")
+
     Column(
-        modifier.defaultMinSize(minWidth = minSize, minHeight = minSize)
-            .selectable(selected, enabled = enabled, role = Role.Button, onClick = onClick)
+        modifier
+            .defaultMinSize(
+                minWidth = minSize,
+                minHeight = minSize,
+            )
+            .selectable(
+                selected,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
             .semantics(mergeDescendants = true) { contentDescription = description },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.compact),
     ) {
         Box(
-            Modifier.sizeIn(minWidth = minSize, minHeight = minSize),
-            contentAlignment = Alignment.Center
+            Modifier.sizeIn(
+                minWidth = minSize,
+                minHeight = minSize,
+            ),
+            contentAlignment = Alignment.Center,
         ) {
             Surface(
                 shape = CircleShape,
                 color = when {
-                    !enabled && selected -> colors.disabledBackground; selected -> colors.primary; else -> Color.Transparent
+                    !enabled && selected -> colors.disabledBackground
+                    selected -> colors.primary
+                    else -> Color.Transparent
                 },
                 contentColor = when {
-                    !enabled -> colors.disabledText; selected -> colors.onPrimary; future -> colors.muted; else -> colors.onSurface
+                    !enabled -> colors.disabledText
+                    selected -> colors.onPrimary
+                    future -> colors.muted
+                    else -> colors.onSurface
                 },
                 border = if ((selected && !enabled) || (today && !selected)) BorderStroke(
                     MonitTheme.sizes.outline,
-                    colors.primary
+                    colors.primary,
                 ) else null,
                 modifier = Modifier.clearAndSetSemantics {},
             ) {
                 Box(
-                    Modifier.sizeIn(minWidth = indicatorSize, minHeight = indicatorSize),
-                    contentAlignment = Alignment.Center
+                    Modifier.sizeIn(
+                        minWidth = indicatorSize,
+                        minHeight = indicatorSize,
+                    ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        date.dayOfMonth.toString(),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
         }
+
         if (showStateLabel && (today || selected)) Text(
             listOf(
                 if (today) todayLabel else "",
-                if (selected) selectedLabel else ""
+                if (selected) selectedLabel else "",
             ).filter { it.isNotBlank() }.joinToString(" · "),
             modifier = Modifier.clearAndSetSemantics {},
             style = MaterialTheme.typography.labelSmall,
         )
+
         if (summary.isNotBlank()) Text(
             summary,
             modifier = Modifier.clearAndSetSemantics {},

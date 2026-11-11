@@ -23,7 +23,10 @@ class AccountRegistrationDestinationTest {
     @Test
     fun inputRegistrationRequiresBothCallerAndRequest() {
         val route = AccountRegistrationDestination(
-            "registration", AccountRegistrationOrigin.TRANSACTION_ENTRY, "entry", "request",
+            "registration",
+            AccountRegistrationOrigin.TRANSACTION_ENTRY,
+            "entry",
+            "request",
         )
         assertEquals("entry", route.callerEntryId)
         assertEquals("request", route.selectionRequestId)

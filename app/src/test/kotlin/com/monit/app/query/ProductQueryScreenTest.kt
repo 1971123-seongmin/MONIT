@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -18,8 +18,8 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.app.ui.MonitAppShell
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.feature.accounts.list.AccountRowUiState
 import com.monit.feature.accounts.list.AccountsScreen
@@ -28,11 +28,11 @@ import com.monit.feature.accounts.list.AccountsUiState
 import com.monit.feature.home.HomeScreen
 import com.monit.feature.home.HomeState
 import com.monit.feature.transactions.*
-import java.time.LocalDate
 import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlinx.coroutines.Dispatchers
@@ -132,7 +132,7 @@ class ProductQueryScreenTest {
                                         repository,
                                         clock,
                                         createSavedStateHandle(),
-                                        contexts
+                                        contexts,
                                     )
                                 }
                             }
@@ -192,7 +192,8 @@ class ProductQueryScreenTest {
             MonitTheme {
                 Screen(
                     TransactionsState(ui(), TransactionsLoadState.READY),
-                    onDate = { selected = it })
+                    onDate = { selected = it },
+                )
             }
         }
         val lastDay = compose.onNode(hasContentDescription("2028년 2월 29일", substring = true))
@@ -217,11 +218,12 @@ class ProductQueryScreenTest {
                 AccountsScreen(
                     AccountsState.Ready(
                         AccountsUiState(
-                            "확인된 잔액 합계 0원", listOf(
+                            "확인된 잔액 합계 0원",
+                            listOf(
                                 AccountRowUiState("one", "합성 계좌 A", "잔액 미확인", "현재 잔액 합계에서 제외"),
                                 AccountRowUiState("two", "합성 계좌 B", "0원", "장부 기준 잔액"),
-                            )
-                        )
+                            ),
+                        ),
                     ),
                     onRetry = {},
                 )
@@ -249,8 +251,8 @@ class ProductQueryScreenTest {
         compose.setContent {
             DeviceConfigurationOverride(
                 DeviceConfigurationOverride.ForcedSize(
-                    androidx.compose.ui.unit.DpSize(320.dp, 480.dp)
-                )
+                    androidx.compose.ui.unit.DpSize(320.dp, 480.dp),
+                ),
             ) {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
                     MonitTheme {
@@ -261,9 +263,12 @@ class ProductQueryScreenTest {
                                     (1..20).map {
                                         AccountRowUiState(
                                             it.toString(),
-                                            if (it == 20) title else "합성 계좌 $it", "0원", "장부 기준 잔액"
+                                            if (it == 20) title else "합성 계좌 $it",
+                                            "0원",
+                                            "장부 기준 잔액",
                                         )
-                                    })
+                                    },
+                                ),
                             ),
                             onRetry = {},
                         )
@@ -279,17 +284,35 @@ class ProductQueryScreenTest {
     private fun Screen(
         state: TransactionsState,
         onRetry: () -> Unit = {},
-        onDate: (LocalDate) -> Unit = {}
+        onDate: (LocalDate) -> Unit = {},
     ) {
-        Box(Modifier.size(360.dp, 780.dp)) {
-            TransactionsScreen(state, onRetry, {}, onDate, {}, {}, {}, {})
+        Box(
+            Modifier.size(
+                360.dp,
+                780.dp,
+            ),
+        ) {
+            TransactionsScreen(
+                state,
+                onRetry,
+                {},
+                onDate,
+                {},
+                {},
+                {},
+                {},
+            )
         }
     }
 
     private fun ui(): TransactionsUiState {
         val date = LocalDate.of(2028, 2, 29)
         return TransactionsUiState(
-            YearMonth.from(date), date, date, income = "0원", expense = "0원",
+            YearMonth.from(date),
+            date,
+            date,
+            income = "0원",
+            expense = "0원",
             dates = (1..29).map { TransactionDateUiState(date.withDayOfMonth(it), "", "") },
         )
     }

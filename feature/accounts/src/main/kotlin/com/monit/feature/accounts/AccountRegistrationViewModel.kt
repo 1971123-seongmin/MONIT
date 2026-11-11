@@ -68,12 +68,19 @@ class AccountRegistrationViewModel @Inject constructor(
     fun onAction(action: AccountRegistrationAction) {
         when (action) {
             is AccountRegistrationAction.NameChanged -> edit { copy(name = action.value) }
+
             is AccountRegistrationAction.NatureChanged -> edit { copy(nature = action.value) }
+
             is AccountRegistrationAction.AnchorDateChanged -> edit { copy(anchorDate = action.value) }
+
             is AccountRegistrationAction.UnknownReasonChanged -> edit { copy(unknownReason = action.value) }
+
             AccountRegistrationAction.Submit -> submit()
+
             AccountRegistrationAction.CheckResult -> retry(allowWrite = false)
+
             AccountRegistrationAction.RetrySave -> retry(allowWrite = true)
+
             AccountRegistrationAction.RetryInitialization -> {
                 val ledger = context
                 if (ledger != null && state.value.saveState == AccountSaveState.InitializationFailed) {
@@ -81,6 +88,7 @@ class AccountRegistrationViewModel @Inject constructor(
                     viewModelScope.launch { initialize(ledger) }
                 }
             }
+
             AccountRegistrationAction.ReloadSavedAccount -> {
                 val intent = submitted
                 if (intent != null && state.value.phase == AccountSavePhase.SAVED &&
@@ -90,6 +98,7 @@ class AccountRegistrationViewModel @Inject constructor(
                     viewModelScope.launch { readAccount(intent) }
                 }
             }
+
             AccountRegistrationAction.StartNew -> {
                 if (state.value.phase == AccountSavePhase.SAVED) {
                     savedState.remove<Any>(SUBMISSION)
@@ -140,9 +149,12 @@ class AccountRegistrationViewModel @Inject constructor(
             ledger,
             UUID.randomUUID().toString(),
             CreateAccount(
-                id = UUID.randomUUID().toString(), anchorId = UUID.randomUUID().toString(),
-                name = draft.name, nature = draft.nature,
-                anchorDate = LocalDate.parse(draft.anchorDate), unknownReason = draft.unknownReason,
+                id = UUID.randomUUID().toString(),
+                anchorId = UUID.randomUUID().toString(),
+                name = draft.name,
+                nature = draft.nature,
+                anchorDate = LocalDate.parse(draft.anchorDate),
+                unknownReason = draft.unknownReason,
             ),
         )
         // 하나의 saved-state 값으로 제출 스냅샷을 보관한다. 미제출 입력폼의 영속 초안은 아니다.
@@ -192,10 +204,12 @@ class AccountRegistrationViewModel @Inject constructor(
         }
         when {
             receipt != null -> accept(intent, receipt)
+
             allowWrite -> {
                 mutableState.value = state.value.copy(saveState = AccountSaveState.Saving(intent))
                 write(intent)
             }
+
             else -> unconfirmed(intent)
         }
     }

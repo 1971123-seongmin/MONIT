@@ -28,7 +28,8 @@ internal fun LedgerSnapshot.toAccountsUiState(): AccountsUiState {
                 AccountNature.INVESTMENT -> "투자"
             }
             AccountRowUiState(
-                account.id, account.name + " · " + nature,
+                account.id,
+                account.name + " · " + nature,
                 balance?.let(::money) ?: "잔액 미확인",
                 when {
                     account.status == AccountStatus.ARCHIVED -> "보관된 계좌 · 현재 잔액 합계에서 제외"
