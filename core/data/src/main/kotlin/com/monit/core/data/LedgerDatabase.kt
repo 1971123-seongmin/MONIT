@@ -80,6 +80,14 @@ internal data class SubmissionEntity(
 
 @Dao
 internal interface LedgerDao {
+    @Query("SELECT * FROM ledgers ORDER BY id LIMIT 2")
+    suspend fun entryLedgers(): List<LedgerEntity>
+    @Query("""
+        SELECT EXISTS(SELECT 1 FROM accounts) OR EXISTS(SELECT 1 FROM anchors)
+            OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM operations)
+            OR EXISTS(SELECT 1 FROM submissions)
+    """)
+    suspend fun hasBusinessRecords(): Boolean
     @Query("SELECT * FROM ledgers WHERE id = :id")
     suspend fun ledger(id: String): LedgerEntity?
     @Insert(onConflict = OnConflictStrategy.ABORT)
