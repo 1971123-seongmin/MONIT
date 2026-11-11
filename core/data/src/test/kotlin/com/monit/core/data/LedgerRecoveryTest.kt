@@ -4,6 +4,7 @@ import android.app.Application
 import android.database.sqlite.SQLiteException
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.withTransaction
+import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.AccountNature
 import com.monit.core.model.CorruptedSubmission
 import com.monit.core.model.CreateAccount
@@ -47,6 +48,11 @@ class LedgerRecoveryTest {
     private lateinit var database: LedgerDatabase
     private lateinit var repository: RoomLedgerRepository
     private val context = LedgerContext(id(900), id(901))
+    private val coroutineContexts = object : CoroutineContextProvider {
+        override val main = Dispatchers.Main
+        override val io = Dispatchers.IO
+        override val default = Dispatchers.Default
+    }
     private val clock = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC)
     private val tables = listOf("ledgers", "accounts", "anchors", "transactions", "operations", "submissions")
 
@@ -64,7 +70,7 @@ class LedgerRecoveryTest {
 
     private fun reopen() {
         database = createLedgerDatabase(application, "recovery.db")
-        repository = RoomLedgerRepository(database, clock)
+        repository = RoomLedgerRepository(database, clock, coroutineContexts)
     }
 
     private fun value(name: String = "합성 계좌") = CreateAccount(
@@ -109,7 +115,7 @@ class LedgerRecoveryTest {
         val start = CompletableDeferred<Unit>()
         val ready = List(2) { CompletableDeferred<Unit>() }
         try {
-            val repositories = listOf(repository, RoomLedgerRepository(other, clock))
+            val repositories = listOf(repository, RoomLedgerRepository(other, clock, coroutineContexts))
             val calls = repositories.mapIndexed { index, repo ->
                 async(Dispatchers.Default) {
                     ready[index].complete(Unit)
