@@ -1,0 +1,41 @@
+package com.monit.feature.accounts.list
+
+import com.monit.core.model.AccountNature
+import com.monit.core.model.AccountStatus
+import com.monit.core.model.LedgerSnapshot
+import com.monit.core.model.sumSignedAmounts
+import java.text.NumberFormat
+import java.util.Locale
+
+internal fun LedgerSnapshot.toAccountsUiState(): AccountsUiState {
+    val format = NumberFormat.getIntegerInstance(Locale.KOREA)
+    fun money(amount: Long) = format.format(amount) + "원"
+    val active = accounts.filter { it.status == AccountStatus.ACTIVE }
+    val confirmed = active.mapNotNull { balances[it.id] }
+    val unknown = active.count { balances[it.id] == null }
+    val summary = when {
+        accounts.isEmpty() -> "등록된 계좌가 없어요"
+        confirmed.isEmpty() -> "확인된 잔액이 아직 없어요"
+        else -> "확인된 잔액 합계 " + money(sumSignedAmounts(confirmed))
+    }
+    return AccountsUiState(
+        summary + if (unknown > 0) " · 잔액 미확인 ${unknown}개 제외" else "",
+        accounts.map { account ->
+            val balance = balances[account.id]
+            val nature = when (account.nature) {
+                AccountNature.GENERAL -> "일반"
+                AccountNature.SAVINGS -> "저축"
+                AccountNature.INVESTMENT -> "투자"
+            }
+            AccountRowUiState(
+                account.id, account.name + " · " + nature,
+                balance?.let(::money) ?: "잔액 미확인",
+                when {
+                    account.status == AccountStatus.ARCHIVED -> "보관된 계좌 · 현재 잔액 합계에서 제외"
+                    balance == null -> "현재 잔액 합계에서 제외"
+                    else -> "장부 기준 잔액 · 은행 확인 금액이 아니에요"
+                },
+            )
+        },
+    )
+}

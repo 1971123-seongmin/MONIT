@@ -1,7 +1,7 @@
 # Navigation 2 화면 이동 설계안
 
-- 상태: 설계는 #29에서 병합했으며, 승인된 첫 구현 단위는 [#36](https://github.com/1971123-seongmin/MONIT/issues/36)이다. `core:navigation` 실행기, app의 MainNavigator·읽기 전용 MonitAppState·필수 화면 인자를 받는 MonitNavHost, feature별 타입 경로·진입·등록 계약을 구현한다. MainActivity의 제품 화면 연결과 금융 복구는 후속 단계다.
-- MONIT 기준: main `8fe478bdfa0d8895e99f27702ab5eebdbf69b4e3` (#15·#24·#35 병합). 관련 작업은 [#28](https://github.com/1971123-seongmin/MONIT/issues/28)이다.
+- 상태: 설계 #29와 탐색 기반 [#36](https://github.com/1971123-seongmin/MONIT/issues/36)은 병합됐다. [#38](https://github.com/1971123-seongmin/MONIT/issues/38)에서 실제 앱 셸·홈/거래/계좌 조회 화면을 연결한다. 입력/등록·금융 복구 연결은 후속 단계다.
+- 설계 조사 기준: main `8fe478bdfa0d8895e99f27702ab5eebdbf69b4e3` (#15·#24·#35 병합). #38 구현 기준은 #37을 병합한 `7ce551b989284f40540bd79c37278e2f0110ecb3`이다.
 - 목적: 기존 3탭과 거래 입력·계좌 선택/등록의 이동·복귀·복원 책임을 정한다. #24 수정, 납입 API, 새 딥링크, Navigation 3, SDK 출판은 별도 범위다.
 
 ## 1. 조사 기준과 현재 구현
@@ -16,13 +16,13 @@
 | [ForYouNavigation](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/feature/foryou/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/foryou/navigation/ForYouNavigation.kt), [InterestsNavigation](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/feature/interests/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/interests/navigation/InterestsNavigation.kt), [TopicNavigation](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/feature/topic/src/main/kotlin/com/google/samples/apps/nowinandroid/feature/topic/navigation/TopicNavigation.kt) | 작은 직렬화 인자와 타입이 있는 목적지, feature 소유의 진입 함수를 확인했다. 샘플의 딥링크·화면 구성을 복제하지 않는다. |
 | [Version Catalog](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/gradle/libs.versions.toml) | 해당 기준의 Navigation은 **2.8.5**다. MONIT의 도입 버전을 이 값으로 확정한 것은 아니다. |
 
-고정 기준의 [settings](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/settings.gradle.kts)와 소스 트리에는 core:navigation 모듈이 없다. 공통 Navigator를 core:navigation에 두고 app의 MainNavigator와 feature별 navigation을 나누는 구조는 사용자가 승인한 MONIT의 설계 선택이다. 샘플에 같은 중앙 모듈이 있다고 간주하지 않는다. MONIT의 공통 모듈과 실행기는 #36의 첫 구현 단위에 포함되며 제품 화면 연결은 후속 단계다.
+고정 기준의 [settings](https://github.com/android/nowinandroid/blob/d438a007c4ba5794522d963d8c53732dfb5be6f8/settings.gradle.kts)와 소스 트리에는 core:navigation 모듈이 없다. 공통 Navigator를 core:navigation에 두고 app의 MainNavigator와 feature별 navigation을 나누는 구조는 사용자가 승인한 MONIT의 설계 선택이다. 샘플에 같은 중앙 모듈이 있다고 간주하지 않는다. MONIT의 공통 모듈과 실행기는 #36에서 구현했고 #38은 이를 사용해 조회 화면을 연결한다.
 
-현재 MONIT의 [MainActivity](../../app/src/main/java/com/monit/app/MainActivity.kt)는 Theme를 적용한 실행 확인 화면이다. #15에서 계좌 등록 ViewModel·순수 표시 UiState·진행 State·공통 코루틴 DI, #24에서 장부 진입·읽기 전용 제출 복구 조회가 반영됐다. #36에서 [settings](../../settings.gradle.kts)에 core:navigation·feature:home·feature:transactions와 탐색 의존성을 추가한다. [실행기 계약](../../core/navigation/README.md)을 구현하되 제품 화면과 ViewModel의 새 복구 API 소비 연결은 후속 단계다. 이 문서는 [기존 모듈·DI·UI 제안](monit-modules-di-ui-plan.md)의 탐색 부분을 구체화하며 그 문서의 모듈 이동을 승인하지 않는다.
+현재 [MainActivity](../../app/src/main/java/com/monit/app/MainActivity.kt)는 저장소 기반 장부 진입 결과를 확인한 뒤 실제 3탭 조회 셸을 연다. 각 feature가 Hilt ViewModel·표시 상태·조회 재시도를 소유하고 Room snapshot을 읽는다. 기존 [실행기 계약](../../core/navigation/README.md)과 코루틴 DI를 유지한다. 아직 없는 입력/등록 목적지는 실제 화면 content를 제공할 때만 graph에 등록하며 기본 빈 화면을 만들지 않는다. 기존 등록 ViewModel과 새 복구 API의 제품 소비 연결은 후속 단계다. 이 문서는 [기존 모듈·DI·UI 제안](monit-modules-di-ui-plan.md)의 탐색 부분을 구체화하며 그 문서의 모듈 이동을 승인하지 않는다.
 
 승인된 D1은 로그인/서버 연결 없이 Room 단일 기기에서 기록·계산을 완결하는 범위다. Supabase 인증·다중 기기 동기화는 첫 탐색/화면 구현의 선행 조건이 아니다. 목표 스택의 존재를 원격 연결 승인으로 해석하지 않는다.
 
-전체 아키텍처 검토와도 구분한다. 현재 [Repository 계약](../../core/model/src/main/kotlin/com/monit/core/model/LedgerModels.kt)은 core:model, [Room 구현](../../core/data/README.md)은 core:data에 있다. `data:ledger` 이동·Repository 경계 재편은 기존 설계 제안이며 미적용이다. 장부 context는 `openLedger()`의 `Ready` 결과를 사용한다. 메타 누락·손상·복수 장부와 유효 단일 메타에 공존하는 고아 업무 행은 원본 보존 후 `RecoveryRequired`로 처리한다. 빈 저장소의 최초 생성은 Repository가 담당하며, 탐색 복원이나 NavHost 생성에서 UUID를 만들지 않는다. 이 결과를 앱 진입·feature에 공급하는 연결과 아래의 영속 제출 발견 계약은 후속 작업이다.
+전체 아키텍처 검토와도 구분한다. 현재 [Repository 계약](../../core/model/src/main/kotlin/com/monit/core/model/LedgerModels.kt)은 core:model, [Room 구현](../../core/data/README.md)은 core:data에 있다. `data:ledger` 이동·Repository 경계 재편은 기존 설계 제안이며 미적용이다. 장부 context는 `openLedger()`의 `Ready` 결과를 사용한다. 메타 누락·손상·복수 장부와 유효 단일 메타에 공존하는 고아 업무 행은 원본 보존 후 `RecoveryRequired`로 처리한다. 빈 저장소의 최초 생성은 Repository가 담당하며, 탐색 복원이나 NavHost 생성에서 UUID를 만들지 않는다. #38은 확인된 context를 앱 진입·조회 feature에 공급한다. 아래의 영속 제출 발견 계약은 후속 작업이다.
 
 ## 2. 제품 계약과 설계 기본안
 
@@ -36,7 +36,7 @@
 | PM이 정한 설계 기본안 | 복원 상태나 명시적 진입 요청이 없으면 H01 홈부터 진입한다. Q01을 먼저 구현하는 개발 순서와 구분한다. |
 | PM이 정한 설계 기본안 | 탭 전환은 각 탭의 상태를 보존한다. 같은 탭 재선택은 중복 push·강제 pop·스크롤 초기화 없이 현재 위치를 유지한다. |
 | PM이 정한 설계 기본안 | 거래/계좌 루트의 Back은 상태를 보존하며 홈으로, 홈 루트는 OS 기본 Back으로 처리한다. 입력·등록 중에는 하단 탭을 숨긴다. 입력 포기 확인·제출 보존 절차를 우회하지 않는다. |
-| 사용자 승인 구조 | core:navigation의 공통 Navigator와 app의 MainNavigator를 두고 각 feature가 자신의 navigation을 유지한다. NavController·NavHost는 앱에 하나이며 입력·등록은 호출자 위에 쌓는다. 시트·확인창·진행 State는 소유 화면에 둔다. 실제 모듈·의존성 생성은 후속 구현 범위다. |
+| 사용자 승인 구조 | core:navigation의 공통 Navigator와 app의 MainNavigator를 두고 각 feature가 자신의 navigation을 유지한다. NavController·NavHost는 앱에 하나이며 실제 입력/등록 연결 시 호출자 위에 쌓는다. 시트·확인창·진행 State는 소유 화면에 둔다. 모듈과 탐색 의존성은 #36에서 생성했다. |
 
 ## 3. 최소 이동도와 목적지
 
@@ -242,7 +242,7 @@ app이 소유하는 진입 ViewModel에서 openLedger를 읽고, 로딩·오류�
 
 ## 10. 파일 후보와 구현 순서
 
-현재 app의 Kotlin 소스는 app/src/main/java/com/monit/app, feature 소스는 각 모듈의 src/main/kotlin에 있다. 아래는 전체 구현 후보 목록이다. #36의 첫 구현 단위는 공통 실행기·앱 이동 정책/표시 상태/host·feature 탐색 계약이며, MonitApp·장부 진입 ViewModel·제품 Route/Screen 연결은 후속 단계다. feature:home·feature:transactions는 탐색 계약만 포함한다.
+현재 app의 Kotlin 소스는 app/src/main/java/com/monit/app, feature 소스는 각 모듈의 src/main/kotlin에 있다. 아래는 전체 구현 목록이다. #36은 공통 실행기·앱 이동 정책/표시 상태/host·feature 탐색 계약, #38은 MonitApp·장부 진입 ViewModel·조회 Route/Screen을 구현한다. 입력/등록 Route/Screen과 영속 제출 복구는 후속 단계다.
 
 | 위치·파일 후보 | 책임 |
 | --- | --- |
@@ -259,7 +259,7 @@ app이 소유하는 진입 ViewModel에서 openLedger를 읽고, 로딩·오류�
 구현은 다음 단위로 제안하며 각 단계의 승인·검증을 마친 뒤 다음으로 진행한다.
 
 1. **탐색 기반:** 구현 승인 뒤 core:navigation과 필요한 Navigation Compose·타입 직렬화·시험 의존성을 도입한다. 공통 Navigator 3동작·생명주기/중복 방지부터 검증하고 app의 MainNavigator·읽기 전용 MonitAppState·host와 feature 등록 함수를 연결한다. 시험용 목적지 검증은 제품 화면 구현 완료가 아니다.
-2. **탭과 조회 연결:** 승인된 화면을 대상으로 MainNavigator의 3탭 상태 보존·Q01/Q02 보기 전환·루트 Back을 검증한다. core 실행기가 화면 정책을 중복 구현하지 않는지 확인한다.
+2. **탭과 조회 연결 (#38):** 실제 Room 조회로 H01·Q01/Q02·A01을 연결한다. MainNavigator의 3탭 상태 보존·보기/월/날짜/필터 전환·루트 Back, 조회 실패/빈 상태·월 전체 요약과 잔액 미확인을 검증한다. core 실행기는 화면 정책을 중복 구현하지 않는다. 입력/등록·납입 행동은 제품 graph에 아직 연결하지 않는다.
 3. **입력·등록 연결:** 필요한 feature의 Compose/Hilt 설정과 기존 ViewModel의 Route/Screen 연결을 검증한다. P08은 feature가 확인 후 MainNavigator에 복귀를 요청하며, 등록 성공은 위 5단계의 정책→공통 실행→수신 검증·소비 흐름을 따른다. 쓰기가 필요한 화면을 목 성공값으로 완성 처리하지 않는다.
 4. **제출 복구 연결:** data의 참조·캡처 등록과 종료 계약이 구현·검증된 뒤 재진입 복구를 연결한다. 이 의존성이 없는 상태에서 6절의 ID 유실 AC를 통과로 보고하지 않는다.
 
