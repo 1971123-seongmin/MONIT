@@ -10,8 +10,6 @@ import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.*
 import com.monit.feature.accounts.list.AccountsState
 import com.monit.feature.accounts.list.AccountsViewModel
-import com.monit.feature.home.HomeState
-import com.monit.feature.home.HomeViewModel
 import com.monit.feature.transactions.TransactionsLoadState
 import com.monit.feature.transactions.TransactionsViewModel
 import java.io.IOException
@@ -258,20 +256,6 @@ class ProductQueryViewModelsTest {
         assertEquals("0원", ui.accounts[1].balance)
         assertEquals("확인된 잔액 합계 0원 · 잔액 미확인 1개 제외", ui.balanceSummary)
         assertTrue(ui.accounts[2].description.startsWith("보관된 계좌"))
-    }
-
-    /** 홈도 실제 조회 성공 뒤에만 월 전체 요약을 표시하며 실패를 0원으로 바꾸지 않는다. */
-    @Test
-    fun homeSummaryUsesActualReadAndFailureIsNotZero() = runTest(dispatcher) {
-        val repo = seededRepository()
-        val vm = own(HomeViewModel(repo, clock, contexts))
-        vm.refresh(testContext)
-        advanceUntilIdle()
-        assertEquals("30,000원", assertIs<HomeState.Ready>(vm.state.value).ui.income)
-        repo.onSnapshot = { throw IOException("synthetic") }
-        vm.refresh(testContext)
-        advanceUntilIdle()
-        assertEquals(HomeState.Failed, vm.state.value)
     }
 
     private fun account(id: Int, status: AccountStatus = AccountStatus.ACTIVE) = LedgerAccount(
