@@ -11,10 +11,23 @@ data class PendingRecoverySnapshot(val context: LedgerContext, val items: List<P
 
 /** 저장 원문·hash를 노출하지 않는 읽기 전용 투영. 손상된 항목도 생략하지 않는다. */
 sealed interface PendingRecoveryItem {
-    data class AccountRegistration(val operationId: String, val value: CreateAccount) : PendingRecoveryItem
-    data class Unsupported(val operationId: String, val reason: UnsupportedSubmission) : PendingRecoveryItem
+    /** canonical 캡처의 유효한 요청이다. 현재 실행 가능성은 명시 재시도의 writer가 재검사한다. */
+    sealed interface TypedSubmission : PendingRecoveryItem {
+        val operationId: String
+    }
+
+    data class AccountRegistration(override val operationId: String, val value: CreateAccount) :
+        TypedSubmission
+
+    data class TransactionCreation(override val operationId: String, val value: CreateTransaction) :
+        TypedSubmission
+
+    data class Unsupported(val operationId: String, val reason: UnsupportedSubmission) :
+        PendingRecoveryItem
+
     /** ID 자체가 잘못된 경우 유효한 재시도 키를 제공하지 않는다. 원본 행은 보존된다. */
-    data class Corrupted(val operationId: String?, val reason: CorruptedSubmission) : PendingRecoveryItem
+    data class Corrupted(val operationId: String?, val reason: CorruptedSubmission) :
+        PendingRecoveryItem
 }
 
 enum class UnsupportedSubmission { VERSION, KIND }

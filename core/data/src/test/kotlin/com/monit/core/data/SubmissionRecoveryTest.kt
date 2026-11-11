@@ -179,7 +179,7 @@ class SubmissionRecoveryTest {
         val item =
             repository.submissionRecovery(context).items.single() as SubmissionRecoveryItem.Pending
         assertEquals(SubmissionReference(context, id(100)), item.reference)
-        assertEquals(account(), item.submission.value)
+        assertEquals(PendingRecoveryItem.AccountRegistration(id(100), account()), item.submission)
         assertEquals(listOf(1, 0, 0, 0, 0, 1, 1), before.map { it.size })
         assertEquals(before, rows())
     }
@@ -392,14 +392,7 @@ class SubmissionRecoveryTest {
                     requestSha256 = requestHash(it)
                 ) to SubmissionRecoveryProblem.UNSUPPORTED
             },
-            captureWrite(
-                context, WriteCommand.Transaction(
-                    CreateTransaction(
-                        id(8), TransactionKind.INCOME,
-                        LocalDate.of(2026, 11, 1), 1, creditAccountId = id(1)
-                    )
-                )
-            ).let {
+            original.requestJson.replace("UPDATE_ACCOUNT", "FUTURE_KIND").let {
                 original.copy(
                     requestJson = it,
                     requestSha256 = requestHash(it)
@@ -474,7 +467,7 @@ class SubmissionRecoveryTest {
     }
 
     @Test
-    fun committedTransactionIsDiscoverableButDoesNotExtendTypedPendingSupport() = runTest {
+    fun committedTransactionRemainsDiscoverableWithTypedPendingSupport() = runTest {
         repository.initialize(context)
         repository.createAccount(context, id(100), account())
         val receipt = repository.createTransaction(

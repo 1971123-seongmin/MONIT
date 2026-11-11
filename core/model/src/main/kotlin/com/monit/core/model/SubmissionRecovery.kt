@@ -19,10 +19,10 @@ sealed interface SubmissionRecoveryItem {
 
     data class Pending(
         val reference: SubmissionReference,
-        val submission: PendingRecoveryItem.AccountRegistration,
+        val submission: PendingRecoveryItem.TypedSubmission,
     ) : SubmissionRecoveryItem
 
-    data class LegacyPending(val submission: PendingRecoveryItem.AccountRegistration) :
+    data class LegacyPending(val submission: PendingRecoveryItem.TypedSubmission) :
         SubmissionRecoveryItem
 
     /** 식별 자체가 손상되거나 확인되지 않으면 실행 가능한 참조를 제공하지 않는다. */
