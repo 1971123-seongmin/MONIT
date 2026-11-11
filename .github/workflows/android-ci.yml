@@ -6,6 +6,11 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      gradle_heap:
+        description: '일반 검증 Gradle heap 비교 (Kotlin daemon은 2GB 유지)'
+        type: choice
+        options: ['2g', '4g']
+        default: '2g'
       cold_cache:
         description: '캐시 복원·저장 없이 전체 검증'
         type: boolean
@@ -44,7 +49,7 @@ jobs:
         if: matrix.scope == 'assemble'
         run: node .github/scripts/ci-impact.mjs --check-diff
       - name: Test validation classifier
-        if: matrix.scope == 'assemble' && steps.impact.outputs.ci_tests != 'false'
+        if: matrix.scope == 'assemble' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')
         run: node --test .github/scripts/ci-impact.test.mjs
       - name: Prepare empty Gradle User Home
         if: github.event_name == 'workflow_dispatch' && inputs.cold_cache
@@ -53,12 +58,12 @@ jobs:
           mkdir "$RUNNER_TEMP/monit-cold-gradle-home"
           echo "GRADLE_USER_HOME=$RUNNER_TEMP/monit-cold-gradle-home" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
-        if: steps.impact.outputs.android != 'false' && (matrix.scope != 'independent' || steps.impact.outcome != 'success' || steps.impact.outputs.components != '')
+        if: (steps.impact.outcome != 'success' || steps.impact.outputs.android != 'false') && (matrix.scope != 'independent' || steps.impact.outcome != 'success' || steps.impact.outputs.components != '')
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-        if: steps.impact.outputs.android != 'false' && (matrix.scope != 'independent' || steps.impact.outcome != 'success' || steps.impact.outputs.components != '')
+        if: (steps.impact.outcome != 'success' || steps.impact.outputs.android != 'false') && (matrix.scope != 'independent' || steps.impact.outcome != 'success' || steps.impact.outputs.components != '')
         with:
           # Keep one trusted main writer; all PRs and other scopes only restore.
           cache-read-only: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' || matrix.scope != 'tests' }}
@@ -70,9 +75,11 @@ jobs:
           IMPACT_OUTCOME: ${{ steps.impact.outcome }}
         run: node .github/scripts/independent-components.mjs
       - name: Run selected Android validation
-        if: matrix.scope != 'independent' && steps.impact.outputs.android != 'false'
+        if: matrix.scope != 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.android != 'false')
         env:
           MONIT_VALIDATION_SCOPE: ${{ matrix.scope }}
+          MONIT_GRADLE_HEAP: ${{ inputs.gradle_heap || '2g' }}
+          MONIT_GC_DIAGNOSTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
         run: node .github/scripts/android-validation.mjs
       - name: Report classifier fallback
         if: always() && steps.impact.outcome != 'success'

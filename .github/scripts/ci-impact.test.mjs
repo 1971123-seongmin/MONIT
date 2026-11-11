@@ -108,9 +108,9 @@ test('workflow passes empty outputs directly to the tested adapter instead of tr
   assert(workflow.includes('run: node .github/scripts/independent-components.mjs'));
 });
 
-test('parallel scopes preserve the full original Android validation task set', () => {
+test('parallel scopes build the app and preserve all-module unit tests and lint', () => {
   const tasks = ['assemble', 'tests', 'lint'].flatMap(validationTasks);
-  assert.deepEqual(tasks.sort(), [':core:model:test', 'assembleDebug', 'testDebugUnitTest', 'lintDebug'].sort());
+  assert.deepEqual(tasks.sort(), [':core:model:test', ':app:assembleDebug', 'testDebugUnitTest', 'lintDebug'].sort());
 });
 
 test('each Android scope uses fixed arguments and preserves bounded workers', () => {
@@ -135,6 +135,17 @@ test('Gradle validation failures reach the required job', () => {
   assert.throws(() => runAndroidValidation('tests', () => { throw new Error('Test failure'); }), /Test failure/);
 });
 
+test('CI heap diagnostics are bounded arguments and keep the Kotlin daemon unchanged', () => {
+  const calls = [];
+  runAndroidValidation('assemble', (...args) => calls.push(args), { heap: '4g', gcLog: '/tmp/gradle-%p.log' });
+  assert(calls[0][1].includes('-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -Xlog:gc*:file=/tmp/gradle-%p.log:uptime,level,tags'));
+  assert(calls[0][1].includes('-Pkotlin.daemon.jvmargs=-Xmx2g'));
+  for (const heap of ['8g', '4g -Dunexpected=true']) {
+    assert.throws(() => runAndroidValidation('tests', () => {}, { heap }));
+  }
+  assert.throws(() => runAndroidValidation('tests', () => {}, { heap: '2g', gcLog: '/tmp/unexpected path' }));
+});
+
 test('required build waits for every matrix result and only accepts success', () => {
   const workflow = fs.readFileSync(new URL('../workflows/android-ci.yml', import.meta.url), 'utf8');
   assert(workflow.includes('scope: [assemble, tests, lint, independent]'));
@@ -142,6 +153,12 @@ test('required build waits for every matrix result and only accepts success', ()
   assert(workflow.includes('if: ${{ always() }}'));
   assert(workflow.includes('VALIDATION_RESULT: ${{ needs.validation.result }}'));
   assert(workflow.includes('run: test "$VALIDATION_RESULT" = success'));
+});
+
+test('a classifier failure overrides even a previously written false output', () => {
+  const workflow = fs.readFileSync(new URL('../workflows/android-ci.yml', import.meta.url), 'utf8');
+  assert(workflow.includes("if: matrix.scope != 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.android != 'false')"));
+  assert(workflow.includes("if: matrix.scope == 'assemble' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')"));
 });
 
 const base = 'a'.repeat(40), head = 'b'.repeat(40), merge = 'c'.repeat(40);
