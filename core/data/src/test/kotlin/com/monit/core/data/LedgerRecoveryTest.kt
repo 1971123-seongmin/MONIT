@@ -8,12 +8,14 @@ import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.AccountNature
 import com.monit.core.model.CorruptedSubmission
 import com.monit.core.model.CreateAccount
+import com.monit.core.model.CreateTransaction
 import com.monit.core.model.LedgerConflict
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
 import com.monit.core.model.LedgerEntryProblem
 import com.monit.core.model.LedgerEntryResult
 import com.monit.core.model.PendingRecoveryItem
+import com.monit.core.model.TransactionKind
 import com.monit.core.model.UnsupportedSubmission
 import java.time.Clock
 import java.time.Instant
@@ -24,6 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -55,6 +58,13 @@ class LedgerRecoveryTest {
     }
     private val clock = Clock.fixed(Instant.parse("2026-11-02T15:30:00Z"), ZoneOffset.UTC)
     private val tables = listOf("ledgers", "accounts", "anchors", "transactions", "operations", "submissions")
+    private val orphanStatements = listOf(
+        "INSERT INTO accounts VALUES ('x','a','합성','GENERAL','ACTIVE',1)",
+        "INSERT INTO anchors VALUES ('x','a','b','2026-10-31',NULL,NULL,'확인 전',1)",
+        "INSERT INTO transactions VALUES ('x','a','INCOME','2026-11-01',1,NULL,'b',NULL,'GENERAL','',1,1)",
+        "INSERT INTO operations VALUES ('x','a','g','UPDATE_ACCOUNT','{}','h','2026-11-01T00:00:00Z',1,'[]')",
+        "INSERT INTO submissions VALUES ('x','a','{}','h')",
+    )
 
     @Before
     fun setUp() {
@@ -166,14 +176,7 @@ class LedgerRecoveryTest {
     fun orphanInEveryBusinessTablePreventsFirstEntryCreation() = runTest {
         // 손상 파일 합성 전용. FK를 끄는 제품 경로를 추가하지 않는다.
         rows() // Room 스키마를 먼저 생성한다.
-        val statements = listOf(
-            "INSERT INTO accounts VALUES ('x','a','합성','GENERAL','ACTIVE',1)",
-            "INSERT INTO anchors VALUES ('x','a','b','2026-10-31',NULL,NULL,'확인 전',1)",
-            "INSERT INTO transactions VALUES ('x','a','INCOME','2026-11-01',1,NULL,'b',NULL,'GENERAL','',1,1)",
-            "INSERT INTO operations VALUES ('x','a','g','UPDATE_ACCOUNT','{}','h','2026-11-01T00:00:00Z',1,'[]')",
-            "INSERT INTO submissions VALUES ('x','a','{}','h')",
-        )
-        statements.forEachIndexed { index, statement ->
+        orphanStatements.forEachIndexed { index, statement ->
             database.close()
             SQLiteDatabase.openDatabase(application.getDatabasePath("recovery.db").path, null,
                 SQLiteDatabase.OPEN_READWRITE).use { fixture ->
@@ -186,6 +189,43 @@ class LedgerRecoveryTest {
             assertEquals(before, rows())
             database.openHelper.writableDatabase.execSQL("DELETE FROM ${tables[index + 1]}")
         }
+    }
+
+    /** 정상 단일 메타가 있어도 각 업무 테이블의 다른 장부 고아 행을 숨기지 않고 원문까지 보존한다. */
+    @Test
+    fun orphanRecordsAlongsideValidMetadataRequireRecovery() = runTest {
+        repository.initialize(context)
+        orphanStatements.forEachIndexed { index, statement ->
+            database.close()
+            SQLiteDatabase.openDatabase(application.getDatabasePath("recovery.db").path, null,
+                SQLiteDatabase.OPEN_READWRITE).use { fixture ->
+                fixture.execSQL("PRAGMA foreign_keys=OFF")
+                fixture.execSQL(statement)
+            }
+            reopen()
+            val before = rows()
+            assertEquals(LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA),
+                repository.openLedger(), "Orphan table: ${tables[index + 1]}")
+            assertEquals(before, rows())
+            database.openHelper.writableDatabase.execSQL("DELETE FROM ${tables[index + 1]}")
+            assertEquals(LedgerEntryResult.Ready(context), repository.openLedger())
+        }
+    }
+
+    /** 같은 장부에 속한 모든 업무 테이블의 정상 행은 복구 필요로 오인하지 않으며 진입 조회로 바꾸지 않는다. */
+    @Test
+    fun validBusinessRecordsKeepExistingLedgerReady() = runTest {
+        repository.initialize(context)
+        repository.createAccount(context, id(10), value())
+        repository.createTransaction(context, id(11), CreateTransaction(
+            id(12), TransactionKind.INCOME, LocalDate.of(2026, 11, 1), 100,
+            creditAccountId = id(1),
+        ))
+        pending(13, capture())
+        val before = rows()
+        assertTrue(before.all { it.isNotEmpty() })
+        assertEquals(LedgerEntryResult.Ready(context), repository.openLedger())
+        assertEquals(before, rows())
     }
 
     /**
@@ -207,26 +247,28 @@ class LedgerRecoveryTest {
     /**
      * 목적: 대기 중 취소된 최초 진입이 나중에 메타를 생성하지 않는다.
      * 조건: 실제 Room 트랜잭션을 gate로 점유하고 진입을 예약한다.
-     * 절차: 점유 진입 확인 → 호출 시작 → 취소 완료 → 점유 해제 순서이며 대기는 10초로 제한한다.
+     * 절차: 점유 진입 확인 → UNDISPATCHED로 withTransaction의 첫 중단까지 실행 → 취소 완료 → 점유 해제 순서다.
+     * 대기는 10초로 제한하고 마지막 트랜잭션으로 앞서 예약된 작업의 처리를 기다린다.
      * 기대: 호출이 취소되고 점유 해제 후에도 모든 테이블이 비어 있다.
      */
     @Test
     fun cancelledEntryDoesNotCreateMetadata() = runTest {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        val called = CompletableDeferred<Unit>()
         val holder = launch(Dispatchers.Default) {
             database.withTransaction { entered.complete(Unit); release.await() }
         }
         try {
             withContext(Dispatchers.Default) { withTimeout(10_000) {
                 entered.await()
-                val entry = launch(Dispatchers.Default) { called.complete(Unit); repository.openLedger() }
-                called.await()
+                // openLedger의 첫 동작이 withTransaction이므로 반환 시 점유된 Room 실행을 기다리고 있다.
+                val entry = launch(start = CoroutineStart.UNDISPATCHED) { repository.openLedger() }
+                assertTrue(entry.isActive)
                 entry.cancelAndJoin()
                 assertTrue(entry.isCancelled)
                 release.complete(Unit)
                 holder.join()
+                database.withTransaction { }
             } }
             assertEquals(List(6) { 0 }, rows().map { it.size })
         } finally {

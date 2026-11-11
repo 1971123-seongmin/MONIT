@@ -88,6 +88,14 @@ internal interface LedgerDao {
             OR EXISTS(SELECT 1 FROM submissions)
     """)
     suspend fun hasBusinessRecords(): Boolean
+    @Query("""
+        SELECT EXISTS(SELECT 1 FROM accounts b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM anchors b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM transactions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM operations b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM submissions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+    """)
+    suspend fun hasRecordsWithoutLedger(): Boolean
     @Query("SELECT * FROM ledgers WHERE id = :id")
     suspend fun ledger(id: String): LedgerEntity?
     @Insert(onConflict = OnConflictStrategy.ABORT)

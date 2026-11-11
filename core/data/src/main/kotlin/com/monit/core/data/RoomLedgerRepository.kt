@@ -56,7 +56,11 @@ internal class RoomLedgerRepository @Inject constructor(
                 } catch (_: IllegalArgumentException) {
                     return@withTransaction LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.INVALID_METADATA)
                 }
-                LedgerEntryResult.Ready(context)
+                if (dao.hasRecordsWithoutLedger()) {
+                    LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA)
+                } else {
+                    LedgerEntryResult.Ready(context)
+                }
             }
             dao.hasBusinessRecords() -> LedgerEntryResult.RecoveryRequired(LedgerEntryProblem.MISSING_METADATA)
             else -> {
