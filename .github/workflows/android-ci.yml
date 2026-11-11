@@ -4,6 +4,10 @@ run-name: 'Cold comparison · ${{ inputs.mode }} · workers ${{ inputs.workers }
 on:
   workflow_dispatch:
     inputs:
+      cold_compilation:
+        description: '이력 없는 CI에서 Kotlin/KSP 전체 컴파일 비교'
+        type: boolean
+        default: false
       mode:
         description: '전체 직렬 기준 또는 검증 종류별 무료 환경 분리'
         type: choice
@@ -25,6 +29,7 @@ concurrency:
 env:
   MONIT_PRODUCT_SHA: 13b7a1b2d2b0ac4d03fba76227112314d4d82740
   MONIT_WORKERS: ${{ inputs.workers }}
+  MONIT_COLD_COMPILATION: ${{ inputs.cold_compilation }}
 
 defaults:
   run:
