@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       cold_cache:
-        description: 'Restore 없이 전체 검증 (Gradle cache 성능 진단)'
+        description: '캐시 복원·저장 없이 전체 검증'
         type: boolean
         default: false
 
@@ -19,9 +19,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  validation:
+    name: 'validate / ${{ matrix.scope }}'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        scope: [assemble, tests, lint, independent]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,33 +37,53 @@ jobs:
         continue-on-error: true
         run: node .github/scripts/ci-impact.mjs
       - name: Check documentation
+        if: matrix.scope == 'assemble'
         shell: pwsh
         run: ./scripts/Test-AiDocs.ps1
       - name: Check diff whitespace
+        if: matrix.scope == 'assemble'
         run: node .github/scripts/ci-impact.mjs --check-diff
       - name: Test validation classifier
-        if: steps.impact.outputs.ci_tests != 'false'
+        if: matrix.scope == 'assemble' && steps.impact.outputs.ci_tests != 'false'
         run: node --test .github/scripts/ci-impact.test.mjs
+      - name: Prepare empty Gradle User Home
+        if: github.event_name == 'workflow_dispatch' && inputs.cold_cache
+        run: |
+          test ! -e "$RUNNER_TEMP/monit-cold-gradle-home"
+          mkdir "$RUNNER_TEMP/monit-cold-gradle-home"
+          echo "GRADLE_USER_HOME=$RUNNER_TEMP/monit-cold-gradle-home" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
-        if: steps.impact.outputs.android != 'false'
+        if: steps.impact.outputs.android != 'false' && (matrix.scope != 'independent' || steps.impact.outcome != 'success' || steps.impact.outputs.components != '')
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-        if: steps.impact.outputs.android != 'false'
+        if: steps.impact.outputs.android != 'false' && (matrix.scope != 'independent' || steps.impact.outcome != 'success' || steps.impact.outputs.components != '')
         with:
-          # PRs restore base caches without paying for a PR-scoped cache upload.
-          cache-read-only: ${{ github.event_name == 'pull_request' }}
-          cache-write-only: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
+          # Keep one trusted main writer; all PRs and other scopes only restore.
+          cache-read-only: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' || matrix.scope != 'tests' }}
+          cache-disabled: ${{ github.event_name == 'workflow_dispatch' && inputs.cold_cache }}
       - name: Check independent UI components
-        if: steps.impact.outcome != 'success' || steps.impact.outputs.components != ''
+        if: matrix.scope == 'independent'
         env:
           MONIT_COMPONENTS: ${{ steps.impact.outputs.components }}
           IMPACT_OUTCOME: ${{ steps.impact.outcome }}
         run: node .github/scripts/independent-components.mjs
-      - name: Build, unit tests and lint
-        if: steps.impact.outputs.android != 'false'
-        run: bash ./gradlew :core:model:test assembleDebug testDebugUnitTest lintDebug --parallel --max-workers=2 --console=plain
+      - name: Run selected Android validation
+        if: matrix.scope != 'independent' && steps.impact.outputs.android != 'false'
+        env:
+          MONIT_VALIDATION_SCOPE: ${{ matrix.scope }}
+        run: node .github/scripts/android-validation.mjs
       - name: Report classifier fallback
         if: always() && steps.impact.outcome != 'success'
         run: echo 'Change classification failed; Android and independent checks were requested in full.'
+  build:
+    needs: validation
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation job
+        env:
+          VALIDATION_RESULT: ${{ needs.validation.result }}
+        run: test "$VALIDATION_RESULT" = success

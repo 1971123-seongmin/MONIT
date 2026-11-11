@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { checkDiff, classifyChanges, determineImpact, families, parseChanges, resolveRange } from './ci-impact.mjs';
 import { runIndependentComponents } from './independent-components.mjs';
+import { runAndroidValidation, validationTasks } from './android-validation.mjs';
 
 const changed = (...paths) => classifyChanges(paths.map(file => ({ status: 'M', paths: [file] })));
 const ds = 'core/designsystem/src/main/';
@@ -103,8 +104,44 @@ test('classifier process failure requests all independent checks; invalid compon
 test('workflow passes empty outputs directly to the tested adapter instead of truthy fallback', () => {
   const workflow = fs.readFileSync(new URL('../workflows/android-ci.yml', import.meta.url), 'utf8');
   assert(workflow.includes('MONIT_COMPONENTS: ${{ steps.impact.outputs.components }}'));
-  assert(workflow.includes("if: steps.impact.outcome != 'success' || steps.impact.outputs.components != ''"));
+  assert(workflow.includes("if: matrix.scope == 'independent'"));
   assert(workflow.includes('run: node .github/scripts/independent-components.mjs'));
+});
+
+test('parallel scopes preserve the full original Android validation task set', () => {
+  const tasks = ['assemble', 'tests', 'lint'].flatMap(validationTasks);
+  assert.deepEqual(tasks.sort(), [':core:model:test', 'assembleDebug', 'testDebugUnitTest', 'lintDebug'].sort());
+});
+
+test('each Android scope uses fixed arguments and preserves bounded workers', () => {
+  for (const scope of ['assemble', 'tests', 'lint']) {
+    const calls = [];
+    runAndroidValidation(scope, (...args) => calls.push(args));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], 'bash');
+    assert.deepEqual(calls[0][1], ['./gradlew', ...validationTasks(scope), '--parallel', '--max-workers=2', '--console=plain']);
+  }
+});
+
+test('invalid scopes cannot launch a command or select inherited object properties', () => {
+  let calls = 0;
+  for (const scope of ['', undefined, 'independent', 'constructor', '__proto__', '$(touch hacked)']) {
+    assert.throws(() => runAndroidValidation(scope, () => { calls++; }));
+  }
+  assert.equal(calls, 0);
+});
+
+test('Gradle validation failures reach the required job', () => {
+  assert.throws(() => runAndroidValidation('tests', () => { throw new Error('Test failure'); }), /Test failure/);
+});
+
+test('required build waits for every matrix result and only accepts success', () => {
+  const workflow = fs.readFileSync(new URL('../workflows/android-ci.yml', import.meta.url), 'utf8');
+  assert(workflow.includes('scope: [assemble, tests, lint, independent]'));
+  assert(workflow.includes('needs: validation'));
+  assert(workflow.includes('if: ${{ always() }}'));
+  assert(workflow.includes('VALIDATION_RESULT: ${{ needs.validation.result }}'));
+  assert(workflow.includes('run: test "$VALIDATION_RESULT" = success'));
 });
 
 const base = 'a'.repeat(40), head = 'b'.repeat(40), merge = 'c'.repeat(40);
