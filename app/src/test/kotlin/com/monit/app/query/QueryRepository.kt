@@ -5,6 +5,15 @@ import java.time.LocalDate
 
 /** 읽기 결과와 완료 순서만 제어한다. 조회 기능에서 어떤 금융 쓰기든 호출하면 즉시 실패한다. */
 internal class QueryRepository : LedgerRepository {
+    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot =
+        error("이 테스트는 제출 발견을 호출하지 않는다")
+
+    override suspend fun finishSubmissionRecovery(
+        context: LedgerContext,
+        operationId: String
+    ): com.monit.core.model.FinishSubmissionRecoveryResult =
+        error("이 테스트는 제출 종료를 호출하지 않는다")
+
     var openCalls = 0
     val snapshotDates = mutableListOf<LocalDate>()
     var onOpen: suspend () -> LedgerEntryResult = { LedgerEntryResult.Ready(testContext) }

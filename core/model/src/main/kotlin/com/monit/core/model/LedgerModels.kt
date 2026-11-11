@@ -69,12 +69,14 @@ data class CreateTransaction(
         debitAccountId?.let(::requireLedgerId)
         creditAccountId?.let(::requireLedgerId)
         requireLedgerText(memo, allowBlank = true)
-        require(when (kind) {
-            TransactionKind.INCOME -> debitAccountId == null && creditAccountId != null
-            TransactionKind.EXPENSE -> debitAccountId != null && creditAccountId == null
-            TransactionKind.TRANSFER -> debitAccountId != null && creditAccountId != null &&
-                debitAccountId != creditAccountId
-        }) { "Transaction accounts do not match its kind" }
+        require(
+            when (kind) {
+                TransactionKind.INCOME -> debitAccountId == null && creditAccountId != null
+                TransactionKind.EXPENSE -> debitAccountId != null && creditAccountId == null
+                TransactionKind.TRANSFER -> debitAccountId != null && creditAccountId != null &&
+                        debitAccountId != creditAccountId
+            }
+        ) { "Transaction accounts do not match its kind" }
     }
 }
 
@@ -121,7 +123,12 @@ data class LedgerTransaction(
 )
 
 data class EntityRef(val collection: String, val id: String, val revision: Long)
-data class WriteReceipt(val operationId: String, val ledgerRevision: Long, val entities: List<EntityRef>)
+data class WriteReceipt(
+    val operationId: String,
+    val ledgerRevision: Long,
+    val entities: List<EntityRef>
+)
+
 data class PendingWrite(val operationId: String, val requestJson: String)
 
 /** 같은 DB 스냅샷에서 만든 조회 결과. 미확인 잔액은 null이며 거래 합계와 구분한다. */
@@ -146,11 +153,32 @@ class LedgerConflictException(val conflict: LedgerConflict) :
 interface LedgerRepository {
     /** 단일 장부를 찾거나, 업무 기록까지 비어 있는 최초 저장소에서만 원자적으로 생성한다. */
     suspend fun openLedger(): LedgerEntryResult
+
     /** 같은 읽기 트랜잭션의 제출 복구 자료. 조회는 재실행 예약이나 저장 성공 판정이 아니다. */
     suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot
+
+    /** 활성 참조와 이전 버전의 pending을 같은 읽기 스냅샷에서 대조한다. */
+    suspend fun submissionRecovery(context: LedgerContext): SubmissionRecoverySnapshot
+
+    /** 명시적인 결과 확인 후 선택한 성공 참조만 종료한다. 금융 원장은 보존한다. */
+    suspend fun finishSubmissionRecovery(
+        context: LedgerContext,
+        operationId: String
+    ): FinishSubmissionRecoveryResult
+
     suspend fun initialize(context: LedgerContext)
-    suspend fun createAccount(context: LedgerContext, operationId: String, value: CreateAccount): WriteReceipt
-    suspend fun createTransaction(context: LedgerContext, operationId: String, value: CreateTransaction): WriteReceipt
+    suspend fun createAccount(
+        context: LedgerContext,
+        operationId: String,
+        value: CreateAccount
+    ): WriteReceipt
+
+    suspend fun createTransaction(
+        context: LedgerContext,
+        operationId: String,
+        value: CreateTransaction
+    ): WriteReceipt
+
     suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt?
     suspend fun pendingWrites(context: LedgerContext): List<PendingWrite>
     suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt
