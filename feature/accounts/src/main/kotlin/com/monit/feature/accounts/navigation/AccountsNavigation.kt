@@ -28,3 +28,9 @@ fun NavGraphBuilder.accountRegistrationScreen(
 ) {
     composable<AccountRegistrationDestination> { content(it, it.toRoute()) }
 }
+
+fun Navigator.navigateToImportPreview(source: NavBackStackEntry): NavigationResult = navigate(source, ImportPreviewDestination)
+
+fun NavGraphBuilder.importPreviewScreen(content: @Composable (NavBackStackEntry) -> Unit) {
+    composable<ImportPreviewDestination> { content(it) }
+}

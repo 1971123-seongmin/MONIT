@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
 import com.monit.feature.accounts.navigation.accountRegistrationScreen
 import com.monit.feature.accounts.navigation.accountsScreen
+import com.monit.feature.accounts.navigation.importPreviewScreen
 import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.home.navigation.homeScreen
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
@@ -24,6 +25,7 @@ fun MonitNavHost(
     modifier: Modifier = Modifier,
     transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination) -> Unit)? = null,
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination) -> Unit)? = null,
+    importPreview: (@Composable (NavBackStackEntry) -> Unit)? = null,
 ) {
     NavHost(
         controller,
@@ -39,5 +41,7 @@ fun MonitNavHost(
         transactionEntry?.let { transactionEntryScreen(it) }
 
         accountRegistration?.let { accountRegistrationScreen(it) }
+
+        importPreview?.let { importPreviewScreen(it) }
     }
 }

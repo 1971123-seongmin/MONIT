@@ -33,6 +33,7 @@ import com.monit.core.model.DraftSlot
 import com.monit.core.model.LedgerContext
 import com.monit.core.navigation.NavigationResult
 import com.monit.feature.accounts.AccountRegistrationRoute
+import com.monit.feature.accounts.importing.ImportPreviewRoute
 import com.monit.feature.accounts.list.AccountsRoute
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationOrigin
@@ -63,7 +64,18 @@ fun MonitApp(context: LedgerContext) {
             AccountsRoute(
                 context,
                 onRegisterAccount = actions.registerAccount,
+                onImportPreview = actions.previewImport,
             )
+        },
+        importPreview = { entry, navigator ->
+            var navigationFailed by remember { mutableStateOf(false) }
+
+            ImportPreviewRoute(
+                context = context,
+                onBack = { navigationFailed = navigator.closeImportPreview(entry) == NavigationResult.UNAVAILABLE },
+            )
+
+            if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
         transactionEntry = { entry, destination, navigator ->
             var navigationFailed by remember { mutableStateOf(false) }
@@ -160,6 +172,7 @@ internal fun MonitAppShell(
     accounts: @Composable (EntryActions) -> Unit,
     transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination, MainNavigator) -> Unit)? = null,
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination, MainNavigator) -> Unit)? = null,
+    importPreview: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
 ) {
     val controller = rememberNavController()
     val navigator = rememberMainNavigator(controller)
@@ -210,6 +223,7 @@ internal fun MonitAppShell(
                     entryActions(
                         entry,
                         navigator,
+                        importPreview != null,
                     ),
                 )
             },
@@ -224,6 +238,7 @@ internal fun MonitAppShell(
                     entryActions(
                         entry,
                         navigator,
+                        importPreview != null,
                     ),
                 )
             },
@@ -238,6 +253,7 @@ internal fun MonitAppShell(
                     entryActions(
                         entry,
                         navigator,
+                        importPreview != null,
                     ),
                 )
             },
@@ -260,6 +276,9 @@ internal fun MonitAppShell(
                     )
                 }
             },
+            importPreview = importPreview?.let { content ->
+                { entry -> content(entry, navigator) }
+            },
         )
     }
 }
@@ -267,13 +286,20 @@ internal fun MonitAppShell(
 internal data class EntryActions(
     val newTransaction: (LocalDate?) -> Unit,
     val registerAccount: () -> Unit,
+    val previewImport: (() -> Unit)?,
 )
 
-private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator) = EntryActions(
+private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean) = EntryActions(
     newTransaction = { date ->
         navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, date?.toString()))
     },
     registerAccount = {
         navigator.openAccountRegistration(entry, AccountRegistrationDestination(UUID.randomUUID().toString(), AccountRegistrationOrigin.ACCOUNTS))
     },
+    previewImport = if (importEnabled) (
+        {
+            navigator.openImportPreview(entry)
+            Unit
+        }
+        ) else null,
 )

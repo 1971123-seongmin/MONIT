@@ -12,6 +12,7 @@ fun AccountsRoute(
     context: LedgerContext,
     viewModel: AccountsViewModel = hiltViewModel(),
     onRegisterAccount: (() -> Unit)? = null,
+    onImportPreview: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -25,5 +26,6 @@ fun AccountsRoute(
         state,
         onRetry = { viewModel.refresh(context) },
         onRegisterAccount = onRegisterAccount,
+        onImportPreview = onImportPreview,
     )
 }

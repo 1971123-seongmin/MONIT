@@ -21,6 +21,7 @@ fun AccountsScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     onRegisterAccount: (() -> Unit)? = null,
+    onImportPreview: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
@@ -35,6 +36,14 @@ fun AccountsScreen(
                 "계좌 추가",
                 Modifier.fillMaxWidth(),
                 onClick = onRegisterAccount,
+            )
+        }
+
+        if (onImportPreview != null && state is AccountsState.Ready) item("import-preview") {
+            MonitButton(
+                text = "이관 미리보기",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onImportPreview,
             )
         }
 

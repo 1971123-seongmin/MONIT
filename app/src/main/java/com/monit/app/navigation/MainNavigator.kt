@@ -9,8 +9,10 @@ import com.monit.core.navigation.Navigator
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationOrigin
 import com.monit.feature.accounts.navigation.AccountsDestination
+import com.monit.feature.accounts.navigation.ImportPreviewDestination
 import com.monit.feature.accounts.navigation.navigateToAccountRegistration
 import com.monit.feature.accounts.navigation.navigateToAccounts
+import com.monit.feature.accounts.navigation.navigateToImportPreview
 import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.home.navigation.navigateToHome
 import com.monit.feature.transactions.navigation.RegisteredAccountResult
@@ -22,6 +24,16 @@ import com.monit.feature.transactions.navigation.navigateToTransactions
 
 /** 제품 탐색 정책만 소유하며 금융 성공/복구 여부는 호출 feature가 확인한다. */
 class MainNavigator(private val navigator: Navigator) {
+    fun openImportPreview(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<AccountsDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.navigateToImportPreview(source)
+    }
+
+    fun closeImportPreview(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<ImportPreviewDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.back(source) { it.destination.hasRoute<AccountsDestination>() }
+    }
+
     fun navigateToTopLevel(
         source: NavBackStackEntry,
         destination: TopLevelDestination,
