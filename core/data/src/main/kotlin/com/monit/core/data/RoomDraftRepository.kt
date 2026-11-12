@@ -73,6 +73,8 @@ internal class RoomDraftRepository @Inject constructor(
 
     override suspend fun createAccountFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateAccount) = ledger.submitFromDraft(context, reference, scope, operationId, WriteCommand.Account(value))
 
+    override suspend fun updateTransactionFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: UpdateTransaction) = ledger.submitFromDraft(context, reference, scope, operationId, WriteCommand.Update(value))
+
     override suspend fun createTransactionFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateTransaction) = ledger.submitFromDraft(context, reference, scope, operationId, WriteCommand.Transaction(value))
 
     private fun snapshot(context: LedgerContext, row: FormDraftEntity): DraftSnapshot = try {
@@ -84,6 +86,8 @@ internal class RoomDraftRepository @Inject constructor(
                 check(row.operationId == null)
                 DraftSnapshot.Editable(row.editable(context))
             }
+
+            "REJECTED" -> DraftSnapshot.Rejected(row.editable(context), requireLedgerId(checkNotNull(row.operationId)))
 
             "SUBMITTING" -> {
                 row.editable(context)

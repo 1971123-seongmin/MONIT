@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 
-/** 종료 후 payload는 비우고 ID/revision fence만 보존한다. */
+/** 소비·폐기 후 payload를 비운다. 확정 충돌(REJECTED)은 이전 입력 원문까지 보존한다. */
 @Entity(
     tableName = "form_drafts",
     primaryKeys = ["ledgerId", "id"],

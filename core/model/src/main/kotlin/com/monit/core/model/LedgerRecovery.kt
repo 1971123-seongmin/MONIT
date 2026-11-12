@@ -20,6 +20,9 @@ sealed interface PendingRecoveryItem {
 
     data class TransactionCreation(override val operationId: String, val value: CreateTransaction) : TypedSubmission
 
+    data class TransactionUpdate(override val operationId: String, val value: UpdateTransaction) : TypedSubmission
+    data class TransactionDeletion(override val operationId: String, val value: DeleteTransaction) : TypedSubmission
+
     data class Unsupported(val operationId: String, val reason: UnsupportedSubmission) : PendingRecoveryItem
 
     /** ID 자체가 잘못된 경우 유효한 재시도 키를 제공하지 않는다. 원본 행은 보존된다. */

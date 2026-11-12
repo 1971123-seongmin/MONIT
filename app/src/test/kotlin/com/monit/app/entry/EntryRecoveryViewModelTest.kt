@@ -39,6 +39,33 @@ class EntryRecoveryViewModelTest {
     }
     private fun vm(repository: RecoveryRepository) = EntryRecoveryViewModel(repository, clock).also { store.put("recovery", it) }
 
+    /** 충돌 결과는 사용자가 선택·확인한 한 건만 종료하고 금융 재시도 없이 다른 참조를 보존한다. */
+    @Test fun rejectedSubmissionNeedsExplicitConfirmationAndNeverRetries() = runTest(dispatcher) {
+        val repo = RecoveryRepository()
+        val outcome = TransactionRejection(testContext, queryId(12), queryId(32), 1, 2, null, "2026-11-12T00:00:00Z")
+        repo.rejections[outcome.operationId] = outcome
+        repo.items = listOf(SubmissionRecoveryItem.Rejected(SubmissionReference(testContext, outcome.operationId), outcome)) + repo.items
+        val model = vm(repo)
+        model.bind(testContext)
+        advanceUntilIdle()
+        model.finish()
+        advanceUntilIdle()
+        assertTrue(repo.finished.isEmpty())
+        model.select(0)
+        advanceUntilIdle()
+        assertEquals(outcome, model.state.value.rejection)
+        assertNull(model.state.value.receipt)
+        assertFalse(model.state.value.resultAbsent)
+        model.retry()
+        advanceUntilIdle()
+        assertTrue(repo.retried.isEmpty())
+        model.finish()
+        advanceUntilIdle()
+        assertEquals(listOf(outcome.operationId), repo.finished)
+        assertEquals(2, model.state.value.items.size)
+        assertNull(model.state.value.rejection)
+    }
+
     /** 최초 발견은 선택·일괄 재시도·참조 종료를 자동 실행하지 않는다. */
     @Test fun discoveryDoesNotExecuteAnySubmission() = runTest(dispatcher) {
         val repo = RecoveryRepository()
@@ -169,6 +196,8 @@ private class RecoveryRepository : LedgerRepository by QueryRepository() {
             ),
         )
     }
+    val rejections = mutableMapOf<String, TransactionRejection>()
+    override suspend fun rejection(context: LedgerContext, operationId: String): TransactionRejection? = rejections[operationId]
     val receipts = mutableMapOf<String, WriteReceipt>()
     val retried = mutableListOf<String>()
     val finished = mutableListOf<String>()
@@ -192,7 +221,7 @@ private class RecoveryRepository : LedgerRepository by QueryRepository() {
     }
     override suspend fun finishSubmissionRecovery(context: LedgerContext, operationId: String): FinishSubmissionRecoveryResult {
         finished += operationId
-        items = items.filterNot { it is SubmissionRecoveryItem.Pending && it.reference.operationId == operationId }
+        items = items.filterNot { (it is SubmissionRecoveryItem.Pending && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.Rejected && it.reference.operationId == operationId) }
         return FinishSubmissionRecoveryResult.Finished
     }
 }

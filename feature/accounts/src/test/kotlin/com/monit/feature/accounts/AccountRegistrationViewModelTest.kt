@@ -845,6 +845,7 @@ private class FakeRepository : LedgerRepository {
         return if (mismatchReceipt) receipt.copy(operationId = "other") else receipt
     }
 
+    override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = null
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? {
         receiptReads++
         beforeReceipt()
@@ -863,6 +864,9 @@ private class FakeRepository : LedgerRepository {
             0,
         )
     }
+
+    override suspend fun updateTransaction(context: com.monit.core.model.LedgerContext, operationId: String, value: com.monit.core.model.UpdateTransaction): com.monit.core.model.WriteReceipt = error("Unexpected update")
+    override suspend fun deleteTransaction(context: com.monit.core.model.LedgerContext, operationId: String, value: com.monit.core.model.DeleteTransaction): com.monit.core.model.WriteReceipt = error("Unexpected delete")
 
     override suspend fun createTransaction(
         context: LedgerContext,

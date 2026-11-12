@@ -11,6 +11,8 @@ object DraftSavedState {
         putString("parent", value.parentDraftId)
         putString("request", value.selectionRequestId)
         putString("slot", value.slot?.name)
+        putString("transaction", value.transactionId)
+        value.transactionRevision?.let { putLong("transactionRevision", it) }
     }
 
     fun scope(value: Bundle): DraftScope = DraftScope(
@@ -19,6 +21,8 @@ object DraftSavedState {
         value.getString("parent"),
         value.getString("request"),
         value.getString("slot")?.let(DraftSlot::valueOf),
+        value.getString("transaction"),
+        if (value.containsKey("transactionRevision")) value.getLong("transactionRevision") else null,
     )
 
     fun submission(value: DraftSubmission): Bundle = scope(value.scope).apply {

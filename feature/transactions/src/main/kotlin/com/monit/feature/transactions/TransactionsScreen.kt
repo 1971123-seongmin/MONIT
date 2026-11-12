@@ -34,6 +34,7 @@ fun TransactionsScreen(
     onAccountSelected: (String?) -> Unit,
     modifier: Modifier = Modifier,
     onNewTransaction: (() -> Unit)? = null,
+    onTransactionSelected: ((String) -> Unit)? = null,
 ) {
     val ui = state.ui
 
@@ -162,6 +163,7 @@ fun TransactionsScreen(
                     contentType = { "transaction" },
                 ) { row ->
                     MonitListItem(
+                        onClick = onTransactionSelected?.let { callback -> { callback(row.id) } },
                         headline = {
                             Text(if (ui.calendar) row.headline else row.dateLabel + " · " + row.headline)
                         },

@@ -28,6 +28,7 @@ fun TransactionEntryRoute(
     viewModel: TransactionEntryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var deleteConfirmation by rememberSaveable { mutableStateOf(false) }
     var exit by rememberSaveable { mutableStateOf(false) }
     var returnProblem by rememberSaveable { mutableStateOf(false) }
 
@@ -42,7 +43,7 @@ fun TransactionEntryRoute(
 
     BackHandler {
         if (state.slot != null && state.phase == EntryPhase.EDITING) viewModel.dismissPicker()
-        else exit = true
+        else if (state.viewing) onClose() else exit = true
     }
 
     state.selectionRequestId?.let { request ->
@@ -83,9 +84,32 @@ fun TransactionEntryRoute(
         onRetrySave = { viewModel.check(allowWrite = true) },
         onReload = viewModel::reload,
         onDone = { viewModel.finish(onClose) },
-        onBack = { exit = true },
+        onBack = { if (state.viewing) onClose() else exit = true },
+        onBeginEdit = viewModel::beginEdit,
+        onDelete = { deleteConfirmation = true },
         onFlush = viewModel::flushDraft,
     )
+
+    if (deleteConfirmation) MonitDialog(
+        onDismissRequest = { deleteConfirmation = false },
+        title = { Text("거래를 삭제할까요?") },
+        actions = {
+            MonitButton(
+                "취소",
+                onClick = { deleteConfirmation = false },
+            )
+
+            MonitButton(
+                "삭제 확인",
+                onClick = {
+                    deleteConfirmation = false
+                    viewModel.delete()
+                },
+            )
+        },
+    ) {
+        Text("거래가 달력·목록·월 합계와 해당 계좌 잔액 계산에서 제외됩니다. 이체라면 양쪽 계좌에 함께 반영돼요. 원본과 변경 이력은 보존하며 납입 기록과는 연동하지 않습니다.")
+    }
 
     if (returnProblem) MonitDialog(
         onDismissRequest = { returnProblem = false },

@@ -16,6 +16,8 @@ data class SubmissionRecoverySnapshot(
 sealed interface SubmissionRecoveryItem {
     data class Committed(val reference: SubmissionReference, val receipt: WriteReceipt) : SubmissionRecoveryItem
 
+    data class Rejected(val reference: SubmissionReference, val rejection: TransactionRejection) : SubmissionRecoveryItem
+
     data class Pending(
         val reference: SubmissionReference,
         val submission: PendingRecoveryItem.TypedSubmission,

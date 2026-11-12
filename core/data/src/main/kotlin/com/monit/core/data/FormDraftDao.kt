@@ -6,6 +6,9 @@ import androidx.room.Query
 
 @Dao
 internal interface FormDraftDao {
+    @Query("UPDATE form_drafts SET status = 'REJECTED', revision = revision + 1 WHERE ledgerId = :ledger AND operationId = :operation AND status = 'SUBMITTING' AND revision < 9223372036854775807")
+    suspend fun reject(ledger: String, operation: String): Int
+
     @Query("SELECT * FROM form_drafts WHERE ledgerId = :ledger AND id = :id")
     suspend fun draft(ledger: String, id: String): FormDraftEntity?
 

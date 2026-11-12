@@ -101,6 +101,7 @@ internal data class TransactionEntity(
     val memo: String,
     val revision: Long,
     val financialRevision: Long,
+    val deletedAt: String? = null,
 )
 
 @Entity(
@@ -171,7 +172,7 @@ internal interface LedgerDao {
     @Query(
         """
         SELECT EXISTS(SELECT 1 FROM accounts) OR EXISTS(SELECT 1 FROM anchors)
-            OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM operations)
+            OR EXISTS(SELECT 1 FROM submission_rejections) OR EXISTS(SELECT 1 FROM transaction_history) OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM operations)
             OR EXISTS(SELECT 1 FROM submissions)
             OR EXISTS(SELECT 1 FROM submission_references)
             OR EXISTS(SELECT 1 FROM form_drafts)
@@ -183,6 +184,8 @@ internal interface LedgerDao {
         """
         SELECT EXISTS(SELECT 1 FROM accounts b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM anchors b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM submission_rejections b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM transaction_history b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM transactions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM operations b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM submissions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
@@ -228,6 +231,21 @@ internal interface LedgerDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransaction(value: TransactionEntity)
 
+    @androidx.room.Update
+    suspend fun updateTransaction(value: TransactionEntity): Int
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertTransactionHistory(value: TransactionHistoryEntity)
+
+    @Query("SELECT * FROM transaction_history WHERE ledgerId = :ledger AND id = :id ORDER BY revision")
+    suspend fun transactionHistory(ledger: String, id: String): List<TransactionHistoryEntity>
+
+    @Query("SELECT * FROM submission_rejections WHERE ledgerId = :ledger AND operationId = :operation")
+    suspend fun rejection(ledger: String, operation: String): SubmissionRejectionEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRejection(value: SubmissionRejectionEntity)
+
     @Query("SELECT * FROM operations WHERE ledgerId = :ledger AND operationId = :operation")
     suspend fun operation(ledger: String, operation: String): OperationEntity?
 
@@ -263,9 +281,9 @@ internal interface LedgerDao {
     entities = [
         LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
         TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class,
-        FormDraftEntity::class,
+        FormDraftEntity::class, TransactionHistoryEntity::class, SubmissionRejectionEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 internal abstract class LedgerDatabase : RoomDatabase() {
@@ -287,7 +305,7 @@ internal abstract class LedgerDatabase : RoomDatabase() {
 }
 
 internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase = Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
-    .addMigrations(LedgerMigration1To2, LedgerMigration2To3)
+    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4)
     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
     .addCallback(object : RoomDatabase.Callback() {
         override fun onOpen(db: SupportSQLiteDatabase) {

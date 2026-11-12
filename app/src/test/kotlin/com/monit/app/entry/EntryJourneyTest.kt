@@ -242,7 +242,10 @@ class EntryJourneyTest {
                                     Text("원래 홈")
                                     MonitButton("새 거래", onClick = { actions.newTransaction(null) })
                                 },
-                                transactions = { Text("원래 거래") },
+                                transactions = { actions ->
+                                    Text("원래 거래")
+                                    repo.existing?.let { row -> MonitButton("기존 거래 보기", onClick = { actions.editTransaction(row.id) }) }
+                                },
                                 accounts = { Text("원래 계좌") },
                                 transactionEntry = { entry, destination, navigator ->
                                     val factory = remember { viewModelFactory { initializer { TransactionEntryViewModel(repo, clock, createSavedStateHandle(), repo.drafts) } } }
@@ -280,6 +283,69 @@ class EntryJourneyTest {
         }
     }
 
+    private fun seedExisting() {
+        val first = UUID.randomUUID().toString()
+        val second = UUID.randomUUID().toString()
+        for (id in listOf(first, second)) repo.accounts += LedgerAccount(id, "합성 계좌", AccountNature.GENERAL, AccountStatus.ACTIVE, 1, BalanceAnchor(UUID.randomUUID().toString(), LocalDate.of(2026, 11, 1), null, null, "미확인"))
+        repo.existing = LedgerTransaction(UUID.randomUUID().toString(), TransactionKind.TRANSFER, LocalDate.of(2026, 11, 3), 100, first, second, AccountNature.GENERAL, AccountNature.GENERAL, "기존 거래 메모", 4, 2)
+    }
+
+    private fun openExisting() {
+        compose.onNodeWithText("거래").performClick()
+        compose.onNodeWithText("기존 거래 보기").performClick()
+        compose.onNodeWithText("거래 상세·수정").assertExists()
+    }
+
+    /** 실제 Nav2의 거래 caller에서 상세→수정→저장 결과 확인→같은 거래 탭으로 돌아온다. */
+    @Test fun existingTransactionEditReturnsToExactTransactionsCaller() {
+        seedExisting()
+        launch()
+        openExisting()
+        captureDraft("transaction-detail")
+        compose.onNodeWithText("수정하기").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("메모 (선택)").performScrollTo().performTextReplacement("수정된 메모")
+        compose.onNodeWithText("저장").performScrollTo().performClick()
+        compose.onNodeWithText("기록을 저장했어요").assertExists()
+        compose.onNodeWithText("목록 보기").performScrollTo().performClick()
+        compose.onNodeWithText("원래 거래").assertExists()
+        assertEquals("수정된 메모", repo.existing!!.memo)
+        assertEquals(1, repo.updates)
+        assertTrue(repo.transactions.isEmpty())
+    }
+
+    /** 삭제 안내 취소는 무변경이며 명시 확인 뒤에만 삭제·결과 확인·원래 caller 복귀한다. */
+    @Test fun deleteRequiresImpactConfirmationAndKeepsCaller() {
+        seedExisting()
+        launch()
+        openExisting()
+        compose.onNodeWithText("거래 삭제").performScrollTo().performClick()
+        compose.onNodeWithText("거래를 삭제할까요?").assertExists()
+        captureDraft("transaction-delete-confirmation")
+        compose.onNodeWithText("취소").performClick()
+        assertNotNull(repo.existing)
+        assertEquals(0, repo.deletes)
+        compose.onNodeWithText("거래 삭제").performScrollTo().performClick()
+        compose.onNodeWithText("삭제 확인").performClick()
+        compose.onNodeWithText("거래를 삭제했어요").assertExists()
+        compose.onNodeWithText("목록 보기").performScrollTo().performClick()
+        compose.onNodeWithText("원래 거래").assertExists()
+        assertNull(repo.existing)
+        assertEquals(1, repo.deletes)
+    }
+
+    /** 상세에서 시스템 Back은 금융·초안을 쓰지 않고 정확한 caller로 돌아간다. */
+    @Test fun detailSystemBackPreservesOriginalAndDoesNotCreateDraft() {
+        seedExisting()
+        launch()
+        openExisting()
+        compose.runOnIdle { back.onBackPressed() }
+        compose.onNodeWithText("원래 거래").assertExists()
+        assertNotNull(repo.existing)
+        assertEquals(0, repo.updates)
+        assertEquals(0, repo.deletes)
+        assertTrue(runBlocking { repo.drafts.drafts(testContext).isEmpty() })
+    }
+
     private fun captureDraft(name: String) {
         val bounds = compose.onNodeWithTag("draft-root").fetchSemanticsNode().boundsInRoot
         val bitmap = Bitmap.createBitmap(bounds.width.toInt(), bounds.height.toInt(), Bitmap.Config.ARGB_8888)
@@ -296,13 +362,16 @@ class EntryJourneyTest {
 }
 
 private class JourneyRepository : LedgerRepository by QueryRepository() {
+    var existing: LedgerTransaction? = null
+    var updates = 0
+    var deletes = 0
     val drafts = TestDraftRepository(this)
     val accounts = mutableListOf<LedgerAccount>()
     val transactions = mutableListOf<CreateTransaction>()
     val finished = mutableListOf<String>()
     private val receipts = mutableMapOf<String, WriteReceipt>()
     override suspend fun submissionRecovery(context: LedgerContext) = SubmissionRecoverySnapshot(context, emptyList())
-    override suspend fun snapshot(context: LedgerContext, asOf: LocalDate) = LedgerSnapshot(1, accounts.toList(), emptyList(), accounts.associate { it.id to null }, 0, 0)
+    override suspend fun snapshot(context: LedgerContext, asOf: LocalDate) = LedgerSnapshot(1, accounts.toList(), listOfNotNull(existing), accounts.associate { it.id to null }, 0, 0)
     override suspend fun createAccount(context: LedgerContext, operationId: String, value: CreateAccount): WriteReceipt {
         accounts += LedgerAccount(
             value.id,
@@ -317,6 +386,19 @@ private class JourneyRepository : LedgerRepository by QueryRepository() {
     override suspend fun createTransaction(context: LedgerContext, operationId: String, value: CreateTransaction): WriteReceipt {
         transactions += value
         return WriteReceipt(operationId, 2, listOf(EntityRef("transactions", value.id, 1))).also { receipts[operationId] = it }
+    }
+    override suspend fun updateTransaction(context: LedgerContext, operationId: String, value: UpdateTransaction): WriteReceipt {
+        val old = requireNotNull(existing)
+        require(old.revision == value.expectedRevision)
+        existing = old.copy(memo = value.value.memo, amount = value.value.amount, revision = old.revision + 1)
+        updates++
+        return WriteReceipt(operationId, 10, listOf(EntityRef("transactions", old.id, old.revision + 1))).also { receipts[operationId] = it }
+    }
+    override suspend fun deleteTransaction(context: LedgerContext, operationId: String, value: DeleteTransaction): WriteReceipt {
+        require(existing?.revision == value.expectedRevision)
+        existing = null
+        deletes++
+        return WriteReceipt(operationId, 10, listOf(EntityRef("transactions", value.id, value.expectedRevision + 1))).also { receipts[operationId] = it }
     }
     override suspend fun receipt(context: LedgerContext, operationId: String) = receipts[operationId]
     override suspend fun finishSubmissionRecovery(context: LedgerContext, operationId: String): FinishSubmissionRecoveryResult {

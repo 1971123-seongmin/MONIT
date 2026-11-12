@@ -298,7 +298,7 @@ class TransactionPendingRecoveryTest {
         val original = pending(id(110), value(10, TransactionKind.TRANSFER), true)
         val invalid = listOf(
             original.copy(requestSha256 = "bad") to SubmissionRecoveryProblem.CORRUPTED,
-            original.requestJson.replace("\"version\":1", "\"version\":2")
+            original.requestJson.replace("\"version\":1", "\"version\":3")
                 .let { changed(original, it) } to SubmissionRecoveryProblem.UNSUPPORTED,
             original.requestJson.replace("CREATE_TRANSACTION", "FUTURE_KIND")
                 .let { changed(original, it) } to SubmissionRecoveryProblem.UNSUPPORTED,
