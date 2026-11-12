@@ -20,6 +20,7 @@ fun AccountsScreen(
     state: AccountsState,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onRegisterAccount: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
@@ -27,6 +28,14 @@ fun AccountsScreen(
     ) {
         item("title") {
             MonitTopBar("계좌")
+        }
+
+        if (onRegisterAccount != null && state is AccountsState.Ready) item("register-account") {
+            MonitButton(
+                "계좌 추가",
+                Modifier.fillMaxWidth(),
+                onClick = onRegisterAccount,
+            )
         }
 
         when (state) {

@@ -6,9 +6,9 @@ ViewModel은 기본 `viewModelScope.launch`를 사용한다. 테스트는 Main�
 
 ## 호출 조건과 상태
 
-호출자는 `SavedStateHandle`의 `ledgerId`, `storageGeneration`에 기존 장부의 정규 UUID를 전달해야 한다. 식별자가 없거나 잘못되면 `UNAVAILABLE / CONTEXT_REQUIRED`이며 새 장부를 자동 생성하지 않는다. 현재 앱의 진입 화면은 placeholder이며, 안정적인 장부 식별자 소유·재진입 경로와 실제 화면 연결은 후속 작업이다. Hilt 앱 빌드는 정적 의존성 연결의 검증이며 실제 화면에서의 주입·기기 실행 검증을 뜻하지 않는다.
+앱의 검증된 장부 진입 결과를 `AccountRegistrationRoute → bind(context)`로 최초 한 번 연결한다. `SavedStateHandle`의 기존 `ledgerId`, `storageGeneration` 또는 제출 캡처를 현재 세대로 덮어쓰지 않는다. 식별자가 없으면 연결 전까지 `UNAVAILABLE / CONTEXT_REQUIRED`이며 잘못된 복원 정보는 차단한다. 진입은 읽기 전용 `submissionRecovery` 조회이며 장부를 생성하거나 수리하지 않는다.
 
-context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/README.md), 등록 작업 상태는 [AccountRegistrationState](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationState.kt), 이벤트는 [Action](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationAction.kt)을 참조한다. context를 준비하는 제품 진입점은 아직 없으므로 화면 연결 예시는 후속 구현에서 제공한다.
+context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/README.md), 등록 작업 상태는 [AccountRegistrationState](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationState.kt), 이벤트는 [Action](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationAction.kt)을 참조한다. 실제 화면·계좌 선택 반환·이전 제출 복구 연결은 [입력 계약](../transactions/ENTRY.md)을 따른다.
 
 입력은 `AccountRegistrationAction`을 Main에서 전달하고 읽기 전용 `state: StateFlow<AccountRegistrationState>`를 수집한다. 표시 데이터는 `state.value.uiState`로 얻는다. [AccountRegistrationUiState.kt](src/main/kotlin/com/monit/feature/accounts/AccountRegistrationUiState.kt)에는 순수 표시 데이터인 `AccountRegistrationUiState`와 그 자식 `AccountDraftUiState`·`AccountUiState`만 둔다. enum·Action·저장/조회 상태·제출/복원·mapper는 각 별도 파일에 있다. 명명·파일 기준은 [Android 지침](../../docs/ai/roles/android.md)을 따른다.
 
@@ -25,9 +25,9 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 
 하나의 saved-state 값에 제출 당시의 context·ID·typed 입력 스냅샷을 저장한다. `model/AccountSubmissionCodec`은 명명된 Bundle v2 필드로 기록하며 기존 ArrayList v1 task는 ID/내용을 보존해 읽은 뒤 v2로 기록한다. 알 수 없는 버전·필드/타입 오류·다른 context는 명시적으로 거부한다. 지원되는 재생성에서는 기존 결과부터 조회하며, 성공한 제출은 같은 계좌로 복귀하고 미확정 제출은 명시 Action을 기다린다. 취소 예외는 전파하고 성공을 추정하지 않는다.
 
-`SavedStateHandle`은 task stack에 종속된다. 강제 종료·최근 앱 제거·재부팅 후에도 유지되는 영속 저장소가 아니다. 아직 제출하지 않은 입력폼 전체 초안, 장부 식별자 bootstrap, saved-state가 사라진 뒤의 Room pending 제출 선택·복구, 미확정 제출의 폐기·수정 UI는 이번 구현에 없다. Repository의 영속 제출과 화면의 saved-state 스냅샷을 동일한 보장으로 취급하지 않는다. [Android saved-state 문서](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)를 따른다.
+`SavedStateHandle`은 task stack에 종속된다. 강제 종료·최근 앱 제거·재부팅 후에도 유지되는 영속 저장소가 아니다. 앱의 장부 bootstrap·영속 제출 발견과 선택 복구는 연결됐지만 미제출 입력폼 전체 영속 초안과 미확정 제출의 폐기·수정은 지원하지 않는다. Repository의 영속 제출과 화면의 saved-state 스냅샷을 동일한 보장으로 취급하지 않는다. [Android saved-state 문서](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)를 따른다.
 
-호스트 Activity가 중지될 때 저장된 값만 복원된다. 중지된 동안 제출한 뒤 다시 시작·중지되기 전에 프로세스가 종료되면 task가 남아 있어도 최신 제출 스냅샷이 없을 수 있다. 이 경우 기존 제출의 결과 조회를 보장하지 못하며, 새 ID의 등록으로 중복될 위험이 있다. 실제 화면 연결 전 영속 장부 진입·pending 복구 계약에서 해결해야 한다.
+호스트 Activity가 중지될 때 저장된 값만 복원된다. 중지된 동안 제출한 뒤 다시 시작·중지되기 전에 프로세스가 종료되면 task가 남아 있어도 최신 화면 스냅샷이 없을 수 있다. 새 입력 전에 앱의 영속 제출 발견 경계가 기존 참조를 조회하며 자동으로 새 ID를 제출하지 않는다. 아직 Repository에 전달되지 않은 입력까지 영속 복구한다고 보장하지 않는다.
 
 예상하지 못한 예외는 작업 종류와 예외 클래스명만 Android 로그에 남긴다. 예외 메시지·Throwable·계좌명·금액·ID는 기록하지 않는다. 이 진단 정보가 성공 판정이나 재시도 정책을 바꾸지는 않는다.
 
@@ -39,6 +39,6 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 
 `AccountRegistrationViewModelTest`는 합성 Repository·고정 Clock·TestDispatcher·gate로 기존 상태 시나리오와 읽기 전용 확인·v1 복원·손상 복원·늦은 조회 실패/취소를 검증한다. `AccountRegistrationModelsTest`는 mapper·validator·영수증 참조 검증과 Robolectric의 Bundle/Parcel 왕복을 검사한다. Android Activity saved-instance-state 전체 수명주기나 실제 기기의 강제 종료·재부팅을 시험한 것은 아니다. 실제 Room의 원자성과 중복 저장은 기존 `core:data` 통합 테스트가 검증한다.
 
-다음은 거래 입력·월간 조회의 상태 계층, 명세에 맞는 Compose 화면·탐색·접근성 연결이다. 화면에는 합성 UiState·콜백을 받는 Content 경계와 발견 가능한 top-level Preview를 제공한다. Prevue 도구 설치는 QA의 Windows/WSL 검증 결과를 재사용한다. 이 모듈에는 아직 제품 화면/Preview가 없어 렌더 성공을 주장하지 않는다. 실기기 조작은 QA가 담당한다.
+계좌 등록 Route/Screen·top-level Preview와 거래 입력 왕복을 연결했다. 합성 호스트 렌더와 실제 Route/VM/Nav2 UI 시험을 제공한다. Prevue·실기기 실행 및 IME·재부팅 검증은 해당 실행 증거가 있을 때만 보고하며 실기기 조작은 QA가 담당한다.
 
 기준액 확인·수정·삭제·서버 동기화는 지원 API가 준비되기 전까지 후속 범위다. PR은 계좌 상태 계층의 완료이며 첫 제품 동선 전체나 PRD 전체의 완료가 아니다.

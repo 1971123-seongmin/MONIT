@@ -11,6 +11,7 @@ import com.monit.core.model.LedgerContext
 fun AccountsRoute(
     context: LedgerContext,
     viewModel: AccountsViewModel = hiltViewModel(),
+    onRegisterAccount: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -23,5 +24,6 @@ fun AccountsRoute(
     AccountsScreen(
         state,
         onRetry = { viewModel.refresh(context) },
+        onRegisterAccount = onRegisterAccount,
     )
 }

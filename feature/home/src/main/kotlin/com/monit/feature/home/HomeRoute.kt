@@ -11,6 +11,7 @@ import com.monit.core.model.LedgerContext
 fun HomeRoute(
     context: LedgerContext,
     viewModel: HomeViewModel = hiltViewModel(),
+    onNewTransaction: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -23,5 +24,6 @@ fun HomeRoute(
     HomeScreen(
         state,
         onRetry = { viewModel.refresh(context) },
+        onNewTransaction = onNewTransaction,
     )
 }
