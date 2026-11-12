@@ -1,0 +1,26 @@
+package com.monit.feature.accounts.importing
+
+enum class ImportDecision { CANDIDATE, EXISTS, HELD, EXCLUDED }
+
+enum class ImportHoldReason {
+    EXPLICIT_HOLD,
+    RAW_FORMAT,
+    RAW_DIGEST,
+    REPEATED_SOURCE_KEY,
+    CONFLICTING_SOURCE_KEY,
+    SOURCE_INCOMPLETE,
+    RELATION_UNAVAILABLE,
+    AMBIGUOUS_RELATION,
+    UNSUPPORTED_KIND,
+    INVALID_DATE,
+    INVALID_AMOUNT,
+    CURRENCY_UNCONFIRMED,
+    ACCOUNT_MAPPING_REQUIRED,
+    ACCOUNT_UNAVAILABLE,
+    SAME_TRANSFER_ACCOUNT,
+    POSSIBLE_DUPLICATE,
+}
+
+enum class ImportFileProblem { TOO_LARGE, INVALID_UTF8, INVALID_JSON, UNSUPPORTED_VERSION, INVALID_DIGEST, INVALID_MAPPING, TOO_MANY_ROWS, WRONG_LEDGER, UNAVAILABLE }
+
+class ImportFileException(val problem: ImportFileProblem) : IllegalArgumentException("Import file: $problem")

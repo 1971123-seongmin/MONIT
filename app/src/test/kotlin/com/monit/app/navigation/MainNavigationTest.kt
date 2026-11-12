@@ -22,6 +22,7 @@ import com.monit.app.ui.rememberMonitAppState
 import com.monit.core.navigation.NavigationResult
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationOrigin
+import com.monit.feature.accounts.navigation.ImportPreviewDestination
 import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.transactions.navigation.RegisteredAccountResult
 import com.monit.feature.transactions.navigation.RegisteredAccountResultEffect
@@ -91,6 +92,7 @@ class MainNavigationTest {
                     accountRegistration = { _, _ ->
                         Box(Modifier.size(40.dp).testTag("test-registration"))
                     },
+                    importPreview = { Box(Modifier.size(40.dp).testTag("test-import-preview")) },
                 )
             }
         }
@@ -101,6 +103,21 @@ class MainNavigationTest {
     }
 
     private fun current(): NavBackStackEntry = requireNotNull(controller.currentBackStackEntry)
+
+    /** 읽기 전용 이관 진입은 계좌 탭만 허용하고 정확한 기존 탭 entry로 한 번 복귀한다. */
+    @Test fun importPreviewIsAccountsScopedAndRestoresCaller() {
+        installHost()
+        assertEquals(NavigationResult.UNAVAILABLE, move { navigation, source -> navigation.openImportPreview(source) })
+        move { navigation, source -> navigation.navigateToTopLevel(source, TopLevelDestination.ACCOUNTS) }
+        val caller = current()
+        assertEquals(NavigationResult.EXECUTED, move { navigation, source -> navigation.openImportPreview(source) })
+        assertTrue(current().destination.hasRoute<ImportPreviewDestination>())
+        assertFalse(appState.showBottomBar)
+        assertEquals(NavigationResult.UNAVAILABLE, move { navigation, source -> navigation.openImportPreview(source) })
+        assertEquals(NavigationResult.EXECUTED, move { navigation, source -> navigation.closeImportPreview(source) })
+        assertSame(caller, current())
+        assertTrue(accepted.isEmpty())
+    }
 
     private fun move(action: (MainNavigator, NavBackStackEntry) -> NavigationResult): NavigationResult {
         var outcome = NavigationResult.UNAVAILABLE
