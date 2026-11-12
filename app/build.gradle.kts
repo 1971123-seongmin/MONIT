@@ -16,6 +16,13 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
+    buildTypes {
+        create("qa") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".qa"
+            matchingFallbacks += listOf("debug")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
         targetCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
