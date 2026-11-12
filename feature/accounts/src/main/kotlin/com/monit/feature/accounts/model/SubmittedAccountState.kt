@@ -1,6 +1,7 @@
 package com.monit.feature.accounts.model
 
 import com.monit.core.model.CreateAccount
+import com.monit.core.model.DraftSubmission
 import com.monit.core.model.LedgerContext
 import com.monit.core.model.requireLedgerId
 import com.monit.feature.accounts.AccountDraftUiState
@@ -10,6 +11,7 @@ data class SubmittedAccountState(
     val context: LedgerContext,
     val operationId: String,
     val value: CreateAccount,
+    val draftSubmission: DraftSubmission? = null,
 ) {
     init {
         requireLedgerId(operationId)

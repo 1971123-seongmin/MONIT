@@ -6,9 +6,17 @@ import androidx.annotation.MainThread
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.monit.core.common.draft.*
 import com.monit.core.model.AccountNature
 import com.monit.core.model.CreateAccount
+import com.monit.core.model.DraftContent
+import com.monit.core.model.DraftKind
+import com.monit.core.model.DraftOrigin
+import com.monit.core.model.DraftRepository
+import com.monit.core.model.DraftScope
+import com.monit.core.model.DraftSubmission
 import com.monit.core.model.FinishSubmissionRecoveryResult
+import com.monit.core.model.FormDraft
 import com.monit.core.model.LedgerConflictException
 import com.monit.core.model.LedgerContext
 import com.monit.core.model.LedgerRepository
@@ -25,6 +33,7 @@ import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -34,6 +43,7 @@ class AccountRegistrationViewModel @Inject constructor(
     private val repository: LedgerRepository,
     private val clock: Clock,
     private val savedState: SavedStateHandle,
+    private val drafts: DraftRepository,
 ) : ViewModel() {
     private var context = runCatching {
         LedgerContext(
@@ -43,6 +53,10 @@ class AccountRegistrationViewModel @Inject constructor(
     }.getOrNull()
     private var submitted: SubmittedAccountState? = null
     private var invalidBinding = false
+    private var editor: DraftEditor? = null
+    private var draftCollector: Job? = null
+    private var draftScope: DraftScope? = null
+    private var transitioning = false
     private val mutableState = MutableStateFlow(AccountRegistrationState(newDraft()))
     val state = mutableState.asStateFlow()
 
@@ -55,6 +69,7 @@ class AccountRegistrationViewModel @Inject constructor(
                 savedState.get<Any>(SUBMISSION)?.let { AccountSubmissionCodec.decode(it, ledger) }
             }
             if (restored.isFailure) {
+                invalidBinding = true
                 block(AccountProblem.INVALID_RECOVERY)
             } else {
                 submitted = restored.getOrNull()
@@ -75,12 +90,38 @@ class AccountRegistrationViewModel @Inject constructor(
     }
 
     /** 앱이 검증한 context를 최초 한 번 연결한다. 복구에 남은 원래 세대는 덮어쓰지 않는다. */
-    fun bind(ledger: LedgerContext) {
+    fun bind(ledger: LedgerContext, scope: DraftScope? = DraftScope(DraftKind.ACCOUNT, DraftOrigin.ACCOUNTS)) {
+        if (invalidBinding) return
+        if (context == null && (savedState.contains(DRAFT_ID) || savedState.contains(SCOPE))) {
+            invalidBinding = true
+            block(AccountProblem.INVALID_RECOVERY)
+            return
+        }
+        if (submitted?.draftSubmission?.scope?.let { it != scope } == true) {
+            invalidBinding = true
+            block(AccountProblem.INVALID_RECOVERY)
+            return
+        }
+        if (submitted == null) {
+            try {
+                requireNotNull(scope)
+                require(scope.kind == DraftKind.ACCOUNT)
+                val previous = draftScope ?: savedState.get<Bundle>(SCOPE)?.let(DraftSavedState::scope)
+                require(previous == null || previous == scope)
+                draftScope = scope
+                savedState[SCOPE] = DraftSavedState.scope(scope)
+            } catch (_: Exception) {
+                invalidBinding = true
+                block(AccountProblem.INVALID_RECOVERY)
+                return
+            }
+        }
         if (context != null) {
             if (context != ledger) {
                 invalidBinding = true
                 block(AccountProblem.INVALID_RECOVERY)
             }
+            if (!invalidBinding && state.value.editable) startEditor(ledger)
             return
         }
         if (savedState.contains(LEDGER_ID) || savedState.contains(STORAGE_GENERATION) ||
@@ -96,6 +137,64 @@ class AccountRegistrationViewModel @Inject constructor(
         mutableState.value = state.value.copy(saveState = AccountSaveState.Initializing)
         viewModelScope.launch { initialize(ledger) }
     }
+
+    private fun startEditor(ledger: LedgerContext) {
+        if (editor != null || submitted != null || invalidBinding) return
+        val scope = draftScope ?: return
+        val coordinator = DraftEditor(
+            drafts,
+            ledger,
+            scope,
+            viewModelScope,
+            draftContent(),
+            onId = { savedState[DRAFT_ID] = it },
+            onRestore = { content ->
+                val raw = content as DraftContent.Account
+                mutableState.value = state.value.copy(draft = AccountDraftUiState(raw.name, raw.nature, raw.anchorDate, raw.unknownReason), inputError = null)
+            },
+        )
+        editor = coordinator
+        mutableState.value = state.value.copy(draftPersistence = coordinator.state.value)
+        draftCollector?.cancel()
+        draftCollector = viewModelScope.launch { coordinator.state.collect { mutableState.value = state.value.copy(draftPersistence = it) } }
+        coordinator.start(savedState[DRAFT_ID])
+    }
+
+    fun startNewDraft() {
+        editor?.fresh()
+    }
+    fun restoreDraft(value: FormDraft) {
+        editor?.restore(value)
+    }
+    fun discardDraft(value: FormDraft) {
+        editor?.discardChoice(value)
+    }
+    fun reloadDrafts() {
+        editor?.reload()
+    }
+    fun flushDraft() {
+        editor?.requestFlush()
+    }
+    fun matchesDraft(value: FormDraft) = value.scope == editor?.scope
+
+    fun leave(discard: Boolean = false, onFinished: () -> Unit) {
+        if (transitioning) return
+        if (submitted != null || editor?.state?.value?.phase != DraftEditorPhase.EDITING) {
+            onFinished()
+            return
+        }
+        transitioning = true
+        viewModelScope.launch {
+            try {
+                val success = if (discard) editor?.discardCurrent() == true else editor?.flush(force = true) != null
+                if (success) onFinished()
+            } finally {
+                transitioning = false
+            }
+        }
+    }
+
+    private fun draftContent() = state.value.draft.let { DraftContent.Account(it.name, it.nature, it.anchorDate, it.unknownReason) }
 
     /** 저장 완료 화면에서 사용자가 확인한 하나의 참조만 종료한다. */
     fun finish(onFinished: (String) -> Unit) {
@@ -161,8 +260,11 @@ class AccountRegistrationViewModel @Inject constructor(
                 if (state.value.phase == AccountSavePhase.SAVED) {
                     savedState.remove<Any>(SUBMISSION)
                     savedState.remove<Any>(DRAFT)
+                    savedState.remove<Any>(DRAFT_ID)
                     submitted = null
+                    editor = null
                     mutableState.value = AccountRegistrationState(newDraft(), AccountSaveState.Editing)
+                    context?.let(::startEditor)
                 }
             }
         }
@@ -177,6 +279,7 @@ class AccountRegistrationViewModel @Inject constructor(
             val intent = submitted
             if (intent == null) {
                 mutableState.value = state.value.copy(saveState = AccountSaveState.Editing)
+                startEditor(ledger)
             } else {
                 checkResult(intent, allowWrite = false)
             }
@@ -193,7 +296,7 @@ class AccountRegistrationViewModel @Inject constructor(
     }
 
     private fun edit(change: AccountDraftUiState.() -> AccountDraftUiState) {
-        if (state.value.editable) {
+        if (state.value.editable && !transitioning && editor?.state?.value?.phase == DraftEditorPhase.EDITING) {
             mutableState.value = state.value.copy(draft = state.value.draft.change(), inputError = null)
             val ledger = context ?: return
             val draft = state.value.draft
@@ -205,12 +308,13 @@ class AccountRegistrationViewModel @Inject constructor(
                 putString("date", draft.anchorDate)
                 putString("reason", draft.unknownReason)
             }
+            editor?.changed(draftContent())
         }
     }
 
     private fun submit() {
         val ledger = context ?: return
-        if (!state.value.editable) return
+        if (!state.value.editable || transitioning || editor?.state?.value?.phase != DraftEditorPhase.EDITING) return
         val draft = state.value.draft
         val error = validateAccountDraft(draft, today())
         if (error != null) {
@@ -229,11 +333,20 @@ class AccountRegistrationViewModel @Inject constructor(
                 unknownReason = draft.unknownReason,
             ),
         )
-        // 하나의 saved-state 값으로 제출 스냅샷을 보관한다. 미제출 입력폼의 영속 초안은 아니다.
-        savedState[SUBMISSION] = AccountSubmissionCodec.encode(intent)
-        submitted = intent
         mutableState.value = state.value.copy(saveState = AccountSaveState.Saving(intent))
-        viewModelScope.launch { write(intent) }
+        viewModelScope.launch {
+            val committed = editor?.flush(force = true)
+            if (committed == null || invalidBinding) {
+                if (!invalidBinding) mutableState.value = state.value.copy(saveState = AccountSaveState.Editing)
+                return@launch
+            }
+            val captured = intent.copy(draftSubmission = DraftSubmission(committed.reference, committed.scope))
+            savedState[SUBMISSION] = AccountSubmissionCodec.encode(captured)
+            submitted = captured
+            editor?.freeze()
+            mutableState.value = state.value.copy(saveState = AccountSaveState.Saving(captured))
+            write(captured)
+        }
     }
 
     private fun retry(allowWrite: Boolean) {
@@ -245,7 +358,9 @@ class AccountRegistrationViewModel @Inject constructor(
 
     private suspend fun write(intent: SubmittedAccountState) {
         val receipt = try {
-            repository.createAccount(intent.context, intent.operationId, intent.value)
+            val draft = intent.draftSubmission
+            if (draft == null) repository.createAccount(intent.context, intent.operationId, intent.value)
+            else drafts.createAccountFromDraft(intent.context, draft.reference, draft.scope, intent.operationId, intent.value)
         } catch (cancelled: CancellationException) {
             unconfirmed(intent)
             throw cancelled
@@ -349,5 +464,7 @@ class AccountRegistrationViewModel @Inject constructor(
         const val STORAGE_GENERATION = "storageGeneration"
         internal const val SUBMISSION = "accountSubmission"
         internal const val DRAFT = "accountDraft"
+        internal const val DRAFT_ID = "accountDraftId"
+        internal const val SCOPE = "accountDraftScope"
     }
 }

@@ -9,6 +9,7 @@ data class TransactionEntryDestination(
     val entryId: String,
     val initialKind: TransactionEntryKind,
     val initialDate: String? = null,
+    val origin: TransactionEntryOrigin? = null,
 ) {
     init {
         require(entryId.isNotBlank())

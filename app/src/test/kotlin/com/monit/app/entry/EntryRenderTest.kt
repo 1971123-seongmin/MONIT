@@ -15,6 +15,8 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.monit.core.common.draft.DraftEditorPhase
+import com.monit.core.common.draft.DraftEditorState
 import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.core.model.TransactionKind
 import com.monit.feature.accounts.*
@@ -52,6 +54,10 @@ class EntryRenderTest {
 
     @Test fun narrowLargeText() = render("expense", false, 320, 2f)
 
+    @Test fun draftSavePendingLight() = render("draft-pending", false)
+
+    @Test fun draftSaveFailureDarkLargeText() = render("draft-failed", true, 320, 2f)
+
     private fun render(screen: String, dark: Boolean, width: Int = 360, font: Float = 1f) {
         lateinit var view: View
         val kind = when (screen) {
@@ -72,6 +78,12 @@ class EntryRenderTest {
             ui,
             if (screen == "saved") EntryPhase.SAVED else EntryPhase.EDITING,
             inputError = if (screen == "error") TransactionInputError.AMOUNT else null,
+            draftPersistence = if (screen.startsWith("draft-")) DraftEditorState(
+                DraftEditorPhase.EDITING,
+                dirty = true,
+                saving = screen == "draft-pending",
+                failed = screen == "draft-failed",
+            ) else null,
         )
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width.dp, 708.dp))) {

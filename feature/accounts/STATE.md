@@ -25,9 +25,9 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 
 하나의 saved-state 값에 제출 당시의 context·ID·typed 입력 스냅샷을 저장한다. `model/AccountSubmissionCodec`은 명명된 Bundle v2 필드로 기록하며 기존 ArrayList v1 task는 ID/내용을 보존해 읽은 뒤 v2로 기록한다. 알 수 없는 버전·필드/타입 오류·다른 context는 명시적으로 거부한다. 지원되는 재생성에서는 기존 결과부터 조회하며, 성공한 제출은 같은 계좌로 복귀하고 미확정 제출은 명시 Action을 기다린다. 취소 예외는 전파하고 성공을 추정하지 않는다.
 
-`SavedStateHandle`은 task stack에 종속된다. 강제 종료·최근 앱 제거·재부팅 후에도 유지되는 영속 저장소가 아니다. 앱의 장부 bootstrap·영속 제출 발견과 선택 복구는 연결됐지만 미제출 입력폼 전체 영속 초안과 미확정 제출의 폐기·수정은 지원하지 않는다. Repository의 영속 제출과 화면의 saved-state 스냅샷을 동일한 보장으로 취급하지 않는다. [Android saved-state 문서](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)를 따른다.
+`SavedStateHandle`은 task stack에 종속되는 보조 상태다. 미제출 원문은 별도 DraftRepository/Room의 마지막 commit에서 명시 복구한다. 계좌 이름/유형/기준일/미확인 사유는 편집 원문으로 보존하고, 독립 등록과 거래 부모 초안/선택 요청/슬롯을 구분한다. 500ms 저장·focus/이탈/제출 flush·마지막 저장본/실패 안내는 [입력 계약](../transactions/ENTRY.md#재진입과-이전-제출-확인)을 따른다. 이미 제출한 pending의 폐기·수정은 지원하지 않는다. Repository의 영속 제출과 화면의 saved-state 스냅샷을 동일한 보장으로 취급하지 않는다. [Android saved-state 문서](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)를 따른다.
 
-호스트 Activity가 중지될 때 저장된 값만 복원된다. 중지된 동안 제출한 뒤 다시 시작·중지되기 전에 프로세스가 종료되면 task가 남아 있어도 최신 화면 스냅샷이 없을 수 있다. 새 입력 전에 앱의 영속 제출 발견 경계가 기존 참조를 조회하며 자동으로 새 ID를 제출하지 않는다. 아직 Repository에 전달되지 않은 입력까지 영속 복구한다고 보장하지 않는다.
+호스트 Activity의 saved state만으로 최신 입력 보존을 보장하지 않는다. 새 입력 전에 앱의 영속 제출 발견 경계가 기존 참조를 조회하며 자동으로 새 ID를 제출하지 않는다. 초안 flush 뒤 원래 reference/revision/호출 문맥을 제출 캡처와 함께 유지하고, 재시도도 같은 제출에 연결한다. 아직 Room commit이 확인되지 않은 최신 입력과 앱 삭제/DB 손상은 복구 보장 밖이며 S23 수용시험 결과는 자동 시험과 별도로 확인한다.
 
 예상하지 못한 예외는 작업 종류와 예외 클래스명만 Android 로그에 남긴다. 예외 메시지·Throwable·계좌명·금액·ID는 기록하지 않는다. 이 진단 정보가 성공 판정이나 재시도 정책을 바꾸지는 않는다.
 
