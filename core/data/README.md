@@ -36,7 +36,9 @@
 
 ## 스키마와 검증 경계
 
-schema v2는 기존 `ledgers`, `accounts`, `anchors`, `transactions`, `operations`, `submissions`와 활성 참조 `submission_references`를 사용한다. 명시적 v1→v2 Migration은 빈 참조 테이블만 추가하고 기존 여섯 테이블과 원문/hash를 보존한다. 과거 성공에 참조를 역생성하지 않으며 기존 pending은 계속 발견되고 선택 재시도 시 참조가 등록된다. 참조의 복합 키는 `(ledgerId, operationId)`이며 원래 `storageGeneration`을 유지한다. ledger FK만 두고 아직 없는 성공 원장이나 소비되는 pending을 FK 대상으로 삼지 않는다. ABORT 삽입을 사용하며 REPLACE·연쇄 삭제·destructive migration을 사용하지 않는다. 계좌당 현재 기준 상태 하나를 유지한다.
+schema v3는 기존 `ledgers`, `accounts`, `anchors`, `transactions`, `operations`, `submissions`, `submission_references`와 미제출 초안 `form_drafts`를 사용한다. 명시적 v1→v2 Migration은 빈 참조 테이블만, v2→v3는 초안 테이블과 인덱스만 추가하며 기존 행·원문/hash를 보존한다. Room 라이브러리 버전 변경이 아니다. 과거 성공에 참조를 역생성하지 않으며 기존 pending은 계속 발견되고 선택 재시도 시 참조가 등록된다. 참조의 복합 키는 `(ledgerId, operationId)`이며 원래 `storageGeneration`을 유지한다. ledger FK만 두고 아직 없는 성공 원장이나 소비되는 pending을 FK 대상으로 삼지 않는다. ABORT 삽입을 사용하며 REPLACE·연쇄 삭제·destructive migration을 사용하지 않는다. 계좌당 현재 기준 상태 하나를 유지한다.
+
+`DraftRepository`는 별도 계약이며 같은 singleton DB와 기존 금융 writer를 사용한다. 초안 원문은 장부/저장 세대·폼 종류·출처·부모 폼/선택 요청/슬롯으로 구분하고 revision CAS로 갱신한다. 최초 금융 캡처는 초안 잠금과 pending/참조를, 금융 commit은 금융 행·영수증·pending 소비·초안 소비를 각각 한 트랜잭션으로 처리한다. `retryPending`도 연결된 잠금 초안을 함께 소비한다. 초안은 금융 합계나 ledger revision에 포함하지 않는다. 명시 폐기/소비 뒤에는 payload를 지우고 ID/revision fence를 남겨 늦은 autosave를 거부한다. 부모 폐기는 자식·금융 제출을 연쇄 삭제하지 않는다. 자동 만료나 미확정 제출 폐기/수정은 제공하지 않는다. UI·저장·시험 경계는 [초안 복구 계획](../../docs/architecture/unsubmitted-draft-plan.md)을 따른다.
 
 파일 DB는 WAL과 `synchronous=FULL`을 설정한다. Repository의 각 쓰기 트랜잭션에서 현재 writer 설정을 확인하고 불일치하면 거부한다. 이 설정 확인과 호스트 재열기 시험이 실제 기기의 강제 종료·재부팅·전원 손실 시험을 대신하지 않는다.
 

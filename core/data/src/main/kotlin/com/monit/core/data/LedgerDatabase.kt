@@ -174,6 +174,7 @@ internal interface LedgerDao {
             OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM operations)
             OR EXISTS(SELECT 1 FROM submissions)
             OR EXISTS(SELECT 1 FROM submission_references)
+            OR EXISTS(SELECT 1 FROM form_drafts)
     """,
     )
     suspend fun hasBusinessRecords(): Boolean
@@ -186,6 +187,7 @@ internal interface LedgerDao {
             OR EXISTS(SELECT 1 FROM operations b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM submissions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM submission_references b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM form_drafts b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
     """,
     )
     suspend fun hasRecordsWithoutLedger(): Boolean
@@ -261,12 +263,14 @@ internal interface LedgerDao {
     entities = [
         LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
         TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class,
+        FormDraftEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 internal abstract class LedgerDatabase : RoomDatabase() {
     abstract fun ledgerDao(): LedgerDao
+    abstract fun formDraftDao(): FormDraftDao
 
     /** 현재 트랜잭션의 writer 연결 설정을 읽어 내구성 설정이 유실되면 쓰기를 거부한다. */
     fun requireDurableWriter() {
@@ -283,7 +287,7 @@ internal abstract class LedgerDatabase : RoomDatabase() {
 }
 
 internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase = Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
-    .addMigrations(LedgerMigration1To2)
+    .addMigrations(LedgerMigration1To2, LedgerMigration2To3)
     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
     .addCallback(object : RoomDatabase.Callback() {
         override fun onOpen(db: SupportSQLiteDatabase) {
