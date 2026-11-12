@@ -33,6 +33,7 @@ fun TransactionsScreen(
     onKindSelected: (Int) -> Unit,
     onAccountSelected: (String?) -> Unit,
     modifier: Modifier = Modifier,
+    onNewTransaction: (() -> Unit)? = null,
 ) {
     val ui = state.ui
 
@@ -45,6 +46,14 @@ fun TransactionsScreen(
     ) {
         item("title") {
             MonitTopBar("거래")
+        }
+
+        if (onNewTransaction != null && state.load == TransactionsLoadState.READY) item("new-transaction") {
+            MonitButton(
+                "선택한 날짜에 거래 기록",
+                Modifier.fillMaxWidth(),
+                onClick = onNewTransaction,
+            )
         }
 
         item("view") {

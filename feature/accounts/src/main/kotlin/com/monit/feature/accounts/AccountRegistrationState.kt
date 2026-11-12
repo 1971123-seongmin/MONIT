@@ -6,6 +6,10 @@ data class AccountRegistrationState(
     val saveState: AccountSaveState = AccountSaveState.Initializing,
     val inputError: AccountInputError? = null,
     val readState: AccountReadState = AccountReadState.NotRequested,
+    val finishing: Boolean = false,
+    val completionError: Boolean = false,
+    val resultAbsent: Boolean = false,
+    val validationAttempt: Int = 0,
 ) {
     val uiState: AccountRegistrationUiState get() = AccountRegistrationUiState(draft, account, inputError)
     val editable: Boolean get() = saveState == AccountSaveState.Editing

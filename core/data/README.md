@@ -1,6 +1,6 @@
 # 로컬 저장 기반
 
-`LedgerRepository`의 로컬 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `di`의 `LedgerDatabaseModule`·`LedgerClockModule`은 파일 DB와 서울 Clock을 Singleton으로 제공하고, `LedgerRepositoryModule`은 생성자 주입 가능한 Room 구현을 Repository 계약에 Singleton으로 바인딩한다. 홈·거래·계좌 조회 화면이 연결되어 있으며 입력·등록 화면 연결은 후속 범위다.
+`LedgerRepository`의 로컬 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `di`의 `LedgerDatabaseModule`·`LedgerClockModule`은 파일 DB와 서울 Clock을 Singleton으로 제공하고, `LedgerRepositoryModule`은 생성자 주입 가능한 Room 구현을 Repository 계약에 Singleton으로 바인딩한다. 홈·거래·계좌 조회와 [입력·계좌 등록](../../feature/transactions/ENTRY.md)을 연결한다.
 
 공통 실행 의존성은 [core:common](../common/README.md)에서 제공한다. Repository는 `CoroutineContextProvider`를 생성자로 주입받고 `default`로 요청 직렬화·해시·복원 준비를 실행한다. Room 트랜잭션 경계와 호출자 취소는 유지한다. Android Context는 DB 제공부에서 Hilt의 `@ApplicationContext`로 주입하며 Repository나 전역 객체에 보관하지 않는다.
 

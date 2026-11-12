@@ -8,32 +8,127 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.rememberNavController
+import com.monit.app.entry.EntryRecoveryGate
+import com.monit.app.navigation.MainNavigator
 import com.monit.app.navigation.MonitNavHost
 import com.monit.app.navigation.TopLevelDestination
 import com.monit.app.navigation.rememberMainNavigator
 import com.monit.core.designsystem.component.MonitBottomNavigation
+import com.monit.core.designsystem.component.MonitDialog
+import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.core.model.LedgerContext
+import com.monit.core.navigation.NavigationResult
+import com.monit.feature.accounts.AccountRegistrationRoute
 import com.monit.feature.accounts.list.AccountsRoute
+import com.monit.feature.accounts.navigation.AccountRegistrationDestination
+import com.monit.feature.accounts.navigation.AccountRegistrationOrigin
 import com.monit.feature.home.HomeRoute
 import com.monit.feature.transactions.TransactionsRoute
+import com.monit.feature.transactions.entry.TransactionEntryRoute
+import com.monit.feature.transactions.navigation.TransactionEntryDestination
+import com.monit.feature.transactions.navigation.TransactionEntryKind
+import java.time.LocalDate
+import java.util.UUID
 
 @Composable
 fun MonitApp(context: LedgerContext) {
     MonitAppShell(
-        home = {
-            HomeRoute(context)
+        home = { actions ->
+            HomeRoute(
+                context,
+                onNewTransaction = { actions.newTransaction(null) },
+            )
         },
-        transactions = {
-            TransactionsRoute(context)
+        transactions = { actions ->
+            TransactionsRoute(
+                context,
+                onNewTransaction = actions.newTransaction,
+            )
         },
-        accounts = {
-            AccountsRoute(context)
+        accounts = { actions ->
+            AccountsRoute(
+                context,
+                onRegisterAccount = actions.registerAccount,
+            )
+        },
+        transactionEntry = { entry, destination, navigator ->
+            var navigationFailed by remember { mutableStateOf(false) }
+
+            EntryRecoveryGate(
+                context,
+                { navigationFailed = navigator.closeConfirmedTransactionEntry(entry) == NavigationResult.UNAVAILABLE },
+            ) {
+                TransactionEntryRoute(
+                    context,
+                    destination,
+                    entry,
+                    onRegisterAccount = { request ->
+                        navigationFailed = navigator.openAccountRegistration(
+                            entry,
+                            AccountRegistrationDestination(
+                                UUID.randomUUID().toString(),
+                                AccountRegistrationOrigin.TRANSACTION_ENTRY,
+                                destination.entryId,
+                                request,
+                            ),
+                        ) == NavigationResult.UNAVAILABLE
+                    },
+                    onClose = { navigationFailed = navigator.closeConfirmedTransactionEntry(entry) == NavigationResult.UNAVAILABLE },
+                )
+            }
+
+            if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
+        },
+        accountRegistration = { entry, _, navigator ->
+            var navigationFailed by remember { mutableStateOf(false) }
+
+            EntryRecoveryGate(
+                context,
+                { navigationFailed = navigator.closeConfirmedAccountRegistration(entry) == NavigationResult.UNAVAILABLE },
+            ) {
+                AccountRegistrationRoute(
+                    context,
+                    onClose = { navigationFailed = navigator.closeConfirmedAccountRegistration(entry) == NavigationResult.UNAVAILABLE },
+                    onRegistered = { id ->
+                        navigationFailed = navigator.returnFromAccountRegistration(
+                            entry,
+                            id,
+                        ) == NavigationResult.UNAVAILABLE
+                    },
+                )
+            }
+
+            if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
     )
+}
+
+@Composable
+private fun NavigationFailureNotice(onDismiss: () -> Unit) {
+    MonitDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("복귀 경로를 확인해 주세요")
+        },
+        actions = {
+            MonitButton(
+                "현재 화면에서 확인",
+                onClick = onDismiss,
+            )
+        },
+    ) {
+        Text("원래 화면을 찾지 못했어요. 저장된 금융 기록은 그대로이며 다시 저장하지 않아요.")
+    }
 }
 
 /**
@@ -42,9 +137,11 @@ fun MonitApp(context: LedgerContext) {
  */
 @Composable
 internal fun MonitAppShell(
-    home: @Composable () -> Unit,
-    transactions: @Composable () -> Unit,
-    accounts: @Composable () -> Unit,
+    home: @Composable (EntryActions) -> Unit,
+    transactions: @Composable (EntryActions) -> Unit,
+    accounts: @Composable (EntryActions) -> Unit,
+    transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination, MainNavigator) -> Unit)? = null,
+    accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination, MainNavigator) -> Unit)? = null,
 ) {
     val controller = rememberNavController()
     val navigator = rememberMainNavigator(controller)
@@ -90,7 +187,14 @@ internal fun MonitAppShell(
     ) { padding ->
         MonitNavHost(
             controller = controller,
-            home = { home() },
+            home = { entry ->
+                home(
+                    entryActions(
+                        entry,
+                        navigator,
+                    ),
+                )
+            },
             transactions = { entry ->
                 BackHandler(enabled = appState.currentEntry === entry) {
                     navigator.onTopLevelBack(
@@ -98,7 +202,12 @@ internal fun MonitAppShell(
                     )
                 }
 
-                transactions()
+                transactions(
+                    entryActions(
+                        entry,
+                        navigator,
+                    ),
+                )
             },
             accounts = { entry ->
                 BackHandler(enabled = appState.currentEntry === entry) {
@@ -107,9 +216,46 @@ internal fun MonitAppShell(
                     )
                 }
 
-                accounts()
+                accounts(
+                    entryActions(
+                        entry,
+                        navigator,
+                    ),
+                )
             },
             modifier = Modifier.padding(padding),
+            transactionEntry = transactionEntry?.let { content ->
+                { entry, destination ->
+                    content(
+                        entry,
+                        destination,
+                        navigator,
+                    )
+                }
+            },
+            accountRegistration = accountRegistration?.let { content ->
+                { entry, destination ->
+                    content(
+                        entry,
+                        destination,
+                        navigator,
+                    )
+                }
+            },
         )
     }
 }
+
+internal data class EntryActions(
+    val newTransaction: (LocalDate?) -> Unit,
+    val registerAccount: () -> Unit,
+)
+
+private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator) = EntryActions(
+    newTransaction = { date ->
+        navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, date?.toString()))
+    },
+    registerAccount = {
+        navigator.openAccountRegistration(entry, AccountRegistrationDestination(UUID.randomUUID().toString(), AccountRegistrationOrigin.ACCOUNTS))
+    },
+)

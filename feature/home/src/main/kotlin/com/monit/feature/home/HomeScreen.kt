@@ -19,6 +19,7 @@ fun HomeScreen(
     state: HomeState,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onNewTransaction: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
@@ -26,6 +27,14 @@ fun HomeScreen(
     ) {
         item("title") {
             MonitTopBar("이번 달 루틴")
+        }
+
+        if (onNewTransaction != null && state is HomeState.Ready) item("new-transaction") {
+            MonitButton(
+                "거래 기록",
+                Modifier.fillMaxWidth(),
+                onClick = onNewTransaction,
+            )
         }
 
         when (state) {

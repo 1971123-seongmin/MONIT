@@ -82,6 +82,52 @@ class AccountRegistrationViewModelTest {
         assertTrue(repository.requests.isEmpty())
     }
 
+    /** 앱 Ready context를 한 번 연결하며 read-only 발견으로 준비하고 신규 장부를 만들지 않는다. */
+    @Test
+    fun bindReadyContextWithoutCreatingMetadata() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val vm = viewModel(repository, SavedStateHandle())
+        vm.bind(context)
+        vm.bind(context)
+        advanceUntilIdle()
+        assertEquals(AccountSavePhase.EDITING, vm.state.value.phase)
+        assertEquals(1, repository.initializations)
+        assertTrue(repository.requests.isEmpty())
+    }
+
+    /** 지원되는 task 재생성에서 미제출 오류 입력도 그대로 유지한다. 재부팅 영속 초안 시험은 아니다. */
+    @Test
+    fun taskDraftRestoresWithoutSubmitting() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val saved = handle()
+        val first = viewModel(repository, saved)
+        advanceUntilIdle()
+        first.onAction(AccountRegistrationAction.NameChanged("  "))
+        first.onAction(AccountRegistrationAction.AnchorDateChanged("날짜 원문"))
+        val restored = viewModel(repository, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        advanceUntilIdle()
+        assertEquals("  ", restored.state.value.draft.name)
+        assertEquals("날짜 원문", restored.state.value.draft.anchorDate)
+        assertTrue(repository.requests.isEmpty())
+    }
+
+    /** 복원된 초안의 원래 장부 세대가 다르면 현재 context로 바꿔 편집하지 않는다. */
+    @Test
+    fun foreignDraftGenerationBlocksEditing() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val saved = handle()
+        val first = viewModel(repository, saved)
+        advanceUntilIdle()
+        first.onAction(AccountRegistrationAction.NameChanged("합성 계좌"))
+        val bundle = assertNotNull(saved.get<Bundle>(AccountRegistrationViewModel.DRAFT))
+        bundle.putString(AccountRegistrationViewModel.STORAGE_GENERATION, "00000000-0000-0000-0000-000000000099")
+        val restored = viewModel(repository, saved)
+        advanceUntilIdle()
+        assertEquals(AccountProblem.INVALID_RECOVERY, restored.state.value.problem)
+        assertFalse(restored.state.value.editable)
+        assertTrue(repository.requests.isEmpty())
+    }
+
     /** UTC Clock에서도 기본 기준일은 서울 어제이고 빈 이름은 입력 그대로 보존한다. */
     @Test
     fun seoulDateAndValidationPreserveInput() = runTest(dispatcher) {
@@ -453,7 +499,7 @@ class AccountRegistrationViewModelTest {
         val saved = handle()
         ready(repository, saved)
         assertFalse(saved.contains(AccountRegistrationViewModel.SUBMISSION))
-        val restored = viewModel(repository, saved)
+        val restored = viewModel(repository, handle())
         advanceUntilIdle()
         assertEquals("", restored.state.value.uiState.draft.name)
         assertTrue(repository.requests.isEmpty())
@@ -658,7 +704,11 @@ private data class AccountRequest(
 )
 
 private class FakeRepository : LedgerRepository {
-    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot = error("이 테스트는 제출 발견을 호출하지 않는다")
+    override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot {
+        initializations++
+        beforeInitialize()
+        return com.monit.core.model.SubmissionRecoverySnapshot(context, emptyList())
+    }
 
     override suspend fun finishSubmissionRecovery(
         context: LedgerContext,
@@ -683,8 +733,7 @@ private class FakeRepository : LedgerRepository {
     override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot = error("계좌 등록 상태 시험에서 복구 대상 선택을 대신하지 않습니다")
 
     override suspend fun initialize(context: LedgerContext) {
-        initializations++
-        beforeInitialize()
+        error("화면 진입은 장부를 생성하거나 수리하지 않는다")
     }
 
     override suspend fun createAccount(
