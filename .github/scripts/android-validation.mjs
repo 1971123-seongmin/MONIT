@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const targets = {
-  assemble: [':app:assembleDebug'],
+  assemble: [':app:assembleDebug', ':app:assembleQa'],
   tests: [':core:model:test', 'testDebugUnitTest'],
   lint: ['ktlintCheck', 'lintDebug'],
 };

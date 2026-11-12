@@ -110,7 +110,7 @@ test('workflow passes empty outputs directly to the tested adapter instead of tr
 
 test('parallel scopes build the app and preserve all-module unit tests and lint', () => {
   const tasks = ['assemble', 'tests', 'lint'].flatMap(validationTasks);
-  assert.deepEqual(tasks.sort(), [':core:model:test', ':app:assembleDebug', 'testDebugUnitTest', 'ktlintCheck', 'lintDebug'].sort());
+  assert.deepEqual(tasks.sort(), [':core:model:test', ':app:assembleDebug', ':app:assembleQa', 'testDebugUnitTest', 'ktlintCheck', 'lintDebug'].sort());
 });
 
 test('each Android scope uses fixed arguments and preserves bounded workers', () => {
