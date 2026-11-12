@@ -15,6 +15,7 @@ import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.home.navigation.navigateToHome
 import com.monit.feature.transactions.navigation.RegisteredAccountResult
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
+import com.monit.feature.transactions.navigation.TransactionEntryOrigin
 import com.monit.feature.transactions.navigation.TransactionsDestination
 import com.monit.feature.transactions.navigation.navigateToTransactionEntry
 import com.monit.feature.transactions.navigation.navigateToTransactions
@@ -56,7 +57,8 @@ class MainNavigator(private val navigator: Navigator) {
         if (!source.destination.hasRoute<HomeDestination>() &&
             !source.destination.hasRoute<TransactionsDestination>()
         ) return NavigationResult.UNAVAILABLE
-        return navigator.navigateToTransactionEntry(source, destination)
+        val origin = if (source.destination.hasRoute<HomeDestination>()) TransactionEntryOrigin.HOME else TransactionEntryOrigin.TRANSACTIONS
+        return navigator.navigateToTransactionEntry(source, destination.copy(origin = origin))
     }
 
     fun openAccountRegistration(

@@ -14,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.monit.core.designsystem.component.*
@@ -30,6 +31,7 @@ fun AccountRegistrationScreen(
     onAction: (AccountRegistrationAction) -> Unit,
     onBack: () -> Unit,
     onDone: () -> Unit,
+    onFlush: () -> Unit = {},
 ) {
     val draft = state.uiState.draft
     val nameFocus = remember {
@@ -67,6 +69,7 @@ fun AccountRegistrationScreen(
         Modifier
             .fillMaxSize()
             .imePadding()
+            .onFocusChanged { if (!it.hasFocus) onFlush() }
             .verticalScroll(rememberScrollState())
             .padding(MonitTheme.spacing.content),
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.content),
@@ -83,13 +86,29 @@ fun AccountRegistrationScreen(
             },
         )
 
+        state.draftPersistence?.takeIf { !it.frozen }?.let { persistence ->
+            Text(persistence.committed?.let { "확인된 초안 저장본 ${it.reference.revision}" } ?: "아직 보관한 초안이 없어요")
+
+            if (persistence.dirty || persistence.saving) Text("최근 입력 저장 대기")
+
+            if (persistence.failed) {
+                Text(if (persistence.committed == null) "입력한 내용을 아직 보관하지 못했어요." else "최근 입력을 저장하지 못했어요. 마지막 저장본은 보존됩니다.")
+
+                MonitButton(
+                    text = "초안 저장 다시 시도",
+                    onClick = onFlush,
+                )
+            }
+        }
+
         MonitTextField(
             draft.name,
             { onAction(AccountRegistrationAction.NameChanged(it)) },
             Modifier
                 .fillMaxWidth()
                 .focusRequester(nameFocus)
-                .bringIntoViewRequester(nameBring),
+                .bringIntoViewRequester(nameBring)
+                .onFocusChanged { if (!it.isFocused) onFlush() },
             label = "계좌 이름",
             enabled = state.editable,
             errorMessage = if (state.inputError == AccountInputError.NAME) "계좌 이름을 확인해 주세요." else null,
@@ -101,7 +120,8 @@ fun AccountRegistrationScreen(
             Modifier
                 .fillMaxWidth()
                 .focusRequester(dateFocus)
-                .bringIntoViewRequester(dateBring),
+                .bringIntoViewRequester(dateBring)
+                .onFocusChanged { if (!it.isFocused) onFlush() },
             label = "기준일",
             placeholder = {
                 Text("YYYY-MM-DD")
@@ -141,6 +161,7 @@ fun AccountRegistrationScreen(
             AccountSavePhase.EDITING -> MonitButton(
                 "계좌 저장",
                 Modifier.fillMaxWidth(),
+                enabled = state.editable,
                 onClick = { onAction(AccountRegistrationAction.Submit) },
             )
 

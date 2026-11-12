@@ -9,6 +9,7 @@ import com.monit.core.model.AccountStatus
 import com.monit.core.model.BalanceAnchor
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.CreateTransaction
+import com.monit.core.model.DraftSnapshot
 import com.monit.core.model.EntityRef
 import com.monit.core.model.LedgerAccount
 import com.monit.core.model.LedgerConflict
@@ -54,6 +55,85 @@ import org.robolectric.shadows.ShadowLog
 @Config(sdk = [28], manifest = Config.NONE, application = Application::class)
 class AccountRegistrationViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+
+    /** 장부 식별자 없이 남은 초안 참조를 현재 장부의 새 입력으로 바꿔 쓰지 않는다. */
+    @Test fun partialDraftBindingCannotAdoptCurrentLedger() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val saved = SavedStateHandle(mapOf(AccountRegistrationViewModel.DRAFT_ID to "00000000-0000-0000-0000-000000000074"))
+        val model = viewModel(repository, saved)
+        model.bind(context)
+        advanceUntilIdle()
+        assertEquals(AccountProblem.INVALID_RECOVERY, model.state.value.problem)
+        assertFalse(model.state.value.editable)
+        assertEquals(0, repository.initializations)
+        assertEquals(0, repository.drafts.saves)
+        assertTrue(repository.requests.isEmpty())
+    }
+
+    /** 이전 VM/SavedState 없이도 미제출 이름·날짜·유형·사유 원문을 명시 선택하여 복구한다. */
+    @Test fun durableAccountDraftRestoresOnlyAfterExplicitChoice() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val first = ready(repository)
+        first.onAction(AccountRegistrationAction.NameChanged("  합성 원문  "))
+        first.onAction(AccountRegistrationAction.AnchorDateChanged("날짜 불완전"))
+        first.onAction(AccountRegistrationAction.NatureChanged(com.monit.core.model.AccountNature.INVESTMENT))
+        first.onAction(AccountRegistrationAction.UnknownReasonChanged(" 원문 사유\n "))
+        advanceUntilIdle()
+        stores.forEach { it.clear() }
+        val recovered = viewModel(repository)
+        advanceUntilIdle()
+        assertEquals(com.monit.core.common.draft.DraftEditorPhase.CHOOSING, recovered.state.value.draftPersistence?.phase)
+        assertEquals("", recovered.state.value.draft.name)
+        recovered.restoreDraft(assertNotNull(recovered.state.value.draftPersistence).choices.single())
+        advanceUntilIdle()
+        assertEquals(first.state.value.draft, recovered.state.value.draft)
+        assertTrue(repository.requests.isEmpty())
+    }
+
+    /** 계좌 초안 저장 실패는 금융 제출을 막고 수정 없는 재시도로만 다음 단계에 진입한다. */
+    @Test fun accountSubmissionWaitsForDraftCommit() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val model = ready(repository)
+        repository.drafts.failSave = true
+        model.onAction(AccountRegistrationAction.Submit)
+        advanceUntilIdle()
+        assertTrue(repository.requests.isEmpty())
+        assertTrue(assertNotNull(model.state.value.draftPersistence).failed)
+        assertEquals(AccountSavePhase.EDITING, model.state.value.phase)
+        repository.drafts.failSave = false
+        model.onAction(AccountRegistrationAction.Submit)
+        advanceUntilIdle()
+        assertEquals(1, repository.requests.size)
+        assertEquals(AccountSavePhase.SAVED, model.state.value.phase)
+    }
+
+    /** 다른 부모/슬롯의 자식 초안은 독립 계좌 등록에서 적용하지 않는다. */
+    @Test fun childAccountDraftCannotRestoreIntoStandaloneForm() = runTest(dispatcher) {
+        val repository = FakeRepository()
+        val scope = com.monit.core.model.DraftScope(
+            com.monit.core.model.DraftKind.ACCOUNT,
+            com.monit.core.model.DraftOrigin.TRANSACTION_ENTRY,
+            "00000000-0000-0000-0000-000000000071",
+            "00000000-0000-0000-0000-000000000072",
+            com.monit.core.model.DraftSlot.CREDIT,
+        )
+        val choice = repository.drafts.saveDraft(
+            context,
+            "00000000-0000-0000-0000-000000000073",
+            0,
+            scope,
+            com.monit.core.model.DraftContent.Account("자식 초안", com.monit.core.model.AccountNature.GENERAL, "날짜 원문", "사유"),
+        )
+        val model = viewModel(repository)
+        advanceUntilIdle()
+        assertFalse(model.matchesDraft(choice))
+        model.restoreDraft(choice)
+        advanceUntilIdle()
+        assertEquals(com.monit.core.common.draft.DraftEditorPhase.CHOOSING, model.state.value.draftPersistence?.phase)
+        assertEquals("", model.state.value.draft.name)
+        assertTrue(repository.requests.isEmpty())
+        assertEquals(DraftSnapshot.Editable(choice), repository.drafts.draft(context, choice.reference.id))
+    }
     private val clock = Clock.fixed(Instant.parse("2026-11-10T15:30:00Z"), ZoneOffset.UTC)
     private val stores = mutableListOf<ViewModelStore>()
     private val context = LedgerContext(
@@ -324,6 +404,7 @@ class AccountRegistrationViewModelTest {
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
         vm.onAction(AccountRegistrationAction.StartNew)
+        advanceUntilIdle()
         vm.onAction(AccountRegistrationAction.NameChanged("합성 계좌"))
         vm.onAction(AccountRegistrationAction.Submit)
         advanceUntilIdle()
@@ -682,8 +763,9 @@ class AccountRegistrationViewModelTest {
         ),
     )
 
-    private fun viewModel(repository: FakeRepository, saved: SavedStateHandle = handle()) = AccountRegistrationViewModel(repository, clock, saved).also { vm ->
+    private fun viewModel(repository: FakeRepository, saved: SavedStateHandle = handle()) = AccountRegistrationViewModel(repository, clock, saved, repository.drafts).also { vm ->
         stores += ViewModelStore().also { it.put("account", vm) }
+        if (saved.contains(AccountRegistrationViewModel.LEDGER_ID) && saved.contains(AccountRegistrationViewModel.STORAGE_GENERATION)) vm.bind(context)
     }
 
     private fun ready(
@@ -704,6 +786,7 @@ private data class AccountRequest(
 )
 
 private class FakeRepository : LedgerRepository {
+    val drafts = TestDraftRepository(this)
     override suspend fun submissionRecovery(context: LedgerContext): com.monit.core.model.SubmissionRecoverySnapshot {
         initializations++
         beforeInitialize()

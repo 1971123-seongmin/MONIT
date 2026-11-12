@@ -7,6 +7,10 @@ import com.monit.core.model.AccountStatus
 import com.monit.core.model.BalanceAnchor
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.CreateTransaction
+import com.monit.core.model.DraftConflictException
+import com.monit.core.model.DraftProblem
+import com.monit.core.model.DraftReference
+import com.monit.core.model.DraftScope
 import com.monit.core.model.EntityRef
 import com.monit.core.model.FinishSubmissionRecoveryResult
 import com.monit.core.model.LedgerAccount
@@ -216,10 +220,15 @@ internal class RoomLedgerRepository @Inject constructor(
     }
 
     /** 제출 의도를 먼저 commit하고 금융 변경·결과·의도 소비는 다음 단일 트랜잭션에서 확정한다. */
+    internal suspend fun submitFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, command: WriteCommand) = submit(context, operationId, command, DraftAttempt(reference, scope))
+
+    private data class DraftAttempt(val reference: DraftReference, val scope: DraftScope)
+
     private suspend fun submit(
         context: LedgerContext,
         operationId: String,
         command: WriteCommand,
+        draft: DraftAttempt? = null,
     ): WriteReceipt = withContext(coroutineContexts.default) {
         requireLedgerId(operationId)
         val payload = captureWrite(context, command)
@@ -229,8 +238,10 @@ internal class RoomLedgerRepository @Inject constructor(
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)?.let {
                 requireSameRequest(it.requestJson, it.requestSha256, payload, hash)
+                completedDraft(context, operationId, draft)
                 return@withTransaction verifiedReceipt(context, ledger, it)
             }
+            lockDraft(context, operationId, command, draft)
             val reference = dao.submissionReference(context.ledgerId, operationId)
             if (reference != null && reference.storageGeneration != context.storageGeneration) {
                 conflict(LedgerConflict.STALE_GENERATION)
@@ -258,12 +269,14 @@ internal class RoomLedgerRepository @Inject constructor(
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)?.let {
                 requireSameRequest(it.requestJson, it.requestSha256, payload, hash)
+                completedDraft(context, operationId, draft)
                 return@withTransaction verifiedReceipt(context, ledger, it)
             }
             val reference = checkNotNull(dao.submissionReference(context.ledgerId, operationId))
             if (reference.storageGeneration != context.storageGeneration) conflict(LedgerConflict.STALE_GENERATION)
             val pending = checkNotNull(dao.submission(context.ledgerId, operationId))
             requireSameRequest(pending.requestJson, pending.requestSha256, payload, hash)
+            val linked = linkedDraft(context, operationId, command)
             val refs = when (command) {
                 is WriteCommand.Account -> insertAccount(context, command.value)
                 is WriteCommand.Transaction -> insertTransaction(context, command.value)
@@ -290,10 +303,57 @@ internal class RoomLedgerRepository @Inject constructor(
                 ),
             )
             check(dao.deleteSubmission(context.ledgerId, operationId) == 1)
+            linked?.let {
+                Math.addExact(it.revision, 1)
+                check(database.formDraftDao().close(context.ledgerId, context.storageGeneration, it.id, it.revision, "SUBMITTING", "CONSUMED") == 1)
+            }
             currentCoroutineContext().ensureActive()
             result
         }
     }
+
+    private suspend fun lockDraft(context: LedgerContext, operation: String, command: WriteCommand, attempt: DraftAttempt?) {
+        val drafts = database.formDraftDao()
+        if (attempt == null) {
+            linkedDraft(context, operation, command)
+            return
+        }
+        val row = drafts.draft(context.ledgerId, attempt.reference.id) ?: draftConflict(DraftProblem.STALE_REVISION)
+        if (row.storageGeneration != context.storageGeneration || decodeDraftScope(row.scopeJson) != attempt.scope) draftConflict(DraftProblem.WRONG_CONTEXT)
+        if (row.revision != attempt.reference.revision) draftConflict(DraftProblem.STALE_REVISION)
+        if (row.status != "EDITING" && row.status != "SUBMITTING") draftConflict(DraftProblem.CLOSED)
+        check(row.editable(context).matches(command)) { "Draft and submitted value differ" }
+        if (row.status == "SUBMITTING") {
+            check(row.operationId == operation && dao.submission(context.ledgerId, operation) != null && dao.submissionReference(context.ledgerId, operation) != null)
+        } else {
+            check(row.operationId == null)
+            if (dao.submission(context.ledgerId, operation) != null || dao.submissionReference(context.ledgerId, operation) != null) draftConflict(DraftProblem.WRONG_CONTEXT)
+            drafts.requireCaller(context, attempt.scope)
+            check(drafts.lock(context.ledgerId, context.storageGeneration, row.id, row.revision, operation) == 1)
+        }
+    }
+
+    private suspend fun linkedDraft(context: LedgerContext, operation: String, command: WriteCommand): FormDraftEntity? {
+        val row = database.formDraftDao().linked(context.ledgerId, operation) ?: return null
+        check(row.status == "SUBMITTING" && row.operationId == operation)
+        check(row.editable(context).matches(command)) { "Linked draft and captured command differ" }
+        return row
+    }
+
+    private suspend fun completedDraft(context: LedgerContext, operation: String, attempt: DraftAttempt?) {
+        val row = database.formDraftDao().linked(context.ledgerId, operation)
+        if (row == null) {
+            if (attempt != null) draftConflict(DraftProblem.WRONG_CONTEXT)
+            return
+        }
+        check(row.storageGeneration == context.storageGeneration && row.status == "CONSUMED" && row.payloadJson == null && row.payloadSha256 == null)
+        decodeDraftScope(row.scopeJson)
+        if (attempt != null) {
+            if (row.id != attempt.reference.id || row.revision != Math.addExact(attempt.reference.revision, 1) || decodeDraftScope(row.scopeJson) != attempt.scope) draftConflict(DraftProblem.WRONG_CONTEXT)
+        }
+    }
+
+    private fun draftConflict(problem: DraftProblem): Nothing = throw DraftConflictException(problem)
 
     private suspend fun insertAccount(
         context: LedgerContext,
@@ -456,7 +516,7 @@ internal class RoomLedgerRepository @Inject constructor(
         )
     }
 
-    private suspend fun requireContext(context: LedgerContext): LedgerEntity {
+    internal suspend fun requireContext(context: LedgerContext): LedgerEntity {
         val ledger = dao.ledger(context.ledgerId) ?: conflict(LedgerConflict.MISSING_REFERENCE)
         if (ledger.storageGeneration != context.storageGeneration) conflict(LedgerConflict.STALE_GENERATION)
         check(ledger.revision > 0)

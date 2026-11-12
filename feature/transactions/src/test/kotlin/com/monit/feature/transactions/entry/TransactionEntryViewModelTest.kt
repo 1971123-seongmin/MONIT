@@ -31,9 +31,127 @@ class TransactionEntryViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val clock = Clock.fixed(Instant.parse("2026-11-11T15:30:00Z"), ZoneOffset.UTC)
     private val context = LedgerContext(id(1), id(2))
-    private val route = TransactionEntryDestination("form-1", TransactionEntryKind.EXPENSE, "2026-11-03")
+    private val route = TransactionEntryDestination("form-1", TransactionEntryKind.EXPENSE, "2026-11-03", com.monit.feature.transactions.navigation.TransactionEntryOrigin.HOME)
     private val store = ViewModelStore()
     private var next = 0
+
+    /** task context가 없는 초안 ID만으로 현재 장부의 새 편집을 시작하지 않는다. */
+    @Test fun partialDraftReferenceCannotBecomeNewCurrentForm() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        val saved = SavedStateHandle(mapOf(TransactionEntryViewModel.DRAFT_ID to id(74)))
+        val model = vm(repo, saved)
+        model.bind(context, route)
+        advanceUntilIdle()
+        assertEquals(EntryPhase.BLOCKED, model.state.value.phase)
+        assertEquals(0, repo.drafts.saves)
+        assertTrue(repo.writes.isEmpty())
+    }
+
+    /** 새 SavedState의 새 폼도 Room 계약 대역의 원문을 명시 선택한 뒤에만 복구한다. */
+    @Test fun durableRawDraftNeedsExplicitRecoveryInNewForm() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        val first = ready(repo)
+        first.edit { copy(amount = " 00.불완전 ", date = "2026-02-30", memo = " 원문\n ") }
+        advanceUntilIdle()
+        store.clear()
+        val recovered = vm(repo)
+        recovered.bind(context, route.copy(entryId = "new-form"))
+        advanceUntilIdle()
+        assertEquals(com.monit.core.common.draft.DraftEditorPhase.CHOOSING, recovered.state.value.draftPersistence?.phase)
+        assertEquals("", recovered.state.value.ui.amount)
+        val choice = assertNotNull(recovered.state.value.draftPersistence).choices.single()
+        recovered.restoreDraft(choice)
+        advanceUntilIdle()
+        assertEquals(" 00.불완전 ", recovered.state.value.ui.amount)
+        assertEquals("2026-02-30", recovered.state.value.ui.date)
+        assertEquals(" 원문\n ", recovered.state.value.ui.memo)
+        assertEquals(id(10), recovered.state.value.ui.debitAccountId)
+        assertTrue(repo.writes.isEmpty())
+    }
+
+    /** 홈 초안은 거래 탭에서 자동 적용하지 않으며 새 입력은 원래 초안을 지우지 않는다. */
+    @Test fun otherOriginDraftIsNotAppliedOrDeletedByNewInput() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        ready(repo).edit { copy(memo = "홈 원문") }
+        advanceUntilIdle()
+        store.clear()
+        val recovered = vm(repo)
+        recovered.bind(context, route.copy(entryId = "other-form", origin = com.monit.feature.transactions.navigation.TransactionEntryOrigin.TRANSACTIONS))
+        advanceUntilIdle()
+        val choice = assertNotNull(recovered.state.value.draftPersistence).choices.single()
+        assertFalse(recovered.matchesDraft(choice))
+        recovered.restoreDraft(choice)
+        advanceUntilIdle()
+        assertEquals(com.monit.core.common.draft.DraftEditorPhase.CHOOSING, recovered.state.value.draftPersistence?.phase)
+        recovered.newDraft()
+        advanceUntilIdle()
+        recovered.edit { copy(memo = "거래 탭 새 원문") }
+        advanceUntilIdle()
+        assertEquals(2, repo.drafts.drafts(context).size)
+        assertEquals(DraftSnapshot.Editable(choice), repo.drafts.draft(context, choice.reference.id))
+    }
+
+    /** 제출 전 flush 실패는 operation/금융 쓰기를 만들지 않고 입력과 마지막 저장본을 유지한다. */
+    @Test fun failedFlushBlocksFinancialSubmissionUntilExplicitRetry() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        val model = ready(repo)
+        repo.drafts.failSave = true
+        model.submit()
+        advanceUntilIdle()
+        assertTrue(repo.writes.isEmpty())
+        assertEquals(EntryPhase.EDITING, model.state.value.phase)
+        assertTrue(assertNotNull(model.state.value.draftPersistence).failed)
+        assertEquals("2000", model.state.value.ui.amount)
+        repo.drafts.failSave = false
+        model.submit()
+        advanceUntilIdle()
+        assertEquals(1, repo.writes.size)
+        assertEquals(EntryPhase.SAVED, model.state.value.phase)
+    }
+
+    /** 계좌 추가 callback은 부모 초안의 요청/슬롯 commit 확인 후에만 호출한다. */
+    @Test fun registrationNavigationRequiresCommittedParentCaller() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        val model = ready(repo)
+        model.edit { copy(kind = TransactionKind.TRANSFER, memo = "반대편 보존") }
+        model.choose(AccountSlot.CREDIT)
+        advanceUntilIdle()
+        var captured: Triple<String, String, DraftSlot>? = null
+        repo.drafts.failSave = true
+        model.openRegistration { request, parent, slot -> captured = Triple(request, parent, slot) }
+        advanceUntilIdle()
+        assertNull(captured)
+        repo.drafts.failSave = false
+        model.openRegistration { request, parent, slot -> captured = Triple(request, parent, slot) }
+        advanceUntilIdle()
+        val caller = assertNotNull(captured)
+        val parent = (repo.drafts.draft(context, caller.second) as DraftSnapshot.Editable).draft
+        val content = parent.content as DraftContent.Transaction
+        assertEquals(caller.first, content.selectionRequestId)
+        assertEquals(DraftSlot.CREDIT, content.selectionSlot)
+        assertEquals(id(10), content.debitAccountId)
+        assertEquals("반대편 보존", content.memo)
+        assertTrue(repo.writes.isEmpty())
+    }
+
+    /** 보관 이탈 실패는 화면을 닫지 않으며 명시 폐기 성공만 늦은 저장을 막고 닫는다. */
+    @Test fun exitRequiresSuccessfulFlushOrExplicitDiscard() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        val model = ready(repo)
+        var exits = 0
+        repo.drafts.failSave = true
+        model.leave { exits++ }
+        advanceUntilIdle()
+        assertEquals(0, exits)
+        repo.drafts.failSave = false
+        model.leave(discard = true) { exits++ }
+        advanceUntilIdle()
+        assertEquals(1, exits)
+        model.edit { copy(memo = "늦은 입력") }
+        advanceUntilIdle()
+        assertTrue(repo.drafts.drafts(context).isEmpty())
+        assertTrue(repo.writes.isEmpty())
+    }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
@@ -42,7 +160,7 @@ class TransactionEntryViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun vm(repo: EntryRepository, saved: SavedStateHandle = SavedStateHandle()) = TransactionEntryViewModel(repo, clock, saved).also { store.put("entry-${next++}", it) }
+    private fun vm(repo: EntryRepository, saved: SavedStateHandle = SavedStateHandle()) = TransactionEntryViewModel(repo, clock, saved, repo.drafts).also { store.put("entry-${next++}", it) }
 
     /** 최초 선택일만 사용하며 이후 route 재전달이 편집 중 날짜를 덮어쓰지 않는다. */
     @Test fun initialDateDoesNotOverwriteEditedForm() = runTest(dispatcher) {
@@ -287,6 +405,7 @@ class TransactionEntryViewModelTest {
 private fun id(value: Int) = "00000000-0000-0000-0000-${value.toString().padStart(12, '0')}"
 
 private class EntryRepository : LedgerRepository {
+    val drafts = TestDraftRepository(this)
     val writes = mutableListOf<Pair<String, CreateTransaction>>()
     val finished = mutableListOf<String>()
     var beforeWrite: suspend () -> Unit = {}

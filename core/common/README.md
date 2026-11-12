@@ -18,3 +18,5 @@ Room의 suspend DAO·트랜잭션은 Room의 실행 컨텍스트를 유지한다
 취소 시 이미 기록된 제출 의도나 금융 저장의 결과는 취소 예외만으로 판단하지 않는다. [Repository 복구 계약](../data/README.md)과 [계좌 결과 확인·재시도](../../feature/accounts/STATE.md)를 따른다. Provider 테스트는 TestDispatcher 주입으로 실행 위치·Supervisor 실패 격리·Scope 간 취소 격리를 검증한다. Hilt 그래프 컴파일과 기기에서의 실제 주입 검증은 구분한다.
 
 근거: [Android Coroutine 권장 사항](https://developer.android.com/kotlin/coroutines/coroutines-best-practices).
+
+`draft/DraftEditor`는 계좌·거래 ViewModel이 자신의 기본 viewModelScope로 사용하는 초안 저장 coordinator다. 500ms debounce·직렬 flush·마지막 commit revision·명시 복구/폐기를 관리하고 금융 쓰기나 Compose UI를 소유하지 않는다. 영속 원본은 DraftRepository이며 SavedState는 보조 참조다. 상세 경계와 시험은 [초안 복구 계획](../../docs/architecture/unsubmitted-draft-plan.md)에 둔다.

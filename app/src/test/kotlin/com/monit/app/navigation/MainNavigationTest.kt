@@ -234,7 +234,7 @@ class MainNavigationTest {
         openEntry()
         val entry = current()
         assertEquals(
-            TransactionEntryDestination("entry-one", TransactionEntryKind.TRANSFER, "2026-11-01"),
+            TransactionEntryDestination("entry-one", TransactionEntryKind.TRANSFER, "2026-11-01", com.monit.feature.transactions.navigation.TransactionEntryOrigin.HOME),
             entry.toRoute<TransactionEntryDestination>(),
         )
         assertFalse(appState.showBottomBar)

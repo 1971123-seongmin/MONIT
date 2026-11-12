@@ -1,6 +1,7 @@
 package com.monit.feature.accounts.model
 
 import android.os.Bundle
+import com.monit.core.common.draft.DraftSavedState
 import com.monit.core.model.AccountNature
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.LedgerContext
@@ -20,6 +21,7 @@ internal object AccountSubmissionCodec {
         putString("nature", submission.value.nature.name)
         putString("anchorDate", submission.value.anchorDate.toString())
         putString("unknownReason", submission.value.unknownReason)
+        submission.draftSubmission?.let { putBundle("draft", DraftSavedState.submission(it)) }
     }
 
     /** 기존 v1 task도 같은 제출로 읽고, 알 수 없는 형식은 새 제출로 대체하지 않는다. */
@@ -61,6 +63,7 @@ internal object AccountSubmissionCodec {
                 date,
                 fields[8],
             ),
+            (raw as? Bundle)?.getBundle("draft")?.let(DraftSavedState::submission),
         )
     }
 }

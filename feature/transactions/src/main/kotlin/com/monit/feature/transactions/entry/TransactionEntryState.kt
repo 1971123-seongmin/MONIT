@@ -1,5 +1,7 @@
 package com.monit.feature.transactions.entry
 
+import com.monit.core.common.draft.DraftEditorState
+
 data class TransactionEntryState(
     val ui: TransactionEntryUiState = TransactionEntryUiState(),
     val phase: EntryPhase = EntryPhase.LOADING,
@@ -10,4 +12,5 @@ data class TransactionEntryState(
     val resultAbsent: Boolean = false,
     val inputError: TransactionInputError? = null,
     val validationAttempt: Int = 0,
+    val draftPersistence: DraftEditorState? = null,
 )

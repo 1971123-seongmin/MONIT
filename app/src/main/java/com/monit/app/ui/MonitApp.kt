@@ -26,6 +26,10 @@ import com.monit.core.designsystem.component.MonitBottomNavigation
 import com.monit.core.designsystem.component.MonitDialog
 import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.theme.MonitTheme
+import com.monit.core.model.DraftKind
+import com.monit.core.model.DraftOrigin
+import com.monit.core.model.DraftScope
+import com.monit.core.model.DraftSlot
 import com.monit.core.model.LedgerContext
 import com.monit.core.navigation.NavigationResult
 import com.monit.feature.accounts.AccountRegistrationRoute
@@ -72,7 +76,7 @@ fun MonitApp(context: LedgerContext) {
                     context,
                     destination,
                     entry,
-                    onRegisterAccount = { request ->
+                    onRegisterAccount = { request, parent, slot ->
                         navigationFailed = navigator.openAccountRegistration(
                             entry,
                             AccountRegistrationDestination(
@@ -80,6 +84,8 @@ fun MonitApp(context: LedgerContext) {
                                 AccountRegistrationOrigin.TRANSACTION_ENTRY,
                                 destination.entryId,
                                 request,
+                                parent,
+                                slot.name,
                             ),
                         ) == NavigationResult.UNAVAILABLE
                     },
@@ -89,7 +95,7 @@ fun MonitApp(context: LedgerContext) {
 
             if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
-        accountRegistration = { entry, _, navigator ->
+        accountRegistration = { entry, destination, navigator ->
             var navigationFailed by remember { mutableStateOf(false) }
 
             EntryRecoveryGate(
@@ -104,6 +110,18 @@ fun MonitApp(context: LedgerContext) {
                             entry,
                             id,
                         ) == NavigationResult.UNAVAILABLE
+                    },
+                    draftScope = remember(destination) {
+                        runCatching {
+                            if (destination.origin == AccountRegistrationOrigin.ACCOUNTS) DraftScope(DraftKind.ACCOUNT, DraftOrigin.ACCOUNTS)
+                            else DraftScope(
+                                DraftKind.ACCOUNT,
+                                DraftOrigin.TRANSACTION_ENTRY,
+                                requireNotNull(destination.callerDraftId),
+                                requireNotNull(destination.selectionRequestId),
+                                DraftSlot.valueOf(requireNotNull(destination.selectionSlot)),
+                            )
+                        }.getOrNull()
                     },
                 )
             }

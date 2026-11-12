@@ -15,8 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import com.monit.core.common.draft.DraftEditorPhase
 import com.monit.core.designsystem.component.*
 import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.component.button.MonitButtonType
@@ -40,9 +42,10 @@ fun TransactionEntryScreen(
     onReload: () -> Unit,
     onDone: () -> Unit,
     onBack: () -> Unit,
+    onFlush: () -> Unit = {},
 ) {
     val ui = state.ui
-    val editable = state.phase == EntryPhase.EDITING
+    val editable = state.phase == EntryPhase.EDITING && (state.draftPersistence == null || state.draftPersistence.phase == DraftEditorPhase.EDITING) && state.draftPersistence?.frozen != true
     val kinds = listOf(
         TransactionKind.EXPENSE,
         TransactionKind.INCOME,
@@ -71,6 +74,7 @@ fun TransactionEntryScreen(
         Modifier
             .fillMaxSize()
             .imePadding()
+            .onFocusChanged { if (!it.hasFocus) onFlush() }
             .verticalScroll(rememberScrollState())
             .padding(MonitTheme.spacing.content),
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.content),
@@ -86,6 +90,21 @@ fun TransactionEntryScreen(
                 }
             },
         )
+
+        state.draftPersistence?.takeIf { !it.frozen }?.let { persistence ->
+            Text(persistence.committed?.let { "확인된 초안 저장본 ${it.reference.revision}" } ?: "아직 보관한 초안이 없어요")
+
+            if (persistence.dirty || persistence.saving) Text("최근 입력 저장 대기")
+
+            if (persistence.failed) {
+                Text(if (persistence.committed == null) "입력한 내용을 아직 보관하지 못했어요." else "최근 입력을 저장하지 못했어요. 마지막 저장본은 보존됩니다.")
+
+                MonitButton(
+                    text = "초안 저장 다시 시도",
+                    onClick = onFlush,
+                )
+            }
+        }
 
         if (state.phase in listOf(
                 EntryPhase.EDITING,
@@ -111,7 +130,8 @@ fun TransactionEntryScreen(
                 Modifier
                     .fillMaxWidth()
                     .focusRequester(focus.getValue(TransactionInputError.AMOUNT))
-                    .bringIntoViewRequester(bring.getValue(TransactionInputError.AMOUNT)),
+                    .bringIntoViewRequester(bring.getValue(TransactionInputError.AMOUNT))
+                    .onFocusChanged { if (!it.isFocused) onFlush() },
                 label = "금액 (원)",
                 errorMessage = state.inputError?.takeIf { it == TransactionInputError.AMOUNT }?.message,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -124,7 +144,8 @@ fun TransactionEntryScreen(
                 Modifier
                     .fillMaxWidth()
                     .focusRequester(focus.getValue(TransactionInputError.DATE))
-                    .bringIntoViewRequester(bring.getValue(TransactionInputError.DATE)),
+                    .bringIntoViewRequester(bring.getValue(TransactionInputError.DATE))
+                    .onFocusChanged { if (!it.isFocused) onFlush() },
                 label = "거래일",
                 errorMessage = state.inputError?.takeIf { it == TransactionInputError.DATE }?.message,
                 placeholder = {
@@ -159,7 +180,8 @@ fun TransactionEntryScreen(
                 Modifier
                     .fillMaxWidth()
                     .focusRequester(focus.getValue(TransactionInputError.MEMO))
-                    .bringIntoViewRequester(bring.getValue(TransactionInputError.MEMO)),
+                    .bringIntoViewRequester(bring.getValue(TransactionInputError.MEMO))
+                    .onFocusChanged { if (!it.isFocused) onFlush() },
                 label = "메모 (선택)",
                 enabled = editable,
                 errorMessage = state.inputError?.takeIf { it == TransactionInputError.MEMO }?.message,
@@ -183,6 +205,7 @@ fun TransactionEntryScreen(
             EntryPhase.EDITING -> MonitButton(
                 "저장",
                 Modifier.fillMaxWidth(),
+                enabled = editable,
                 onClick = onSubmit,
             )
 

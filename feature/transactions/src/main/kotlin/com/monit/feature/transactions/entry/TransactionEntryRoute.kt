@@ -5,11 +5,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
+import com.monit.core.common.draft.DraftEditorPhase
 import com.monit.core.designsystem.component.MonitDialog
 import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.component.button.MonitButtonType
+import com.monit.core.model.DraftSlot
 import com.monit.core.model.LedgerContext
 import com.monit.feature.transactions.navigation.RegisteredAccountResultEffect
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
@@ -19,7 +23,7 @@ fun TransactionEntryRoute(
     context: LedgerContext,
     destination: TransactionEntryDestination,
     entry: NavBackStackEntry,
-    onRegisterAccount: (String) -> Unit,
+    onRegisterAccount: (String, String, DraftSlot) -> Unit,
     onClose: () -> Unit,
     viewModel: TransactionEntryViewModel = hiltViewModel(),
 ) {
@@ -33,6 +37,8 @@ fun TransactionEntryRoute(
             destination,
         )
     }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.flushDraft() }
 
     BackHandler {
         if (state.slot != null && state.phase == EntryPhase.EDITING) viewModel.dismissPicker()
@@ -52,20 +58,33 @@ fun TransactionEntryRoute(
         )
     }
 
-    TransactionEntryScreen(
+    val persistence = state.draftPersistence
+
+    if (persistence != null && persistence.phase != DraftEditorPhase.EDITING) {
+        TransactionDraftRecovery(
+            persistence,
+            viewModel::matchesDraft,
+            viewModel::newDraft,
+            viewModel::restoreDraft,
+            viewModel::discardDraft,
+            viewModel::reloadDrafts,
+            onClose,
+        )
+    } else TransactionEntryScreen(
         state = state,
         onEdit = viewModel::edit,
         onChoose = viewModel::choose,
         onCandidate = viewModel::selectCandidate,
         onApply = viewModel::applyCandidate,
         onDismissPicker = viewModel::dismissPicker,
-        onAddAccount = { viewModel.beginRegistration()?.let(onRegisterAccount) },
+        onAddAccount = { viewModel.openRegistration(onRegisterAccount) },
         onSubmit = viewModel::submit,
         onCheck = { viewModel.check() },
         onRetrySave = { viewModel.check(allowWrite = true) },
         onReload = viewModel::reload,
         onDone = { viewModel.finish(onClose) },
         onBack = { exit = true },
+        onFlush = viewModel::flushDraft,
     )
 
     if (returnProblem) MonitDialog(
@@ -95,12 +114,27 @@ fun TransactionEntryRoute(
             )
 
             MonitButton(
-                "나가기",
+                "보관하고 나가기",
                 type = MonitButtonType.Secondary,
+                onClick = { viewModel.leave(onFinished = onClose) },
+            )
+
+            if (persistence?.phase == DraftEditorPhase.EDITING && !persistence.frozen) MonitButton(
+                "초안 폐기하고 나가기",
+                type = MonitButtonType.Secondary,
+                enabled = !persistence.saving,
+                onClick = { viewModel.leave(discard = true, onFinished = onClose) },
+            )
+
+            if (persistence?.failed == true) MonitButton(
+                text = "저장 없이 나가기",
                 onClick = onClose,
             )
         },
     ) {
-        Text("아직 제출하지 않은 입력은 사라질 수 있어요. 이미 제출한 기록은 취소되지 않으며 결과를 다시 확인할 수 있어요.")
+        Text(
+            if (persistence?.failed == true) "최근 입력을 저장하지 못했어요. 저장 없이 나가면 마지막 저장본 이후 입력은 사라질 수 있어요."
+            else "보관한 미제출 초안은 다음에 직접 복구할 수 있어요. 이미 제출한 기록은 취소되지 않아요.",
+        )
     }
 }
