@@ -62,6 +62,38 @@ class PaymentsViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
     }
 
+    /** 알림의 원래 월/회차는 조회로만 열고 초안·거래·완료를 자동 생성하지 않는다. */
+    @Test fun notificationDestinationOpensOriginalItemWithoutWrites() = runTest(dispatcher) {
+        val env = PaymentTestEnvironment()
+        val model = PaymentsViewModel(env.payments, env.ledger, env.drafts, clock, contexts, SavedStateHandle())
+        store.put("notification", model)
+        model.bind(env.context, "notification-entry", "2026-11", paymentTestId(50))
+        advanceUntilIdle()
+        assertEquals(PaymentsMode.DETAIL, model.state.value.mode)
+        assertEquals(paymentTestId(50), model.state.value.ui.selected!!.id)
+        assertEquals(listOf("2026-11"), env.reads)
+        assertTrue(env.calls.isEmpty())
+        assertTrue(env.rows.isEmpty())
+    }
+
+    /** 오래된 없는 항목은 해당 월 목록으로, 잘못된 월은 실패로 분리하고 금융 쓰기는 없다. */
+    @Test fun missingOrMalformedNotificationTargetNeverCreatesAnItem() = runTest(dispatcher) {
+        val env = PaymentTestEnvironment()
+        val missing = PaymentsViewModel(env.payments, env.ledger, env.drafts, clock, contexts, SavedStateHandle())
+        store.put("missing-notification", missing)
+        missing.bind(env.context, "missing-entry", "2026-11", paymentTestId(999))
+        advanceUntilIdle()
+        assertEquals(PaymentsMode.MONTH, missing.state.value.mode)
+        assertNull(missing.state.value.ui.selected)
+        val invalid = PaymentsViewModel(env.payments, env.ledger, env.drafts, clock, contexts, SavedStateHandle())
+        store.put("invalid-notification", invalid)
+        invalid.bind(env.context, "invalid-entry", "2026-13")
+        advanceUntilIdle()
+        assertEquals(PaymentsPhase.BLOCKED, invalid.state.value.phase)
+        assertTrue(env.calls.isEmpty())
+        assertTrue(env.rows.isEmpty())
+    }
+
     /** 월별 조회·폼 입력·검토는 금융 제출 없이 원문만 보존한다. */
     @Test fun readInputAndReviewNeverSubmitBeforeFinalConfirmation() = runTest(dispatcher) {
         val env = PaymentTestEnvironment()

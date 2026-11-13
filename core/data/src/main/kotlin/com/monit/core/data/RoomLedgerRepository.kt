@@ -340,6 +340,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 ) != 1
             ) conflict(LedgerConflict.STALE_REVISION)
             val result = WriteReceipt(operationId, Math.addExact(ledger.revision, 1), refs)
+            database.reminderDao().dirty(context.ledgerId)
             val kind = when (command) {
                 is WriteCommand.Payment -> command.value.kind
                 is WriteCommand.Account -> "UPDATE_ACCOUNT"

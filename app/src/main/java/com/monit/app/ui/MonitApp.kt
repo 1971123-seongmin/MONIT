@@ -10,11 +10,16 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.rememberNavController
 import com.monit.app.entry.EntryRecoveryGate
@@ -22,6 +27,8 @@ import com.monit.app.navigation.MainNavigator
 import com.monit.app.navigation.MonitNavHost
 import com.monit.app.navigation.TopLevelDestination
 import com.monit.app.navigation.rememberMainNavigator
+import com.monit.app.notifications.ReminderOpenViewModel
+import com.monit.app.notifications.ReminderSettingsContent
 import com.monit.core.designsystem.component.MonitBottomNavigation
 import com.monit.core.designsystem.component.MonitDialog
 import com.monit.core.designsystem.component.button.MonitButton
@@ -31,6 +38,7 @@ import com.monit.core.model.DraftOrigin
 import com.monit.core.model.DraftScope
 import com.monit.core.model.DraftSlot
 import com.monit.core.model.LedgerContext
+import com.monit.core.model.ReminderLink
 import com.monit.core.navigation.NavigationResult
 import com.monit.feature.accounts.AccountRegistrationRoute
 import com.monit.feature.accounts.importing.ImportPreviewRoute
@@ -48,13 +56,38 @@ import java.time.LocalDate
 import java.util.UUID
 
 @Composable
-fun MonitApp(context: LedgerContext) {
+fun MonitApp(
+    context: LedgerContext,
+    reminderToken: String? = null,
+    onReminderConsumed: (String) -> Unit = {},
+    onReschedule: () -> Unit = {},
+) {
+    val openModel: ReminderOpenViewModel = hiltViewModel()
+    val opening by openModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(
+        context,
+        reminderToken,
+    ) {
+        if (reminderToken != null) openModel.resolve(context, reminderToken) else openModel.clear()
+    }
+
+    val consumeReminder: (String) -> Unit = { token ->
+        if (reminderToken == token) {
+            openModel.clear()
+            onReminderConsumed(token)
+        }
+    }
+
     MonitAppShell(
+        reminderLink = opening.link?.takeIf { it.token == reminderToken },
+        onReminderConsumed = consumeReminder,
         home = { actions ->
             HomeRoute(
                 context,
                 onNewTransaction = { actions.newTransaction(null) },
                 onPayments = actions.payments,
+                onReminders = actions.reminders,
             )
         },
         transactions = { actions ->
@@ -83,8 +116,21 @@ fun MonitApp(context: LedgerContext) {
                     entryId = destination.entryId,
                     onClose = { navigationFailed = navigator.closePayments(entry) == NavigationResult.UNAVAILABLE },
                     onEditTransaction = { id -> navigationFailed = navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, transactionId = id)) == NavigationResult.UNAVAILABLE },
+                    initialMonth = destination.month,
+                    initialItem = destination.itemId,
                 )
             }
+            if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
+        },
+        reminderSettings = { entry, navigator ->
+            var navigationFailed by remember { mutableStateOf(false) }
+
+            ReminderSettingsContent(
+                context = context,
+                onBack = { navigationFailed = navigator.closeReminderSettings(entry) == NavigationResult.UNAVAILABLE },
+                onReschedule = onReschedule,
+            )
+
             if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
         importPreview = { entry, navigator ->
@@ -161,6 +207,26 @@ fun MonitApp(context: LedgerContext) {
             if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
     )
+
+    if (opening.failed) {
+        MonitDialog(
+            onDismissRequest = { reminderToken?.let(consumeReminder) },
+            title = { Text("알림 대상을 확인하지 못했어요") },
+            actions = {
+                MonitButton(
+                    text = "목록에서 확인",
+                    onClick = { reminderToken?.let(consumeReminder) },
+                )
+
+                MonitButton(
+                    text = "다시 확인",
+                    onClick = { reminderToken?.let { openModel.resolve(context, it, retry = true) } },
+                )
+            },
+        ) {
+            Text("오래된 알림이거나 저장 내용을 읽지 못했어요. 금융 기록과 납입 상태는 바꾸지 않았습니다.")
+        }
+    }
 }
 
 @Composable
@@ -194,12 +260,30 @@ internal fun MonitAppShell(
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination, MainNavigator) -> Unit)? = null,
     importPreview: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
     payments: (@Composable (NavBackStackEntry, PaymentsDestination, MainNavigator) -> Unit)? = null,
+    reminderSettings: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
+    reminderLink: ReminderLink? = null,
+    onReminderConsumed: (String) -> Unit = {},
 ) {
     val controller = rememberNavController()
     val navigator = rememberMainNavigator(controller)
     val appState = rememberMonitAppState(controller)
     val currentEntry = appState.currentEntry
     val selected = appState.currentTopLevelDestination
+
+    currentEntry?.let { source ->
+        val lifecycle by source.lifecycle.currentStateFlow.collectAsState()
+
+        LaunchedEffect(
+            reminderLink,
+            source,
+            lifecycle,
+        ) {
+            val link = reminderLink ?: return@LaunchedEffect
+            if (lifecycle != Lifecycle.State.RESUMED || !appState.showBottomBar || payments == null) return@LaunchedEffect
+            val result = navigator.openReminderPayments(source, PaymentsDestination(UUID.randomUUID().toString(), link.month, link.itemId))
+            if (result == NavigationResult.EXECUTED) onReminderConsumed(link.token)
+        }
+    }
 
     Scaffold(
         modifier = Modifier
@@ -246,6 +330,7 @@ internal fun MonitAppShell(
                         navigator,
                         importPreview != null,
                         payments != null,
+                        reminderSettings != null,
                     ),
                 )
             },
@@ -307,6 +392,14 @@ internal fun MonitAppShell(
                     )
                 }
             },
+            reminderSettings = reminderSettings?.let { content ->
+                { entry ->
+                    content(
+                        entry,
+                        navigator,
+                    )
+                }
+            },
             importPreview = importPreview?.let { content ->
                 { entry -> content(entry, navigator) }
             },
@@ -320,9 +413,16 @@ internal data class EntryActions(
     val previewImport: (() -> Unit)?,
     val editTransaction: (String) -> Unit = {},
     val payments: (() -> Unit)? = null,
+    val reminders: (() -> Unit)? = null,
 )
 
-private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false) = EntryActions(
+private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false, remindersEnabled: Boolean = false) = EntryActions(
+    reminders = if (remindersEnabled) (
+        {
+            navigator.openReminderSettings(entry)
+            Unit
+        }
+        ) else null,
     newTransaction = { date ->
         navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, date?.toString()))
     },

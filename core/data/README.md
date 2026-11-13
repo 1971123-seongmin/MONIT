@@ -1,5 +1,7 @@
 # 로컬 저장 기반
 
+schema 6의 알림 선호·dirty·일별 요약 식별자와 비파괴 v5→v6, 금융/OS 분리·향후 복원 경계는 [알림 상태](../../feature/home/REMINDERS.md)를 따른다. OS 권한·예약은 데이터 계약의 성공 결과와 구분한다.
+
 현재 거래 수정·논리 삭제는 [거래 상태](../../feature/transactions/STATE.md), 신규 schema 5의 월별 납입·단일 outer writer·원래 intent/명시 해제 경계는 [납입 상태](../../feature/home/STATE.md)를 따른다. 아래 생성 v1/초안의 두 단계 설명은 기존 경로이며 납입 전용 writer와 구분한다. v4→v5는 기존 열·행·원문/hash를 보존하고 납입 테이블 6개만 추가한다.
 
 `LedgerRepository`의 로컬 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `di`의 `LedgerDatabaseModule`·`LedgerClockModule`은 파일 DB와 서울 Clock을 Singleton으로 제공하고, `LedgerRepositoryModule`은 생성자 주입 가능한 Room 구현을 Repository 계약에 Singleton으로 바인딩한다. 홈·거래·계좌 조회와 [입력·계좌 등록](../../feature/transactions/ENTRY.md)을 연결한다.

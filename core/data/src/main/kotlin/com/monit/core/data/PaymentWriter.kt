@@ -82,6 +82,7 @@ internal class PaymentWriter(private val database: LedgerDatabase, private val c
             val refs = store.apply(context, operation, command) { value -> ledger.insertTransaction(context, value) }
             if (records.advanceRevision(context.ledgerId, base.revision) != 1) throw LedgerConflictException(LedgerConflict.STALE_REVISION)
             val receipt = WriteReceipt(operation, Math.addExact(base.revision, 1), refs)
+            database.reminderDao().dirty(context.ledgerId)
             records.insertOperation(OperationEntity(context.ledgerId, operation, context.storageGeneration, command.kind, raw, hash, clock.instant().toString(), receipt.ledgerRevision, encodeRefs(refs)))
             check(records.deleteSubmission(context.ledgerId, operation) == 1)
             original.draft?.let {

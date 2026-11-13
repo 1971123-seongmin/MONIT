@@ -23,6 +23,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onNewTransaction: (() -> Unit)? = null,
     onPayments: (() -> Unit)? = null,
+    onReminders: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
@@ -30,6 +31,14 @@ fun HomeScreen(
     ) {
         item("title") {
             MonitTopBar("이번 달 루틴")
+        }
+
+        if (onReminders != null) item("reminder-settings", "action") {
+            MonitButton(
+                text = "알림 설정",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onReminders,
+            )
         }
 
         if (onNewTransaction != null && state is HomeState.Ready) item("new-transaction") {

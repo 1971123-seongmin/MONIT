@@ -5,3 +5,5 @@
 `HomeDestination`·`navigateToHome`·`homeScreen`은 feature의 탐색 계약이다. app이 검증한 장부 context를 전달하며 화면 재개 시 다시 조회한다. 계산·표시 준비는 주입한 default dispatcher에서 수행한다. Preview는 고정 날짜와 빈 UI 자료를 사용하며 금융 성공 증거가 아니다.
 
 탭·Back 정책은 app의 MainNavigator, 실행·수명 검증은 [core:navigation](../../core/navigation/README.md)이 소유한다.
+
+홈의 알림 설정·일정별 선호·권한 복귀와 월별 조회 진입은 [알림 구현 상태](REMINDERS.md)를 따른다. 실제 금융 완료와 OS 알림·호스트/실기기 검증을 구분한다.
