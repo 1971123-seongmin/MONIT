@@ -3,6 +3,7 @@ package com.monit.app.backup
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.monit.core.common.io.LocalDataWorkGate
 import com.monit.core.model.*
 import com.monit.feature.home.backup.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,7 @@ internal class BackupViewModel @Inject constructor(
     private val documents: BackupDocumentAccess,
     private val recovery: RecoveryCopyStore,
     private val notifications: BackupNotifications,
-    private val workGate: BackupWorkGate,
+    private val workGate: LocalDataWorkGate,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(BackupState())
     val state = mutable.asStateFlow()
@@ -35,6 +36,7 @@ internal class BackupViewModel @Inject constructor(
     private var picker: Boolean? = null
     private var preview: RestorePreview? = null
     private var result: RestoreResult? = null
+    private var verifiedExport: BackupExportReceipt? = null
     private var job: Job? = null
     private var monitor: Job? = null
     private var workVersion = 0L
@@ -52,7 +54,7 @@ internal class BackupViewModel @Inject constructor(
 
     fun picking(export: Boolean): Boolean {
         if (workGate.held) {
-            mutable.value = state.value.copy(ui = state.value.ui.copy(message = "이전 백업 작업의 실제 종료를 기다리고 있어요. 종료 확인 뒤 다시 시도해주세요."))
+            mutable.value = state.value.copy(ui = state.value.ui.copy(message = "이전 파일 작업의 실제 종료를 기다리고 있어요. 종료 확인 뒤 다시 시도해주세요."))
             return false
         }
         if (isRunning || state.value.phase != BackupPhase.ENTRY || picker != null) return false
@@ -75,6 +77,7 @@ internal class BackupViewModel @Inject constructor(
 
     fun entry(message: String? = null) {
         if (isRunning) return
+        verifiedExport = null
         preview?.let { repository.discardPreview(it.id) }
         preview = null
         document = null
@@ -99,7 +102,7 @@ internal class BackupViewModel @Inject constructor(
         confirmation.fill('\u0000')
         val lease = workGate.acquire() ?: run {
             password.fill('\u0000')
-            mutable.value = state.value.copy(ui = state.value.ui.copy(message = "이전 백업 작업의 실제 종료를 기다리고 있어요."))
+            mutable.value = state.value.copy(ui = state.value.ui.copy(message = "이전 파일 작업의 실제 종료를 기다리고 있어요."))
             return
         }
         val token = ++workVersion
@@ -120,7 +123,7 @@ internal class BackupViewModel @Inject constructor(
                     val readBack = documents.writeAndRead(target, file.encrypted)
                     try {
                         currentCoroutineContext().ensureActive()
-                        repository.verifyExport(current, file.id, readBack, verifyPassword) { stage(token, it) }
+                        verifiedExport = repository.verifyExport(current, file.id, readBack, verifyPassword) { stage(token, it) }
                         currentCoroutineContext().ensureActive()
                     } finally {
                         readBack.fill(0)
@@ -161,12 +164,14 @@ internal class BackupViewModel @Inject constructor(
         }
     }
 
+    fun verifiedExportId(): String? = verifiedExport?.id?.takeIf { state.value.phase == BackupPhase.EXPORTED && !isRunning }
+
     /** 마지막 확인 버튼에서만 호출한다. 실패 응답만으로 이전/새 상태를 추정하지 않는다. */
     fun restore() {
         val value = preview ?: return
         if (isRunning || state.value.phase != BackupPhase.PREVIEW) return
         val lease = workGate.acquire() ?: run {
-            mutable.value = state.value.copy(ui = state.value.ui.copy(message = "이전 백업 작업의 실제 종료를 기다리고 있어요."))
+            mutable.value = state.value.copy(ui = state.value.ui.copy(message = "이전 파일 작업의 실제 종료를 기다리고 있어요."))
             return
         }
         val token = ++workVersion

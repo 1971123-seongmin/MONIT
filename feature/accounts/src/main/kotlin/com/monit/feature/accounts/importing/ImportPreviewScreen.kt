@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,6 +33,12 @@ fun ImportPreviewScreen(
     modifier: Modifier = Modifier,
     problem: String? = null,
     checking: Boolean = false,
+    controls: LazyListScope.() -> Unit = {},
+    onConfirmRow: (String) -> Unit = {},
+    onDistinctRow: (String) -> Unit = {},
+    onExcludeRow: (String) -> Unit = {},
+    onSelectGroup: (String) -> Unit = {},
+    selectedGroup: Set<String> = emptySet(),
 ) {
     LazyColumn(
         modifier = modifier
@@ -41,7 +48,7 @@ fun ImportPreviewScreen(
     ) {
         item("title") {
             MonitTopBar(
-                title = "이관 미리보기",
+                title = "이관 검토와 반영",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -54,27 +61,46 @@ fun ImportPreviewScreen(
         }
 
         item("boundary") {
-            Text("원본과 앱 기록을 변경하지 않는 검토 화면이에요. 실제 반영 0건")
+            Text(
+                when (phase) {
+                    ImportPreviewPhase.RESULT -> "저장된 확정 결과예요. 보류·제외 항목은 자동 반영하지 않았어요."
+                    ImportPreviewPhase.RECOVERY, ImportPreviewPhase.APPLYING, ImportPreviewPhase.STOPPING -> "반영 여부는 저장된 결과로 확인해요. 자동 재실행하지 않아요."
+                    else -> "최종 확인 전에는 금융 기록을 반영하지 않아요. 원본 파일은 수정하지 않아요."
+                },
+            )
         }
 
         item("file") {
             MonitButton(
                 text = "검토 파일 선택",
                 modifier = Modifier.fillMaxWidth(),
-                enabled = phase != ImportPreviewPhase.LOADING && phase != ImportPreviewPhase.BLOCKED,
+                enabled = phase in setOf(ImportPreviewPhase.EMPTY, ImportPreviewPhase.READY, ImportPreviewPhase.STALE, ImportPreviewPhase.FAILED),
                 onClick = onSelectFile,
             )
         }
+
+        controls()
 
         when (phase) {
             ImportPreviewPhase.EMPTY -> item("empty") {
                 Text("정의된 검토 JSON 파일을 선택해 주세요. 일반 Notion CSV나 웹 페이지는 직접 읽지 않아요.")
             }
 
-            ImportPreviewPhase.LOADING -> item("loading") {
+            ImportPreviewPhase.LOADING, ImportPreviewPhase.APPLYING, ImportPreviewPhase.STOPPING -> item("loading") {
                 MonitStatusPanel(
                     title = "파일과 장부를 확인 중이에요",
-                    description = "읽기와 비교만 진행해요. 금융 기록은 저장하지 않아요.",
+                    description = problem ?: if (phase == ImportPreviewPhase.APPLYING) "확인한 집합을 한 번에 반영하고 있어요." else "작업의 실제 종료 전에는 새 처리를 시작하지 않아요.",
+                )
+            }
+
+            ImportPreviewPhase.RESULT -> item("result") {
+                MonitCard(Modifier.fillMaxWidth()) { Text(ui.resultSummary ?: "저장된 결과를 다시 조회해 주세요.") }
+            }
+
+            ImportPreviewPhase.RECOVERY -> item("recovery") {
+                MonitStatusPanel(
+                    title = "저장된 이관 결과 확인",
+                    description = problem ?: "이전 요청의 확정 결과를 조회해 주세요. 자동 재반영하지 않아요.",
                 )
             }
 
@@ -163,6 +189,30 @@ fun ImportPreviewScreen(
                         Text(row.decision)
 
                         Text(row.detail)
+
+                        if (phase == ImportPreviewPhase.READY) {
+                            if (row.canConfirm) MonitButton(
+                                text = "이 원본 행 반영 확인",
+                                onClick = { onConfirmRow(row.locator) },
+                            )
+
+                            if (row.canDistinct) MonitButton(
+                                text = "유사 기록과 별개의 거래임을 명시 확인",
+                                onClick = { onDistinctRow(row.locator) },
+                            )
+
+                            if (row.canGroup) MonitButton(
+                                text = if (row.locator in selectedGroup) "이체 묶음 선택 해제" else "명시 이체 묶음에 선택",
+                                type = MonitButtonType.Secondary,
+                                onClick = { onSelectGroup(row.locator) },
+                            )
+
+                            MonitButton(
+                                text = "이 원본 행 제외 확인",
+                                type = MonitButtonType.Secondary,
+                                onClick = { onExcludeRow(row.locator) },
+                            )
+                        }
 
                         MonitButton(
                             text = if (expanded) "원문 근거 접기" else "원문 근거 보기",

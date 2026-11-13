@@ -17,7 +17,9 @@ import java.time.ZoneId
 internal fun BackupContent(
     context: LedgerContext,
     onBack: () -> Unit,
-    onRestored: () -> Unit,
+    onRestored: () -> Unit = {},
+    exportOnly: Boolean = false,
+    onExportVerified: (String) -> Unit = {},
     viewModel: BackupViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -25,7 +27,10 @@ internal fun BackupContent(
     var confirmation by remember { mutableStateOf("") }
     val window = LocalActivity.current?.window
 
-    LaunchedEffect(context) { viewModel.bind(context) }
+    LaunchedEffect(context, exportOnly) {
+        viewModel.bind(context)
+        if (exportOnly) viewModel.entry()
+    }
 
     // 암호 입력·복원 미리보기는 최근 앱/스크린샷에 남기지 않는다. 원래 secure flag는 보존한다.
     DisposableEffect(window) {
@@ -46,10 +51,12 @@ internal fun BackupContent(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = viewModel::selected,
     )
-    val cancel = {
+    val cancel: () -> Unit = {
         password = ""
         confirmation = ""
-        if (state.phase == BackupPhase.WORKING) viewModel.requestCancel() else viewModel.entry()
+        if (state.phase == BackupPhase.WORKING) viewModel.requestCancel()
+        else if (exportOnly && state.phase == BackupPhase.EXPORTED) viewModel.verifiedExportId()?.let(onExportVerified)
+        else viewModel.entry()
     }
 
     BackHandler {
@@ -95,5 +102,6 @@ internal fun BackupContent(
         onResolve = viewModel::resolve,
         onNotifications = viewModel::retryNotifications,
         onDone = { viewModel.finish(onRestored) },
+        exportOnly = exportOnly,
     )
 }

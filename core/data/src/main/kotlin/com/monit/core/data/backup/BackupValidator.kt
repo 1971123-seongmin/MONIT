@@ -19,11 +19,12 @@ internal class BackupValidator(private val clock: Clock) {
     private val today get() = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
     suspend fun validate(bytes: ByteArray): ValidatedBackup {
         try {
-            val root = BackupJson.parse(bytes)
+            var root = BackupJson.parse(bytes)
             val version = root.get("formatVersion")
-            if (version != 1 && version != 2) BackupJson.fail(BackupProblem.UNSUPPORTED)
+            if (version != 1 && version != 2 && version != 3) BackupJson.fail(BackupProblem.UNSUPPORTED)
             BackupSchema.bundled(version as Int).validate(root)
             if (version == 1) return validate(BackupV1Reader.convert(root, bytes))
+            if (version == 2) root = BackupImportV3.upgradeV2(root)
             val source = root.getJSONObject("sourceLedger")
             val context = LedgerContext(source.text("id"), source.text("storageGeneration"))
             val data = ValidatedBackup(root, context, source.exactLong("revision").also { require(it > 0) }, root.instant("createdAt"))
@@ -32,6 +33,7 @@ internal class BackupValidator(private val clock: Clock) {
             val finance = BackupFinanceValidator(data, today)
             finance.validate()
             BackupEvidenceValidator(data, finance).validate()
+            BackupImportV3.validate(data, finance, today)
             currentCoroutineContext().ensureActive()
             return data
         } catch (cancelled: CancellationException) {
@@ -45,6 +47,8 @@ internal class BackupValidator(private val clock: Clock) {
         } catch (_: java.time.DateTimeException) {
             BackupJson.fail(BackupProblem.INVALID_RELATION)
         } catch (_: org.json.JSONException) {
+            BackupJson.fail(BackupProblem.INVALID_PAYLOAD)
+        } catch (_: ClassCastException) {
             BackupJson.fail(BackupProblem.INVALID_PAYLOAD)
         } catch (_: NoSuchElementException) {
             BackupJson.fail(BackupProblem.INVALID_RELATION)

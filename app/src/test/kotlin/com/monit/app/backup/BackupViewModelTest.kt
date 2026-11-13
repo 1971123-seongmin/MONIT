@@ -3,6 +3,7 @@ package com.monit.app.backup
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.ViewModelStore
+import com.monit.core.common.io.LocalDataWorkGate
 import com.monit.core.model.*
 import com.monit.feature.home.backup.BackupPhase
 import java.io.IOException
@@ -23,7 +24,7 @@ class BackupViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val store = ViewModelStore()
     private val repository = BackupTestRepository()
-    private val workGate = BackupWorkGate()
+    private val workGate = LocalDataWorkGate()
     private val files = object : BackupDocumentAccess {
         var fail = false
         var reads = 0

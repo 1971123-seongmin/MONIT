@@ -1,6 +1,7 @@
-package com.monit.feature.accounts.importing
+package com.monit.core.data.importing
 
 import android.app.Application
+import com.monit.core.model.*
 import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.json.JSONArray

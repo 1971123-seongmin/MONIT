@@ -10,7 +10,7 @@ import kotlinx.coroutines.ensureActive
 import org.json.JSONObject
 
 /** 변환/파싱은 commit 전에 끝내고, 관계 순서의 삭제·삽입만 동일 트랜잭션 안에서 실행한다. */
-internal class BackupRestorePlan(private val source: ValidatedBackup, private val result: RestoreResult, previousOperations: Set<String>) {
+internal class BackupRestorePlan(private val source: ValidatedBackup, private val result: RestoreResult, previousOperations: Set<String>, private val sourceFences: List<JSONObject> = source.root.getJSONObject("imports").list("import_source_fences")) {
     private val financial = BackupLayout.finance.associateWith { table -> source.rows(table).map { row -> values(table, row) } }
     private val evidence = source.root.list("submissionsEvidence").map { RestoredEvidenceEntity(result.context.ledgerId, it.text("operationId"), it.toString()) }
     private val fences = (previousOperations + source.root.getJSONArray("operationFences").values().map { it as String } + evidence.map { it.operationId }).map { OperationFenceEntity(requireLedgerId(it)) }
@@ -18,7 +18,7 @@ internal class BackupRestorePlan(private val source: ValidatedBackup, private va
     private val preferences = source.root.getJSONObject("reminderPreferences")
     private val global = preferences.getJSONObject("global").let { value -> if (!value.getBoolean("present")) null else ReminderSettingsEntity(result.context.ledgerId, result.context.storageGeneration, value.getBoolean("enabled"), value.exactLong("revision"), true, false, null, null, 0) }
     private val rules = preferences.list("rules").map { ReminderRuleEntity(result.context.ledgerId, result.context.storageGeneration, it.text("ruleId"), it.getBoolean("enabled"), it.exactLong("revision")) }
-    private val status = BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = encodeRestoreResult(result), restoreAcknowledged = false, submissionCoverage = source.root.getJSONObject("manifest").text("submissionCoverage"), reminderCoverage = preferences.text("coverage"), sourceMappingsCoverage = source.root.getJSONObject("manifest").text("sourceMappings"))
+    private val status = BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = encodeRestoreResult(result), restoreAcknowledged = false, submissionCoverage = source.root.getJSONObject("manifest").text("submissionCoverage"), reminderCoverage = preferences.text("coverage"), sourceMappingsCoverage = source.root.getJSONObject("manifest").text("sourceMappings"), importCoverage = source.root.getJSONObject("imports").text("coverage"))
 
     suspend fun apply(database: LedgerDatabase) {
         val sql = database.openHelper.writableDatabase
@@ -35,6 +35,16 @@ internal class BackupRestorePlan(private val source: ValidatedBackup, private va
         }
         for (value in evidence) database.backupDao().evidence(value)
         for (value in originals) database.backupDao().original(value)
+        val imports = source.root.getJSONObject("imports")
+        for (table in BackupLayout.importTables.filter { it != "import_source_fences" }) for (row in imports.list(table)) {
+            val value = values(table, row)
+            if (table == "import_batches") {
+                value.put("evidenceOnly", true)
+                value.put("acknowledged", true)
+            }
+            sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, value)
+        }
+        for (row in sourceFences) sql.insert("import_source_fences", android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE, values("import_source_fences", row))
         global?.let { database.reminderDao().insertSettings(it) }
         for (value in rules) database.reminderDao().insertRule(value)
         database.backupDao().status(status)
@@ -46,12 +56,13 @@ internal class BackupRestorePlan(private val source: ValidatedBackup, private va
     }
 
     companion object {
-        private val deletionOrder = listOf("form_drafts", "reminder_days", "reminder_rules", "reminder_settings", "restored_evidence", "backup_originals", "anchor_rejections", "anchor_history", "payment_rejections", "payment_intents", "payment_events", "payment_items", "payment_rule_versions", "payment_rules", "submission_rejections", "transaction_history", "transactions", "anchors", "operations", "submissions", "submission_references", "accounts", "ledgers")
+        private val deletionOrder = listOf("import_child_commands", "import_rows", "import_source_mappings", "import_batches", "form_drafts", "reminder_days", "reminder_rules", "reminder_settings", "restored_evidence", "backup_originals", "anchor_rejections", "anchor_history", "payment_rejections", "payment_intents", "payment_events", "payment_items", "payment_rule_versions", "payment_rules", "submission_rejections", "transaction_history", "transactions", "anchors", "operations", "submissions", "submission_references", "accounts", "ledgers")
         private fun values(table: String, row: JSONObject) = ContentValues().apply {
             for (field in BackupLayout.properties(table).keys().asSequence()) when {
                 row.isNull(field) -> putNull(field)
                 BackupLayout.boolean(table, field) -> put(field, row.getBoolean(field))
                 BackupLayout.integral(table, field) -> put(field, row.exactLong(field))
+                BackupLayout.integer(table, field) -> put(field, row.getInt(field))
                 else -> put(field, row.text(field))
             }
         }

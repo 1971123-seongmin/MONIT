@@ -60,40 +60,14 @@ internal class BackupDocuments @Inject constructor(
         read(uri)
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    internal suspend fun <T> access(block: suspend (CancellationSignal, AtomicReference<Closeable?>) -> T): T = coroutineScope {
-        suspendCancellableCoroutine { continuation ->
-            val signal = CancellationSignal()
-            val active = AtomicReference<Closeable?>()
-            val job = launch(contexts.io) {
-                try {
-                    signal.throwIfCanceled()
-                    val value = block(signal, active)
-                    currentCoroutineContext().ensureActive()
-                    continuation.resume(value)
-                } catch (cancelled: CancellationException) {
-                    continuation.cancel(cancelled)
-                } catch (_: Exception) {
-                    continuation.resumeWithException(BackupException(BackupProblem.IO))
-                } finally {
-                    active.getAndSet(null)?.let { runCatching { it.close() } }
-                }
-            }
-            continuation.invokeOnCancellation {
-                // ATOMIC으로 취소된 부모에도 정리 child를 시작한다. scope는 실제 close/cancel 종료까지 기다린다.
-                // provider의 취소/close 자체가 막혀도 main에서 실행하거나 종료됐다고 추정하지 않는다.
-                launch(contexts.io, start = CoroutineStart.ATOMIC) {
-                    withContext(NonCancellable) {
-                        try {
-                            signal.cancel()
-                        } finally {
-                            active.getAndSet(null)?.let { runCatching { it.close() } }
-                        }
-                    }
-                }
-                job.cancel()
-            }
-        }
+    internal suspend fun <T> access(block: suspend (CancellationSignal, AtomicReference<Closeable?>) -> T): T = try {
+        com.monit.core.common.io.CancellableDocumentAccess(contexts).access(block)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: BackupException) {
+        throw error
+    } catch (_: Exception) {
+        throw BackupException(BackupProblem.IO)
     }
 }
 

@@ -15,7 +15,7 @@ internal data class BackupOriginalEntity(val ledgerId: String, val id: String, v
 
 /** 금융 실행 근거와 다른 로컬 작업 결과다. 파일 URI·비밀번호·평문은 넣지 않는다. */
 @Entity(tableName = "backup_status")
-internal data class BackupStatusEntity(@PrimaryKey val id: String = "local", val lastBackupAt: String?, val lastBackupLedger: String?, val lastBackupGeneration: String?, val restoreResultJson: String?, val restoreAcknowledged: Boolean, val submissionCoverage: String = "RECORDED", val reminderCoverage: String = "RECORDED", val sourceMappingsCoverage: String = "NONE_PRESENT")
+internal data class BackupStatusEntity(@PrimaryKey val id: String = "local", val lastBackupAt: String?, val lastBackupLedger: String?, val lastBackupGeneration: String?, val restoreResultJson: String?, val restoreAcknowledged: Boolean, val submissionCoverage: String = "RECORDED", val reminderCoverage: String = "RECORDED", val sourceMappingsCoverage: String = "NONE_PRESENT", val lastBackupExportId: String? = null, val lastBackupRevision: Long? = null, val importCoverage: String? = null)
 
 @Dao
 internal interface BackupDao {
