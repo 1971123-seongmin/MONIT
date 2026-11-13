@@ -151,9 +151,10 @@ class TransactionChangesTest {
         assertEquals(3, dao.transaction(context.ledgerId, id(30))!!.revision)
     }
 
-    /** 날짜·종류 변경 시 이전 월과 새 월 합계 모두 원본에서 재계산한다. */
+    /** 두 실제일 모두 마감액 구간 안에 있는 날짜·종류 변경은 B를 유지하고 이전 월과 새 월 통계만 재계산한다. */
     @Test fun monthAndKindChangesRemoveOldMonthAndCountNewMonth() = runTest {
         ready()
+        sql.execSQL("UPDATE anchors SET date=?", arrayOf(day.toString()))
         repository.updateTransaction(context, id(140), UpdateTransaction(original().copy(kind = TransactionKind.EXPENSE, date = LocalDate.of(2026, 10, 31), creditAccountId = null), 1))
         assertEquals(100, repository.snapshot(context, LocalDate.of(2026, 10, 31)).expense)
         assertEquals(0, repository.snapshot(context, day).expense)

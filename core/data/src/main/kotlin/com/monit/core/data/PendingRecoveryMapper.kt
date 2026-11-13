@@ -24,7 +24,7 @@ internal fun SubmissionEntity.toRecoveryItem(context: LedgerContext): PendingRec
         // getInt는 문자열·소수를 강제 변환하므로 저장 형식의 정수 타입도 확인한다.
         val version = json.get("version")
         if (version !is Int && version !is Long) return corrupted(CorruptedSubmission.INVALID_PAYLOAD)
-        if ((version as Number).toLong() !in 1L..3L) {
+        if ((version as Number).toLong() !in 1L..4L) {
             return PendingRecoveryItem.Unsupported(operationId, UnsupportedSubmission.VERSION)
         }
         if (json.get("ledgerId") != context.ledgerId ||
@@ -32,10 +32,12 @@ internal fun SubmissionEntity.toRecoveryItem(context: LedgerContext): PendingRec
         ) return corrupted(CorruptedSubmission.CONTEXT_MISMATCH)
         val kind = json.get("kind")
         if (kind !is String) return corrupted(CorruptedSubmission.INVALID_PAYLOAD)
-        if (kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION" && kind != "UPDATE_TRANSACTION" && kind != "DELETE_TRANSACTION" && kind !in paymentKinds) {
+        if (kind != "CONFIRM_ANCHOR" && kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION" && kind != "UPDATE_TRANSACTION" && kind != "DELETE_TRANSACTION" && kind !in paymentKinds) {
             return PendingRecoveryItem.Unsupported(operationId, UnsupportedSubmission.KIND)
         }
         when (val command = decodeWrite(context, requestJson)) {
+            is WriteCommand.Anchor -> PendingRecoveryItem.AnchorConfirmation(operationId, command.value)
+
             is WriteCommand.Account -> PendingRecoveryItem.AccountRegistration(
                 operationId,
                 command.value,

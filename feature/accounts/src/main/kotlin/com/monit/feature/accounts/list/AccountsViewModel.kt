@@ -27,6 +27,14 @@ class AccountsViewModel @Inject constructor(
     val state = mutableState.asStateFlow()
     private var readJob: Job? = null
     private var generation = 0L
+    private var month = java.time.YearMonth.now(clock.withZone(ZoneId.of("Asia/Seoul")))
+
+    fun moveMonth(context: LedgerContext, delta: Long) {
+        val next = month.plusMonths(delta)
+        if (next.year !in 1900..9999) return
+        month = next
+        refresh(context)
+    }
 
     fun refresh(context: LedgerContext) {
         val request = ++generation
@@ -34,11 +42,13 @@ class AccountsViewModel @Inject constructor(
         mutableState.value = AccountsState.Loading
         readJob = viewModelScope.launch {
             try {
+                val asOf = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
+                val selectedMonth = month
                 val snapshot = repository.snapshot(
                     context,
-                    LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul"))),
+                    asOf,
                 )
-                val ui = withContext(contexts.default) { snapshot.toAccountsUiState() }
+                val ui = withContext(contexts.default) { snapshot.toAccountsUiState(asOf, selectedMonth) }
                 if (request == generation) mutableState.value = AccountsState.Ready(ui)
             } catch (cancelled: CancellationException) {
                 throw cancelled

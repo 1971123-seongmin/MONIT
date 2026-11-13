@@ -5,7 +5,9 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import com.monit.feature.accounts.navigation.AccountDetailDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
+import com.monit.feature.accounts.navigation.accountDetailScreen
 import com.monit.feature.accounts.navigation.accountRegistrationScreen
 import com.monit.feature.accounts.navigation.accountsScreen
 import com.monit.feature.accounts.navigation.importPreviewScreen
@@ -31,6 +33,7 @@ fun MonitNavHost(
     importPreview: (@Composable (NavBackStackEntry) -> Unit)? = null,
     payments: (@Composable (NavBackStackEntry, PaymentsDestination) -> Unit)? = null,
     reminderSettings: (@Composable (NavBackStackEntry) -> Unit)? = null,
+    accountDetail: (@Composable (NavBackStackEntry, AccountDetailDestination) -> Unit)? = null,
 ) {
     NavHost(
         controller,
@@ -52,5 +55,6 @@ fun MonitNavHost(
         payments?.let { paymentsScreen(it) }
 
         reminderSettings?.let { reminderSettingsScreen(it) }
+        accountDetail?.let { accountDetailScreen(it) }
     }
 }

@@ -172,6 +172,7 @@ internal interface LedgerDao {
     @Query(
         """
         SELECT EXISTS(SELECT 1 FROM accounts) OR EXISTS(SELECT 1 FROM anchors)
+            OR EXISTS(SELECT 1 FROM anchor_history) OR EXISTS(SELECT 1 FROM anchor_rejections)
             OR EXISTS(SELECT 1 FROM payment_rules) OR EXISTS(SELECT 1 FROM payment_rule_versions)
             OR EXISTS(SELECT 1 FROM payment_items) OR EXISTS(SELECT 1 FROM payment_events)
             OR EXISTS(SELECT 1 FROM payment_rejections) OR EXISTS(SELECT 1 FROM payment_intents)
@@ -188,6 +189,8 @@ internal interface LedgerDao {
     @Query(
         """
         SELECT EXISTS(SELECT 1 FROM accounts b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM anchor_history b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM anchor_rejections b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM anchors b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM payment_rules b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM payment_rule_versions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
@@ -295,15 +298,17 @@ internal interface LedgerDao {
 @Database(
     entities = [
         LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
+        AnchorHistoryEntity::class, AnchorRejectionEntity::class,
         TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class,
         FormDraftEntity::class, TransactionHistoryEntity::class, SubmissionRejectionEntity::class,
         PaymentRuleEntity::class, PaymentRuleVersionEntity::class, PaymentItemEntity::class, PaymentEventEntity::class, PaymentRejectionEntity::class, PaymentIntentEntity::class,
         ReminderSettingsEntity::class, ReminderDayEntity::class, ReminderRuleEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 internal abstract class LedgerDatabase : RoomDatabase() {
+    abstract fun anchorDao(): AnchorDao
     abstract fun ledgerDao(): LedgerDao
     abstract fun formDraftDao(): FormDraftDao
     abstract fun paymentDao(): PaymentDao
@@ -324,7 +329,7 @@ internal abstract class LedgerDatabase : RoomDatabase() {
 }
 
 internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase = Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
-    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5, LedgerMigration5To6)
+    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5, LedgerMigration5To6, LedgerMigration6To7)
     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
     .addCallback(object : RoomDatabase.Callback() {
         override fun onOpen(db: SupportSQLiteDatabase) {

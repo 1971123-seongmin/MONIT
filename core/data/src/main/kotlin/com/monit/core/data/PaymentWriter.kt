@@ -20,6 +20,8 @@ internal class PaymentWriter(private val database: LedgerDatabase, private val c
         val prior = database.withTransaction {
             database.requireDurableWriter()
             ledger.requireContext(context)
+            check(database.anchorDao().rejection(context.ledgerId, operation) == null)
+            records.submission(context.ledgerId, operation)?.let { same(it.requestJson, it.requestSha256, raw, hash) }
             records.operation(context.ledgerId, operation)?.let {
                 same(it.requestJson, it.requestSha256, raw, hash)
                 return@withTransaction PaymentAttempt.Committed(checkNotNull(ledger.receipt(context, operation)))

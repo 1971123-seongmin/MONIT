@@ -454,6 +454,9 @@ class TransactionEntryViewModel @Inject constructor(
             } else if (draft == null) repository.createTransaction(requireNotNull(context), requireNotNull(operationId), requireNotNull(request))
             else drafts.createTransactionFromDraft(requireNotNull(context), draft.reference, draft.scope, requireNotNull(operationId), requireNotNull(request))
             accept(receipt)
+        } catch (boundary: com.monit.core.model.AnchorBoundaryException) {
+            checkResult(false)
+            if (!invalidBinding) message(checkNotNull(boundary.message))
         } catch (rejected: TransactionRejectedException) {
             acceptRejection(rejected.rejection)
         } catch (cancelled: CancellationException) {

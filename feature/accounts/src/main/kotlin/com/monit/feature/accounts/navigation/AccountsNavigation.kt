@@ -9,6 +9,12 @@ import androidx.navigation.toRoute
 import com.monit.core.navigation.NavigationResult
 import com.monit.core.navigation.Navigator
 
+fun Navigator.navigateToAccountDetail(source: NavBackStackEntry, destination: AccountDetailDestination): NavigationResult = navigate(source, destination)
+
+fun NavGraphBuilder.accountDetailScreen(content: @Composable (NavBackStackEntry, AccountDetailDestination) -> Unit) {
+    composable<AccountDetailDestination> { content(it, it.toRoute()) }
+}
+
 fun Navigator.navigateToAccounts(
     source: NavBackStackEntry,
     options: NavOptionsBuilder.() -> Unit = {},

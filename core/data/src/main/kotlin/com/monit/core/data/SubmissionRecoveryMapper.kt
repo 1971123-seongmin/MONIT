@@ -69,18 +69,20 @@ private fun validateCommitted(
         val json = JSONObject(operation.requestJson)
         val version = json.get("version")
         if (version !is Int && version !is Long) return blocked(SubmissionRecoveryProblem.CORRUPTED)
-        if ((version as Number).toLong() !in 1L..3L) return blocked(SubmissionRecoveryProblem.UNSUPPORTED)
+        if ((version as Number).toLong() !in 1L..4L) return blocked(SubmissionRecoveryProblem.UNSUPPORTED)
         if (json.get("ledgerId") != reference.context.ledgerId ||
             json.get("expectedStorageGeneration") != reference.context.storageGeneration
         ) return blocked(SubmissionRecoveryProblem.GENERATION_MISMATCH)
         val kind = json.get("kind")
         if (kind !is String) return blocked(SubmissionRecoveryProblem.CORRUPTED)
-        if (kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION" && kind != "UPDATE_TRANSACTION" && kind != "DELETE_TRANSACTION" && kind !in paymentKinds) {
+        if (kind != "CONFIRM_ANCHOR" && kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION" && kind != "UPDATE_TRANSACTION" && kind != "DELETE_TRANSACTION" && kind !in paymentKinds) {
             return blocked(SubmissionRecoveryProblem.UNSUPPORTED)
         }
         if (operation.kind != kind) return blocked(SubmissionRecoveryProblem.CORRUPTED)
         val expectedRefs =
             when (val command = decodeWrite(reference.context, operation.requestJson)) {
+                is WriteCommand.Anchor -> listOf(EntityRef("anchors", command.value.anchorId, Math.addExact(command.value.expectedRevision, 1)))
+
                 is WriteCommand.Account -> listOf(
                     EntityRef("accounts", command.value.id, 1),
                     EntityRef("anchors", command.value.anchorId, 1),

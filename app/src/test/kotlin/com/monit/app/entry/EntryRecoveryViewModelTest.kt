@@ -39,6 +39,31 @@ class EntryRecoveryViewModelTest {
     }
     private fun vm(repository: RecoveryRepository) = EntryRecoveryViewModel(repository, clock).also { store.put("recovery", it) }
 
+    /** 기준액 확정 충돌은 명시 선택·결과 확인만 허용하고 자동 재시도나 새 기준액 치환을 하지 않는다. */
+    @Test fun anchorConflictIsAcknowledgedWithoutRetryingFinance() = runTest(dispatcher) {
+        val repo = RecoveryRepository()
+        val outcome = AnchorRejection(testContext, queryId(12), queryId(32), 1, 2, Instant.parse("2026-11-12T00:00:00Z"))
+        repo.items = listOf(SubmissionRecoveryItem.AnchorRejected(SubmissionReference(testContext, outcome.operationId), outcome)) + repo.items
+        val model = vm(repo)
+        model.bind(testContext)
+        advanceUntilIdle()
+        model.finish()
+        advanceUntilIdle()
+        assertTrue(repo.finished.isEmpty())
+        model.select(0)
+        advanceUntilIdle()
+        assertEquals(outcome, model.state.value.anchorRejection)
+        assertFalse(model.state.value.resultAbsent)
+        model.retry()
+        advanceUntilIdle()
+        assertTrue(repo.retried.isEmpty())
+        model.finish()
+        advanceUntilIdle()
+        assertEquals(listOf(outcome.operationId), repo.finished)
+        assertNull(model.state.value.anchorRejection)
+        assertEquals(2, model.state.value.items.size)
+    }
+
     /** 충돌 결과는 사용자가 선택·확인한 한 건만 종료하고 금융 재시도 없이 다른 참조를 보존한다. */
     @Test fun rejectedSubmissionNeedsExplicitConfirmationAndNeverRetries() = runTest(dispatcher) {
         val repo = RecoveryRepository()
@@ -254,7 +279,7 @@ private class RecoveryRepository : LedgerRepository by QueryRepository() {
     }
     override suspend fun finishSubmissionRecovery(context: LedgerContext, operationId: String): FinishSubmissionRecoveryResult {
         finished += operationId
-        items = items.filterNot { (it is SubmissionRecoveryItem.Pending && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.Rejected && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.PaymentRejected && it.reference.operationId == operationId) }
+        items = items.filterNot { (it is SubmissionRecoveryItem.Pending && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.Rejected && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.PaymentRejected && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.AnchorRejected && it.reference.operationId == operationId) }
         return FinishSubmissionRecoveryResult.Finished
     }
 }

@@ -1,6 +1,6 @@
 package com.monit.core.model
 
-enum class DraftKind { ACCOUNT, TRANSACTION, PAYMENT_RULE, PAYMENT_CONFIRM }
+enum class DraftKind { ACCOUNT, TRANSACTION, PAYMENT_RULE, PAYMENT_CONFIRM, ANCHOR }
 enum class DraftOrigin { HOME, TRANSACTIONS, ACCOUNTS, TRANSACTION_ENTRY, PAYMENTS }
 enum class DraftSlot { DEBIT, CREDIT }
 
@@ -18,6 +18,10 @@ data class DraftScope(
     val paymentRuleId: String? = null,
     val paymentRuleRevision: Long? = null,
     val paymentMonth: String? = null,
+    val accountId: String? = null,
+    val anchorId: String? = null,
+    val anchorRevision: Long? = null,
+    val anchorDate: java.time.LocalDate? = null,
 ) {
     init {
         if (transactionId != null) {
@@ -26,6 +30,14 @@ data class DraftScope(
             require(transactionRevision != null && transactionRevision > 0 && transactionRevision < Long.MAX_VALUE)
         } else require(transactionRevision == null)
         when (kind) {
+            DraftKind.ANCHOR -> {
+                require(origin == DraftOrigin.ACCOUNTS)
+                requireLedgerId(requireNotNull(accountId))
+                requireLedgerId(requireNotNull(anchorId))
+                require(anchorRevision != null && anchorRevision in 1 until Long.MAX_VALUE)
+                requireNotNull(anchorDate)
+            }
+
             DraftKind.TRANSACTION -> require(origin == DraftOrigin.HOME || origin == DraftOrigin.TRANSACTIONS || origin == DraftOrigin.PAYMENTS)
 
             DraftKind.ACCOUNT -> require(origin == DraftOrigin.ACCOUNTS || origin == DraftOrigin.TRANSACTION_ENTRY)
@@ -41,6 +53,7 @@ data class DraftScope(
                 } else require(paymentRuleId == null && paymentRuleRevision == null && paymentMonth == null)
             }
         }
+        if (kind != DraftKind.ANCHOR) require(accountId == null && anchorId == null && anchorRevision == null && anchorDate == null)
         if (kind != DraftKind.PAYMENT_RULE && kind != DraftKind.PAYMENT_CONFIRM) require(paymentId == null && paymentRevision == null && paymentRuleId == null && paymentRuleRevision == null && paymentMonth == null)
         if (origin == DraftOrigin.TRANSACTION_ENTRY) {
             requireLedgerId(requireNotNull(parentDraftId))
@@ -59,6 +72,7 @@ data class DraftReference(val id: String, val revision: Long) {
 
 /** 유효하지 않은 편집 중 금액/일자도 원문 그대로 보존한다. */
 sealed interface DraftContent {
+    data class Anchor(val amount: String, val reason: String) : DraftContent
     data class Payment(val fields: Map<String, String>) : DraftContent
     data class Account(
         val name: String,

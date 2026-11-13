@@ -14,6 +14,7 @@ data class SubmissionRecoverySnapshot(
 
 /** 원문/hash를 노출하거나 조회만으로 금융 명령을 재실행하지 않는다. */
 sealed interface SubmissionRecoveryItem {
+    data class AnchorRejected(val reference: SubmissionReference, val rejection: AnchorRejection) : SubmissionRecoveryItem
     data class Committed(val reference: SubmissionReference, val receipt: WriteReceipt) : SubmissionRecoveryItem
 
     data class PaymentRejected(val reference: SubmissionReference, val rejection: PaymentRejection) : SubmissionRecoveryItem

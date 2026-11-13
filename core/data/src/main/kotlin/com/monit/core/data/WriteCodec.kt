@@ -16,6 +16,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal sealed interface WriteCommand {
+    data class Anchor(val value: com.monit.core.model.ConfirmAnchor) : WriteCommand
     data class Account(val value: CreateAccount) : WriteCommand
     data class Transaction(val value: CreateTransaction) : WriteCommand
     data class Update(val value: UpdateTransaction) : WriteCommand
@@ -30,6 +31,8 @@ internal fun captureWrite(context: LedgerContext, command: WriteCommand): String
     val id: String
     val value: String
     when (command) {
+        is WriteCommand.Anchor -> return captureAnchor(context, command.value)
+
         is WriteCommand.Payment -> return capturePayment(context, command.value)
 
         is WriteCommand.Account -> {
@@ -81,6 +84,7 @@ internal fun captureWrite(context: LedgerContext, command: WriteCommand): String
 internal fun decodeWrite(context: LedgerContext, request: String): WriteCommand {
     val json = JSONObject(request)
     val version = json.getInt("version")
+    if (version == 4) return WriteCommand.Anchor(decodeAnchor(context, request))
     if (version == 3) return WriteCommand.Payment(decodePayment(context, request))
     check(version == 1 || version == 2)
     val expected = if (version == 1) {
@@ -134,6 +138,21 @@ internal fun decodeWrite(context: LedgerContext, request: String): WriteCommand 
     }
     check(captureWrite(context, command) == request) { "Captured write is not canonical" }
     return command
+}
+
+internal fun captureAnchor(context: LedgerContext, value: com.monit.core.model.ConfirmAnchor): String = jsonObject(
+    "version" to "4", "ledgerId" to quote(context.ledgerId), "expectedStorageGeneration" to quote(context.storageGeneration),
+    "kind" to quote("CONFIRM_ANCHOR"), "accountId" to quote(value.accountId), "anchorId" to quote(value.anchorId),
+    "expectedRevision" to quote(value.expectedRevision.toString()), "date" to quote(value.date.toString()), "amount" to quote(value.amount.toString()), "reason" to quote(value.reason),
+)
+
+internal fun decodeAnchor(context: LedgerContext, request: String): com.monit.core.model.ConfirmAnchor {
+    val json = JSONObject(request)
+    check(json.getInt("version") == 4 && json.getString("kind") == "CONFIRM_ANCHOR")
+    check(json.getString("ledgerId") == context.ledgerId && json.getString("expectedStorageGeneration") == context.storageGeneration)
+    val value = com.monit.core.model.ConfirmAnchor(json.getString("accountId"), json.getString("anchorId"), json.getString("expectedRevision").toLong(), LocalDate.parse(json.getString("date")), json.getString("amount").toLong(), json.getString("reason"))
+    check(captureAnchor(context, value) == request)
+    return value
 }
 
 internal fun requestHash(value: String): String = MessageDigest.getInstance("SHA-256")

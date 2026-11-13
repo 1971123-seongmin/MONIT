@@ -1,0 +1,1744 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 7,
+    "identityHash": "8ebdbd15dde90865fc9927daf4745527",
+    "entities": [
+      {
+        "tableName": "ledgers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `revision` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `id` TEXT NOT NULL, `name` TEXT NOT NULL, `nature` TEXT NOT NULL, `status` TEXT NOT NULL, `revision` INTEGER NOT NULL, PRIMARY KEY(`ledgerId`, `id`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nature",
+            "columnName": "nature",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "anchors",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `id` TEXT NOT NULL, `accountId` TEXT NOT NULL, `date` TEXT NOT NULL, `amount` INTEGER, `confirmedAt` TEXT, `unknownReason` TEXT, `revision` INTEGER NOT NULL, PRIMARY KEY(`ledgerId`, `id`), FOREIGN KEY(`ledgerId`, `accountId`) REFERENCES `accounts`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "confirmedAt",
+            "columnName": "confirmedAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "unknownReason",
+            "columnName": "unknownReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_anchors_ledgerId_accountId",
+            "unique": true,
+            "columnNames": [
+              "ledgerId",
+              "accountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_anchors_ledgerId_accountId` ON `${TABLE_NAME}` (`ledgerId`, `accountId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "accounts",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "accountId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "anchor_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `anchorId` TEXT NOT NULL, `revision` INTEGER NOT NULL, `accountId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `date` TEXT NOT NULL, `beforeAmount` INTEGER, `beforeConfirmedAt` TEXT, `beforeUnknownReason` TEXT, `beforeRevision` INTEGER NOT NULL, `amount` INTEGER NOT NULL, `reason` TEXT NOT NULL, `confirmedAt` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `anchorId`, `revision`), FOREIGN KEY(`ledgerId`, `anchorId`) REFERENCES `anchors`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "anchorId",
+            "columnName": "anchorId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "beforeAmount",
+            "columnName": "beforeAmount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "beforeConfirmedAt",
+            "columnName": "beforeConfirmedAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "beforeUnknownReason",
+            "columnName": "beforeUnknownReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "beforeRevision",
+            "columnName": "beforeRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmedAt",
+            "columnName": "confirmedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "anchorId",
+            "revision"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "anchors",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "anchorId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "anchor_rejections",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `requestJson` TEXT NOT NULL, `requestSha256` TEXT NOT NULL, `anchorId` TEXT NOT NULL, `expectedRevision` INTEGER NOT NULL, `actualRevision` INTEGER NOT NULL, `rejectedAt` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestSha256",
+            "columnName": "requestSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "anchorId",
+            "columnName": "anchorId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedRevision",
+            "columnName": "expectedRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualRevision",
+            "columnName": "actualRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rejectedAt",
+            "columnName": "rejectedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "transactions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `id` TEXT NOT NULL, `kind` TEXT NOT NULL, `date` TEXT NOT NULL, `amount` INTEGER NOT NULL, `debitAccountId` TEXT, `creditAccountId` TEXT, `debitNature` TEXT, `creditNature` TEXT, `memo` TEXT NOT NULL, `revision` INTEGER NOT NULL, `financialRevision` INTEGER NOT NULL, `deletedAt` TEXT, PRIMARY KEY(`ledgerId`, `id`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`ledgerId`, `debitAccountId`) REFERENCES `accounts`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`ledgerId`, `creditAccountId`) REFERENCES `accounts`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "debitAccountId",
+            "columnName": "debitAccountId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creditAccountId",
+            "columnName": "creditAccountId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "debitNature",
+            "columnName": "debitNature",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creditNature",
+            "columnName": "creditNature",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "memo",
+            "columnName": "memo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "financialRevision",
+            "columnName": "financialRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_transactions_ledgerId_debitAccountId",
+            "unique": false,
+            "columnNames": [
+              "ledgerId",
+              "debitAccountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_ledgerId_debitAccountId` ON `${TABLE_NAME}` (`ledgerId`, `debitAccountId`)"
+          },
+          {
+            "name": "index_transactions_ledgerId_creditAccountId",
+            "unique": false,
+            "columnNames": [
+              "ledgerId",
+              "creditAccountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_ledgerId_creditAccountId` ON `${TABLE_NAME}` (`ledgerId`, `creditAccountId`)"
+          },
+          {
+            "name": "index_transactions_ledgerId_date",
+            "unique": false,
+            "columnNames": [
+              "ledgerId",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_ledgerId_date` ON `${TABLE_NAME}` (`ledgerId`, `date`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "accounts",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "debitAccountId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          },
+          {
+            "table": "accounts",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "creditAccountId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "operations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `kind` TEXT NOT NULL, `requestJson` TEXT NOT NULL, `requestSha256` TEXT NOT NULL, `committedAt` TEXT NOT NULL, `ledgerRevision` INTEGER NOT NULL, `resultJson` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestSha256",
+            "columnName": "requestSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "committedAt",
+            "columnName": "committedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ledgerRevision",
+            "columnName": "ledgerRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "resultJson",
+            "columnName": "resultJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "submissions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `requestJson` TEXT NOT NULL, `requestSha256` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestSha256",
+            "columnName": "requestSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "submission_references",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "form_drafts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `id` TEXT NOT NULL, `revision` INTEGER NOT NULL, `scopeJson` TEXT NOT NULL, `payloadJson` TEXT, `payloadSha256` TEXT, `status` TEXT NOT NULL, `operationId` TEXT, PRIMARY KEY(`ledgerId`, `id`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scopeJson",
+            "columnName": "scopeJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payloadJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "payloadSha256",
+            "columnName": "payloadSha256",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_form_drafts_ledgerId_operationId",
+            "unique": true,
+            "columnNames": [
+              "ledgerId",
+              "operationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_form_drafts_ledgerId_operationId` ON `${TABLE_NAME}` (`ledgerId`, `operationId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "transaction_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`operationId` TEXT NOT NULL, `changedAt` TEXT NOT NULL, `changeKind` TEXT NOT NULL, `ledgerId` TEXT NOT NULL, `id` TEXT NOT NULL, `kind` TEXT NOT NULL, `date` TEXT NOT NULL, `amount` INTEGER NOT NULL, `debitAccountId` TEXT, `creditAccountId` TEXT, `debitNature` TEXT, `creditNature` TEXT, `memo` TEXT NOT NULL, `revision` INTEGER NOT NULL, `financialRevision` INTEGER NOT NULL, `deletedAt` TEXT, PRIMARY KEY(`ledgerId`, `id`, `revision`), FOREIGN KEY(`ledgerId`, `id`) REFERENCES `transactions`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changedAt",
+            "columnName": "changedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changeKind",
+            "columnName": "changeKind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.amount",
+            "columnName": "amount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.debitAccountId",
+            "columnName": "debitAccountId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "before.creditAccountId",
+            "columnName": "creditAccountId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "before.debitNature",
+            "columnName": "debitNature",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "before.creditNature",
+            "columnName": "creditNature",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "before.memo",
+            "columnName": "memo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.financialRevision",
+            "columnName": "financialRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "before.deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id",
+            "revision"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "transactions",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "id"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "submission_rejections",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `requestJson` TEXT NOT NULL, `requestSha256` TEXT NOT NULL, `transactionId` TEXT NOT NULL, `expectedRevision` INTEGER NOT NULL, `actualRevision` INTEGER NOT NULL, `actualDeletedAt` TEXT, `rejectedAt` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestSha256",
+            "columnName": "requestSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transactionId",
+            "columnName": "transactionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedRevision",
+            "columnName": "expectedRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualRevision",
+            "columnName": "actualRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualDeletedAt",
+            "columnName": "actualDeletedAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rejectedAt",
+            "columnName": "rejectedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "payment_rules",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `id` TEXT NOT NULL, `revision` INTEGER NOT NULL, `startMonth` TEXT NOT NULL, `endMonth` TEXT, PRIMARY KEY(`ledgerId`, `id`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startMonth",
+            "columnName": "startMonth",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endMonth",
+            "columnName": "endMonth",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "payment_rule_versions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `ruleId` TEXT NOT NULL, `revision` INTEGER NOT NULL, `effectiveMonth` TEXT NOT NULL, `termsJson` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `ruleId`, `revision`), FOREIGN KEY(`ledgerId`, `ruleId`) REFERENCES `payment_rules`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ruleId",
+            "columnName": "ruleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "effectiveMonth",
+            "columnName": "effectiveMonth",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "termsJson",
+            "columnName": "termsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "ruleId",
+            "revision"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "payment_rules",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "ruleId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "payment_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `id` TEXT NOT NULL, `ruleId` TEXT NOT NULL, `month` TEXT NOT NULL, `revision` INTEGER NOT NULL, `ruleVersion` INTEGER NOT NULL, `termsJson` TEXT NOT NULL, `dueDate` TEXT NOT NULL, `status` TEXT NOT NULL, `active` INTEGER NOT NULL, `transactionId` TEXT, `confirmedFinancialRevision` INTEGER, `confirmedJson` TEXT, PRIMARY KEY(`ledgerId`, `id`), FOREIGN KEY(`ledgerId`, `ruleId`) REFERENCES `payment_rules`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION , FOREIGN KEY(`ledgerId`, `transactionId`) REFERENCES `transactions`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ruleId",
+            "columnName": "ruleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "month",
+            "columnName": "month",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ruleVersion",
+            "columnName": "ruleVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "termsJson",
+            "columnName": "termsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dueDate",
+            "columnName": "dueDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "active",
+            "columnName": "active",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transactionId",
+            "columnName": "transactionId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "confirmedFinancialRevision",
+            "columnName": "confirmedFinancialRevision",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "confirmedJson",
+            "columnName": "confirmedJson",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_payment_items_ledgerId_ruleId_month",
+            "unique": true,
+            "columnNames": [
+              "ledgerId",
+              "ruleId",
+              "month"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_payment_items_ledgerId_ruleId_month` ON `${TABLE_NAME}` (`ledgerId`, `ruleId`, `month`)"
+          },
+          {
+            "name": "index_payment_items_ledgerId_transactionId",
+            "unique": true,
+            "columnNames": [
+              "ledgerId",
+              "transactionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_payment_items_ledgerId_transactionId` ON `${TABLE_NAME}` (`ledgerId`, `transactionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "payment_rules",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "ruleId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          },
+          {
+            "table": "transactions",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "transactionId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "payment_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `itemId` TEXT NOT NULL, `kind` TEXT NOT NULL, `transactionId` TEXT, `full` INTEGER, `reason` TEXT NOT NULL, `beforeJson` TEXT, `afterJson` TEXT NOT NULL, `changedAt` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`, `itemId`), FOREIGN KEY(`ledgerId`, `itemId`) REFERENCES `payment_items`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transactionId",
+            "columnName": "transactionId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "full",
+            "columnName": "full",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "beforeJson",
+            "columnName": "beforeJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "afterJson",
+            "columnName": "afterJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changedAt",
+            "columnName": "changedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId",
+            "itemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_payment_events_ledgerId_transactionId",
+            "unique": false,
+            "columnNames": [
+              "ledgerId",
+              "transactionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_payment_events_ledgerId_transactionId` ON `${TABLE_NAME}` (`ledgerId`, `transactionId`)"
+          },
+          {
+            "name": "index_payment_events_ledgerId_itemId",
+            "unique": false,
+            "columnNames": [
+              "ledgerId",
+              "itemId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_payment_events_ledgerId_itemId` ON `${TABLE_NAME}` (`ledgerId`, `itemId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "payment_items",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "itemId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "payment_rejections",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `requestJson` TEXT NOT NULL, `requestSha256` TEXT NOT NULL, `collection` TEXT NOT NULL, `targetId` TEXT NOT NULL, `expectedRevision` INTEGER NOT NULL, `actualRevision` INTEGER NOT NULL, `rejectedAt` TEXT NOT NULL, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestSha256",
+            "columnName": "requestSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collection",
+            "columnName": "collection",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetId",
+            "columnName": "targetId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expectedRevision",
+            "columnName": "expectedRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualRevision",
+            "columnName": "actualRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rejectedAt",
+            "columnName": "rejectedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "payment_intents",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `requestJson` TEXT NOT NULL, `requestSha256` TEXT NOT NULL, `status` TEXT NOT NULL, `draftId` TEXT, `draftRevision` INTEGER, `draftScopeJson` TEXT, PRIMARY KEY(`ledgerId`, `operationId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestJson",
+            "columnName": "requestJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestSha256",
+            "columnName": "requestSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "draftId",
+            "columnName": "draftId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "draftRevision",
+            "columnName": "draftRevision",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "draftScopeJson",
+            "columnName": "draftScopeJson",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "operationId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reminder_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `dirty` INTEGER NOT NULL, `failed` INTEGER NOT NULL, `syncToken` TEXT, `nextAt` TEXT, `appliedLedgerRevision` INTEGER NOT NULL, PRIMARY KEY(`ledgerId`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dirty",
+            "columnName": "dirty",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "failed",
+            "columnName": "failed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncToken",
+            "columnName": "syncToken",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "nextAt",
+            "columnName": "nextAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "appliedLedgerRevision",
+            "columnName": "appliedLedgerRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reminder_days",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `day` TEXT NOT NULL, `token` TEXT NOT NULL, `status` TEXT NOT NULL, `membersJson` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `postedAt` TEXT, PRIMARY KEY(`ledgerId`, `storageGeneration`, `day`), FOREIGN KEY(`ledgerId`) REFERENCES `ledgers`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "day",
+            "columnName": "day",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "token",
+            "columnName": "token",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "membersJson",
+            "columnName": "membersJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postedAt",
+            "columnName": "postedAt",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "storageGeneration",
+            "day"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reminder_days_ledgerId_token",
+            "unique": true,
+            "columnNames": [
+              "ledgerId",
+              "token"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reminder_days_ledgerId_token` ON `${TABLE_NAME}` (`ledgerId`, `token`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ledgers",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reminder_rules",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`ledgerId` TEXT NOT NULL, `storageGeneration` TEXT NOT NULL, `ruleId` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `revision` INTEGER NOT NULL, PRIMARY KEY(`ledgerId`, `ruleId`), FOREIGN KEY(`ledgerId`, `ruleId`) REFERENCES `payment_rules`(`ledgerId`, `id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "ledgerId",
+            "columnName": "ledgerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storageGeneration",
+            "columnName": "storageGeneration",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ruleId",
+            "columnName": "ruleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "ledgerId",
+            "ruleId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "payment_rules",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ledgerId",
+              "ruleId"
+            ],
+            "referencedColumns": [
+              "ledgerId",
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8ebdbd15dde90865fc9927daf4745527')"
+    ]
+  }
+}
