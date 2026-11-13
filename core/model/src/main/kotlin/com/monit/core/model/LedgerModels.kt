@@ -89,8 +89,10 @@ data class BalanceAnchor(
     val amount: Long?,
     val confirmedAt: Instant?,
     val unknownReason: String?,
+    val revision: Long = 1,
 ) {
     init {
+        require(revision > 0)
         requireLedgerId(id)
         require(date >= LocalDate.of(1900, 1, 1))
         if (amount == null) {

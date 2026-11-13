@@ -5,8 +5,8 @@
 현재 앱은 장부 확인 뒤 홈·거래·계좌 3탭에서 실제 Room 자료를 조회합니다. Kotlin·Jetpack Compose, Version Catalog와 Hilt를 사용합니다.
 `core:designsystem`에는 Figma 기반 색상·타이포·간격·shape와 공통 컴포넌트가 있습니다. 앱 테마는 기기 설정의 라이트·다크를 따르며 동적 색상은 사용하지 않습니다. [디자인 시스템 사용 계약](core/designsystem/README.md)을 참고합니다.
 `core:model`에는 원화 금액·날짜 검증과 계산, 계좌·거래 값과 Repository 계약이 있습니다.
-`core:data`는 Room 기반 계좌·거래 신규 저장, 일관된 조회, 같은 요청의 재시도 복구를 구현하고 Hilt로 연결합니다. 앱 화면에서는 아직 이 저장 API를 호출하지 않습니다. [저장 범위와 사용 계약](core/data/README.md)을 참고합니다.
-Navigation 2의 앱 셸에서 홈 월 요약, 거래 달력/목록·종류/계좌 필터, 계좌 목록·장부 잔액을 표시합니다. 조회 중·실패·정상 빈 결과와 잔액 미확인을 구분합니다. 재조회 중·실패에서는 이전 수치·목록 대신 진행·오류 상태를 표시하며 저장소의 기존 자료는 보존합니다. 탭 왕복·보기 전환은 월·날짜·필터를 유지합니다. 입력/등록·납입·제출 복구 화면은 후속 단계이며 해당 버튼이나 빈 목적지를 제공하지 않습니다. [탐색 사용 계약](core/navigation/README.md)과 [전체 설계·후속 순서](docs/architecture/navigation2-navigation-plan.md)를 참고합니다.
+`core:data`는 Room 기반 계좌·거래 저장과 수정·논리 삭제, 월별 수동 납입, 알림 선호, 기준액 확인·변경 및 같은 요청의 재시도 복구를 구현하고 Hilt로 연결합니다. [저장 범위와 사용 계약](core/data/README.md)을 참고합니다.
+Navigation 2의 앱 셸에서 홈·거래·계좌 조회와 입력·등록, 영속 초안 및 이전 제출 복구, 월별 납입·알림 설정을 연결합니다. 계좌 상세에서는 저장된 기준일 마감액의 영향 검토→최종 확인과 변경 이력, 확인된 장부 잔액 소계·선택 월 저축·투자 납입/인출/순납입을 제공합니다. 미확인과 0원을 구분하며 은행 잔액·시장 평가·수익률로 표현하지 않습니다. [계좌·자산 계약](feature/accounts/ASSETS.md), [탐색 사용 계약](core/navigation/README.md), [전체 탐색 설계](docs/architecture/navigation2-navigation-plan.md)를 참고합니다. 호스트 검증과 실기기 검증은 구분합니다.
 
 현재는 서버 연결 없이 단일 기기에 저장하는 로컬 MVP의 기반을 구현하는 단계입니다. Figma 설계 완료와 앱 기능 구현 완료는 구분합니다.
 
@@ -29,7 +29,7 @@ Navigation 2의 앱 셸에서 홈 월 요약, 거래 달력/목록·종류/계�
 |---|---|
 | Figma | 디자인 시스템과 기능별 화면 설계 개편 완료. 시각 설계 원본이며 앱 구현·실기기 검증 완료를 뜻하지 않음 |
 | Compose 디자인 시스템 | 개편 19개 family의 공통 API와 상태별 Preview, 선택적 클릭 Modifier 구현. 호스트 시험과 실제 Prevue·실기기 검증 범위는 디자인 시스템 README에서 구분 |
-| 제품 화면 | 홈·거래 달력/목록·계좌 조회를 실제 저장소에 연결. 입력/등록·납입 화면과 실기기 검증은 후속 단계 |
+| 제품 화면 | 홈·거래·계좌 조회/입력, 초안·제출 복구, 월별 납입·알림, 기준액 확인·자산 집계를 연결. 실기기 검증은 별도 |
 
 Material 3와 SEED의 의미·상태 원칙을 적용하며, 기존 파란색과 기기 설정에 따른 Light/Dark를 유지합니다. 동적 색상은 사용하지 않습니다. 최신 페이지별 링크, 구현된 컴포넌트의 사용 경계와 검증 방법은 [디자인 시스템 README](core/designsystem/README.md)에서 확인합니다.
 
@@ -38,12 +38,12 @@ Material 3와 SEED의 의미·상태 원칙을 적용하며, 기존 파란색과
 - `app`: 앱 진입점과 의존성 조립
 - `core:common`: [CoroutineContextProvider·CoroutineScopeProvider의 Hilt 제공](core/common/README.md)
 - `core:model`: Android 비의존 Kotlin 값·금액·날짜 계산과 Repository 계약
-- `core:data`: Room Entity·DAO·Repository 구현과 Hilt 바인딩, schema v1
+- `core:data`: Room Entity·DAO·Repository 구현과 Hilt 바인딩, schema 7 및 비파괴 Migration
 - `core:designsystem`: Material 3 기반 MONIT 테마·공통 컴포넌트·상태 Preview
 - `core:navigation`: UI 수명의 탐색·Back·결과 반환 실행기
 - `feature:home`: 홈 월 전체 요약과 조회 상태
 - `feature:transactions`: 거래 조회 ViewModel·달력/목록·필터와 입력 타입 경로
-- `feature:accounts`: 계좌 조회 화면, 기존 등록 ViewModel·상태와 타입 경로
+- `feature:accounts`: 계좌 조회·등록·상세·기준액 검토/확정·자산 집계와 타입 경로
 
 기능 모듈은 실제 구현에 맞춰 추가합니다. 공통 개발 규칙은 [AGENTS.md](AGENTS.md)를 따릅니다.
 

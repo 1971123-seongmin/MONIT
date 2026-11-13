@@ -17,6 +17,10 @@ object DraftSavedState {
         value.paymentRuleRevision?.let { putLong("paymentRuleRevision", it) }
         putString("paymentMonth", value.paymentMonth)
         putString("transaction", value.transactionId)
+        putString("accountId", value.accountId)
+        putString("anchorId", value.anchorId)
+        value.anchorRevision?.let { putLong("anchorRevision", it) }
+        putString("anchorDate", value.anchorDate?.toString())
         value.transactionRevision?.let { putLong("transactionRevision", it) }
     }
 
@@ -30,6 +34,7 @@ object DraftSavedState {
         if (value.containsKey("transactionRevision")) value.getLong("transactionRevision") else null,
         value.getString("paymentId"), if (value.containsKey("paymentRevision")) value.getLong("paymentRevision") else null,
         value.getString("paymentRuleId"), if (value.containsKey("paymentRuleRevision")) value.getLong("paymentRuleRevision") else null, value.getString("paymentMonth"),
+        value.getString("accountId"), value.getString("anchorId"), if (value.containsKey("anchorRevision")) value.getLong("anchorRevision") else null, value.getString("anchorDate")?.let(java.time.LocalDate::parse),
     )
 
     fun submission(value: DraftSubmission): Bundle = scope(value.scope).apply {

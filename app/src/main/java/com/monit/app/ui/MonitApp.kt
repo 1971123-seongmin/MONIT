@@ -41,8 +41,10 @@ import com.monit.core.model.LedgerContext
 import com.monit.core.model.ReminderLink
 import com.monit.core.navigation.NavigationResult
 import com.monit.feature.accounts.AccountRegistrationRoute
+import com.monit.feature.accounts.detail.AccountDetailRoute
 import com.monit.feature.accounts.importing.ImportPreviewRoute
 import com.monit.feature.accounts.list.AccountsRoute
+import com.monit.feature.accounts.navigation.AccountDetailDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationOrigin
 import com.monit.feature.home.HomeRoute
@@ -102,7 +104,26 @@ fun MonitApp(
                 context,
                 onRegisterAccount = actions.registerAccount,
                 onImportPreview = actions.previewImport,
+                onAccountSelected = actions.accountDetail,
             )
+        },
+        accountDetail = { entry, destination, navigator ->
+            var navigationFailed by remember { mutableStateOf(false) }
+
+            EntryRecoveryGate(
+                context,
+                { navigationFailed = navigator.closeAccountDetail(entry) == NavigationResult.UNAVAILABLE },
+            ) {
+                AccountDetailRoute(
+                    context = context,
+                    accountId = destination.accountId,
+                    entryId = destination.entryId,
+                    onClose = { navigationFailed = navigator.closeAccountDetail(entry) == NavigationResult.UNAVAILABLE },
+                    onTransactions = { navigationFailed = navigator.openAccountTransactions(entry) == NavigationResult.UNAVAILABLE },
+                )
+            }
+
+            if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
         payments = { entry, destination, navigator ->
             var navigationFailed by remember { mutableStateOf(false) }
@@ -261,6 +282,7 @@ internal fun MonitAppShell(
     importPreview: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
     payments: (@Composable (NavBackStackEntry, PaymentsDestination, MainNavigator) -> Unit)? = null,
     reminderSettings: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
+    accountDetail: (@Composable (NavBackStackEntry, AccountDetailDestination, MainNavigator) -> Unit)? = null,
     reminderLink: ReminderLink? = null,
     onReminderConsumed: (String) -> Unit = {},
 ) {
@@ -361,6 +383,7 @@ internal fun MonitAppShell(
                         entry,
                         navigator,
                         importPreview != null,
+                        accountDetailEnabled = accountDetail != null,
                     ),
                 )
             },
@@ -403,6 +426,9 @@ internal fun MonitAppShell(
             importPreview = importPreview?.let { content ->
                 { entry -> content(entry, navigator) }
             },
+            accountDetail = accountDetail?.let { content ->
+                { entry, destination -> content(entry, destination, navigator) }
+            },
         )
     }
 }
@@ -414,9 +440,16 @@ internal data class EntryActions(
     val editTransaction: (String) -> Unit = {},
     val payments: (() -> Unit)? = null,
     val reminders: (() -> Unit)? = null,
+    val accountDetail: ((String) -> Unit)? = null,
 )
 
-private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false, remindersEnabled: Boolean = false) = EntryActions(
+private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false, remindersEnabled: Boolean = false, accountDetailEnabled: Boolean = false) = EntryActions(
+    accountDetail = if (accountDetailEnabled) (
+        { id ->
+            navigator.openAccountDetail(entry, AccountDetailDestination(UUID.randomUUID().toString(), id))
+            Unit
+        }
+        ) else null,
     reminders = if (remindersEnabled) (
         {
             navigator.openReminderSettings(entry)

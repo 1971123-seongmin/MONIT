@@ -17,6 +17,7 @@ sealed interface PendingRecoveryItem {
     }
 
     data class AccountRegistration(override val operationId: String, val value: CreateAccount) : TypedSubmission
+    data class AnchorConfirmation(override val operationId: String, val value: ConfirmAnchor) : TypedSubmission
 
     data class TransactionCreation(override val operationId: String, val value: CreateTransaction) : TypedSubmission
 

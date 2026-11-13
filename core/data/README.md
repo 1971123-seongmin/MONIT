@@ -1,5 +1,7 @@
 # 로컬 저장 기반
 
+schema7의 기준액 자체 revision/CAS·변경 이력·확정 충돌과 명령 v4는 [계좌·자산 계약](../../feature/accounts/ASSETS.md)을 따른다. 기존 생성/거래의 두 단계 writer를 재사용하며 납입 v3의 별도 intent 경계는 유지한다.
+
 schema 6의 알림 선호·dirty·일별 요약 식별자와 비파괴 v5→v6, 금융/OS 분리·향후 복원 경계는 [알림 상태](../../feature/home/REMINDERS.md)를 따른다. OS 권한·예약은 데이터 계약의 성공 결과와 구분한다.
 
 현재 거래 수정·논리 삭제는 [거래 상태](../../feature/transactions/STATE.md), 신규 schema 5의 월별 납입·단일 outer writer·원래 intent/명시 해제 경계는 [납입 상태](../../feature/home/STATE.md)를 따른다. 아래 생성 v1/초안의 두 단계 설명은 기존 경로이며 납입 전용 writer와 구분한다. v4→v5는 기존 열·행·원문/hash를 보존하고 납입 테이블 6개만 추가한다.

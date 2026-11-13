@@ -13,6 +13,7 @@ fun AccountsRoute(
     viewModel: AccountsViewModel = hiltViewModel(),
     onRegisterAccount: (() -> Unit)? = null,
     onImportPreview: (() -> Unit)? = null,
+    onAccountSelected: ((String) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -27,5 +28,7 @@ fun AccountsRoute(
         onRetry = { viewModel.refresh(context) },
         onRegisterAccount = onRegisterAccount,
         onImportPreview = onImportPreview,
+        onAccountSelected = onAccountSelected,
+        onMonthChange = { viewModel.moveMonth(context, it) },
     )
 }

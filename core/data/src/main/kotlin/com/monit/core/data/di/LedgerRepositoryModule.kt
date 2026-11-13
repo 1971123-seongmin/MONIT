@@ -18,6 +18,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 internal interface LedgerRepositoryModule {
     @Binds
+    fun anchors(implementation: RoomLedgerRepository): com.monit.core.model.AnchorRepository
+
+    @Binds
     @Singleton
     fun reminders(implementation: RoomReminderRepository): ReminderRepository
 
