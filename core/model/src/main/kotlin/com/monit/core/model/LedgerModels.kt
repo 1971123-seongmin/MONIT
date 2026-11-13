@@ -188,6 +188,7 @@ interface LedgerRepository {
     suspend fun updateTransaction(context: LedgerContext, operationId: String, value: UpdateTransaction): WriteReceipt
     suspend fun deleteTransaction(context: LedgerContext, operationId: String, value: DeleteTransaction): WriteReceipt
 
+    suspend fun paymentRejection(context: LedgerContext, operationId: String): PaymentRejection?
     suspend fun rejection(context: LedgerContext, operationId: String): TransactionRejection?
     suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt?
     suspend fun pendingWrites(context: LedgerContext): List<PendingWrite>

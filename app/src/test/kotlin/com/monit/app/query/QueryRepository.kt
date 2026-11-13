@@ -46,6 +46,7 @@ internal class QueryRepository : LedgerRepository {
         value: CreateTransaction,
     ): WriteReceipt = error("조회는 거래를 저장하지 않는다")
 
+    override suspend fun paymentRejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.PaymentRejection? = null
     override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = null
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? = error("제출 복구는 별도 범위다")
 

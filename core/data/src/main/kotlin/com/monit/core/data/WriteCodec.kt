@@ -6,6 +6,7 @@ import com.monit.core.model.CreateTransaction
 import com.monit.core.model.DeleteTransaction
 import com.monit.core.model.EntityRef
 import com.monit.core.model.LedgerContext
+import com.monit.core.model.PaymentCommand
 import com.monit.core.model.TransactionKind
 import com.monit.core.model.UpdateTransaction
 import com.monit.core.model.WriteReceipt
@@ -19,6 +20,7 @@ internal sealed interface WriteCommand {
     data class Transaction(val value: CreateTransaction) : WriteCommand
     data class Update(val value: UpdateTransaction) : WriteCommand
     data class Delete(val value: DeleteTransaction) : WriteCommand
+    data class Payment(val value: PaymentCommand) : WriteCommand
 }
 
 /** 내부 생성 명령 v1의 고정 필드 순서/정수 문자열/JSON escape. 백업 DTO가 아니다. */
@@ -28,6 +30,8 @@ internal fun captureWrite(context: LedgerContext, command: WriteCommand): String
     val id: String
     val value: String
     when (command) {
+        is WriteCommand.Payment -> return capturePayment(context, command.value)
+
         is WriteCommand.Account -> {
             val a = command.value
             kind = "UPDATE_ACCOUNT"
@@ -77,6 +81,7 @@ internal fun captureWrite(context: LedgerContext, command: WriteCommand): String
 internal fun decodeWrite(context: LedgerContext, request: String): WriteCommand {
     val json = JSONObject(request)
     val version = json.getInt("version")
+    if (version == 3) return WriteCommand.Payment(decodePayment(context, request))
     check(version == 1 || version == 2)
     val expected = if (version == 1) {
         check(json.isNull("expectedRevision"))

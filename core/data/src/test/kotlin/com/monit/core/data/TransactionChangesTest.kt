@@ -321,7 +321,7 @@ class TransactionChangesTest {
         val jobRef = AtomicReference<Job>()
         val observed = AtomicBoolean()
         db = Room.databaseBuilder(app, LedgerDatabase::class.java, "changes.db")
-            .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4)
+            .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5)
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {

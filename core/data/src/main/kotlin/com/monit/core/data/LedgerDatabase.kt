@@ -172,6 +172,9 @@ internal interface LedgerDao {
     @Query(
         """
         SELECT EXISTS(SELECT 1 FROM accounts) OR EXISTS(SELECT 1 FROM anchors)
+            OR EXISTS(SELECT 1 FROM payment_rules) OR EXISTS(SELECT 1 FROM payment_rule_versions)
+            OR EXISTS(SELECT 1 FROM payment_items) OR EXISTS(SELECT 1 FROM payment_events)
+            OR EXISTS(SELECT 1 FROM payment_rejections) OR EXISTS(SELECT 1 FROM payment_intents)
             OR EXISTS(SELECT 1 FROM submission_rejections) OR EXISTS(SELECT 1 FROM transaction_history) OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM operations)
             OR EXISTS(SELECT 1 FROM submissions)
             OR EXISTS(SELECT 1 FROM submission_references)
@@ -184,6 +187,12 @@ internal interface LedgerDao {
         """
         SELECT EXISTS(SELECT 1 FROM accounts b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM anchors b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM payment_rules b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM payment_rule_versions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM payment_items b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM payment_events b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM payment_rejections b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM payment_intents b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM submission_rejections b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM transaction_history b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM transactions b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
@@ -282,13 +291,15 @@ internal interface LedgerDao {
         LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
         TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class,
         FormDraftEntity::class, TransactionHistoryEntity::class, SubmissionRejectionEntity::class,
+        PaymentRuleEntity::class, PaymentRuleVersionEntity::class, PaymentItemEntity::class, PaymentEventEntity::class, PaymentRejectionEntity::class, PaymentIntentEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 internal abstract class LedgerDatabase : RoomDatabase() {
     abstract fun ledgerDao(): LedgerDao
     abstract fun formDraftDao(): FormDraftDao
+    abstract fun paymentDao(): PaymentDao
 
     /** 현재 트랜잭션의 writer 연결 설정을 읽어 내구성 설정이 유실되면 쓰기를 거부한다. */
     fun requireDurableWriter() {
@@ -305,7 +316,7 @@ internal abstract class LedgerDatabase : RoomDatabase() {
 }
 
 internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase = Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
-    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4)
+    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5)
     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
     .addCallback(object : RoomDatabase.Callback() {
         override fun onOpen(db: SupportSQLiteDatabase) {

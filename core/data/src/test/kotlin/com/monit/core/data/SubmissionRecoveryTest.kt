@@ -396,7 +396,7 @@ class SubmissionRecoveryTest {
                 requestJson = "{}",
                 requestSha256 = requestHash("{}"),
             ) to SubmissionRecoveryProblem.CORRUPTED,
-            original.requestJson.replace("\"version\":1", "\"version\":3").let {
+            original.requestJson.replace("\"version\":1", "\"version\":99").let {
                 original.copy(
                     requestJson = it,
                     requestSha256 = requestHash(it),
@@ -446,7 +446,7 @@ class SubmissionRecoveryTest {
             original.copy(storageGeneration = id(902)),
             original.copy(ledgerRevision = 999),
             original.copy(committedAt = "bad"),
-            original.requestJson.replace("\"version\":1", "\"version\":3").let {
+            original.requestJson.replace("\"version\":1", "\"version\":99").let {
                 original.copy(requestJson = it, requestSha256 = requestHash(it))
             },
         )
@@ -773,7 +773,7 @@ class SubmissionRecoveryTest {
         val observed = AtomicBoolean()
         database = Room.databaseBuilder(application, LedgerDatabase::class.java, "discovery.db")
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4)
+            .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     db.execSQL("PRAGMA synchronous=FULL")

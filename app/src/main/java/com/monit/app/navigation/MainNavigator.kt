@@ -14,7 +14,9 @@ import com.monit.feature.accounts.navigation.navigateToAccountRegistration
 import com.monit.feature.accounts.navigation.navigateToAccounts
 import com.monit.feature.accounts.navigation.navigateToImportPreview
 import com.monit.feature.home.navigation.HomeDestination
+import com.monit.feature.home.navigation.PaymentsDestination
 import com.monit.feature.home.navigation.navigateToHome
+import com.monit.feature.home.navigation.navigateToPayments
 import com.monit.feature.transactions.navigation.RegisteredAccountResult
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
 import com.monit.feature.transactions.navigation.TransactionEntryOrigin
@@ -24,6 +26,15 @@ import com.monit.feature.transactions.navigation.navigateToTransactions
 
 /** 제품 탐색 정책만 소유하며 금융 성공/복구 여부는 호출 feature가 확인한다. */
 class MainNavigator(private val navigator: Navigator) {
+    fun openPayments(source: NavBackStackEntry, destination: PaymentsDestination): NavigationResult {
+        if (!source.destination.hasRoute<HomeDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.navigateToPayments(source, destination)
+    }
+    fun closePayments(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<PaymentsDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.back(source) { it.destination.hasRoute<HomeDestination>() }
+    }
+
     fun openImportPreview(source: NavBackStackEntry): NavigationResult {
         if (!source.destination.hasRoute<AccountsDestination>()) return NavigationResult.UNAVAILABLE
         return navigator.navigateToImportPreview(source)
@@ -67,9 +78,13 @@ class MainNavigator(private val navigator: Navigator) {
         destination: TransactionEntryDestination,
     ): NavigationResult {
         if (!source.destination.hasRoute<HomeDestination>() &&
-            !source.destination.hasRoute<TransactionsDestination>()
+            !source.destination.hasRoute<TransactionsDestination>() && !source.destination.hasRoute<PaymentsDestination>()
         ) return NavigationResult.UNAVAILABLE
-        val origin = if (source.destination.hasRoute<HomeDestination>()) TransactionEntryOrigin.HOME else TransactionEntryOrigin.TRANSACTIONS
+        val origin = when {
+            source.destination.hasRoute<HomeDestination>() -> TransactionEntryOrigin.HOME
+            source.destination.hasRoute<PaymentsDestination>() -> TransactionEntryOrigin.PAYMENTS
+            else -> TransactionEntryOrigin.TRANSACTIONS
+        }
         return navigator.navigateToTransactionEntry(source, destination.copy(origin = origin))
     }
 
@@ -118,7 +133,7 @@ class MainNavigator(private val navigator: Navigator) {
         }
         return navigator.back(source) {
             it.destination.hasRoute<HomeDestination>() ||
-                it.destination.hasRoute<TransactionsDestination>()
+                it.destination.hasRoute<TransactionsDestination>() || it.destination.hasRoute<PaymentsDestination>()
         }
     }
 

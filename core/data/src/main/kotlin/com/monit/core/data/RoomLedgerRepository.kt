@@ -23,6 +23,8 @@ import com.monit.core.model.LedgerEntryResult
 import com.monit.core.model.LedgerRepository
 import com.monit.core.model.LedgerSnapshot
 import com.monit.core.model.LedgerTransaction
+import com.monit.core.model.PaymentRejectedException
+import com.monit.core.model.PaymentRejection
 import com.monit.core.model.PendingRecoverySnapshot
 import com.monit.core.model.PendingWrite
 import com.monit.core.model.SubmissionRecoveryItem
@@ -137,7 +139,7 @@ internal class RoomLedgerRepository @Inject constructor(
         val item = recoveryItem(
             context,
             ledger.revision,
-            reference ?: dao.rejection(context.ledgerId, operationId)?.let { SubmissionReferenceEntity(context.ledgerId, operationId, it.storageGeneration) } ?: operation?.let {
+            reference ?: database.paymentDao().rejection(context.ledgerId, operationId)?.let { SubmissionReferenceEntity(context.ledgerId, operationId, it.storageGeneration) } ?: dao.rejection(context.ledgerId, operationId)?.let { SubmissionReferenceEntity(context.ledgerId, operationId, it.storageGeneration) } ?: operation?.let {
                 SubmissionReferenceEntity(
                     context.ledgerId,
                     operationId,
@@ -148,7 +150,7 @@ internal class RoomLedgerRepository @Inject constructor(
             operation,
         )
         when (item) {
-            is SubmissionRecoveryItem.Committed, is SubmissionRecoveryItem.Rejected -> {
+            is SubmissionRecoveryItem.Committed, is SubmissionRecoveryItem.Rejected, is SubmissionRecoveryItem.PaymentRejected -> {
                 val result =
                     if (reference == null) FinishSubmissionRecoveryResult.AlreadyInactive else {
                         check(dao.deleteSubmissionReference(context.ledgerId, operationId) == 1)
@@ -194,6 +196,12 @@ internal class RoomLedgerRepository @Inject constructor(
     override suspend fun updateTransaction(context: LedgerContext, operationId: String, value: UpdateTransaction) = submit(context, operationId, WriteCommand.Update(value))
     override suspend fun deleteTransaction(context: LedgerContext, operationId: String, value: DeleteTransaction) = submit(context, operationId, WriteCommand.Delete(value))
 
+    override suspend fun paymentRejection(context: LedgerContext, operationId: String): PaymentRejection? = database.withTransaction {
+        requireLedgerId(operationId)
+        requireContext(context)
+        database.paymentDao().rejection(context.ledgerId, operationId)?.let { PaymentWriter(database, clock, this@RoomLedgerRepository).verifiedRejection(context, it) }
+    }
+
     override suspend fun rejection(context: LedgerContext, operationId: String): TransactionRejection? = database.withTransaction {
         requireLedgerId(operationId)
         requireContext(context)
@@ -218,6 +226,7 @@ internal class RoomLedgerRepository @Inject constructor(
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)
                 ?.let { return@withTransaction verifiedReceipt(context, ledger, it) to null }
+            database.paymentDao().rejection(context.ledgerId, operationId)?.let { throw PaymentRejectedException(PaymentWriter(database, clock, this@RoomLedgerRepository).verifiedRejection(context, it)) }
             dao.rejection(context.ledgerId, operationId)?.let { throw TransactionRejectedException(verifiedRejection(context, it)) }
             val submission = checkNotNull(
                 dao.submission(
@@ -245,6 +254,7 @@ internal class RoomLedgerRepository @Inject constructor(
         draft: DraftAttempt? = null,
     ): WriteReceipt = withContext(coroutineContexts.default) {
         requireLedgerId(operationId)
+        if (command is WriteCommand.Payment) return@withContext PaymentWriter(database, clock, this@RoomLedgerRepository).submit(context, operationId, command.value, draft?.let { com.monit.core.model.DraftSubmission(it.reference, it.scope) })
         val payload = captureWrite(context, command)
         val hash = requestHash(payload)
         val prior = database.withTransaction {
@@ -318,6 +328,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 }
             }
             val refs = when (command) {
+                is WriteCommand.Payment -> error("Payment commands use their atomic writer")
                 is WriteCommand.Account -> insertAccount(context, command.value)
                 is WriteCommand.Transaction -> insertTransaction(context, command.value)
                 is WriteCommand.Update -> changeTransaction(context, operationId, command.value.value.id, command.value.expectedRevision, command.value.value)
@@ -330,6 +341,7 @@ internal class RoomLedgerRepository @Inject constructor(
             ) conflict(LedgerConflict.STALE_REVISION)
             val result = WriteReceipt(operationId, Math.addExact(ledger.revision, 1), refs)
             val kind = when (command) {
+                is WriteCommand.Payment -> command.value.kind
                 is WriteCommand.Account -> "UPDATE_ACCOUNT"
                 is WriteCommand.Transaction -> "CREATE_TRANSACTION"
                 is WriteCommand.Update -> "UPDATE_TRANSACTION"
@@ -364,12 +376,18 @@ internal class RoomLedgerRepository @Inject constructor(
     }
 
     private suspend fun hasVerifiedRejection(context: LedgerContext, operationId: String): Boolean {
-        val row = dao.rejection(context.ledgerId, operationId) ?: return false
+        val row = dao.rejection(context.ledgerId, operationId)
+        if (row == null) {
+            val payment = database.paymentDao().rejection(context.ledgerId, operationId) ?: return false
+            PaymentWriter(database, clock, this).verifiedRejection(context, payment)
+            return true
+        }
         verifiedRejection(context, row)
         return true
     }
 
     private suspend fun verifiedRejection(context: LedgerContext, row: SubmissionRejectionEntity): TransactionRejection {
+        check(database.paymentDao().rejection(context.ledgerId, row.operationId) == null)
         val pending = dao.submission(context.ledgerId, row.operationId)
         val operation = dao.operation(context.ledgerId, row.operationId)
         val targetPresent = dao.transaction(context.ledgerId, row.transactionId) != null
@@ -477,7 +495,7 @@ internal class RoomLedgerRepository @Inject constructor(
         return listOf(EntityRef("accounts", value.id, 1), EntityRef("anchors", value.anchorId, 1))
     }
 
-    private suspend fun insertTransaction(
+    internal suspend fun insertTransaction(
         context: LedgerContext,
         value: CreateTransaction,
     ): List<EntityRef> {
@@ -552,6 +570,7 @@ internal class RoomLedgerRepository @Inject constructor(
         }
         dao.insertTransactionHistory(TransactionHistoryEntity(before, operationId, changedAt, if (value == null) "DELETE" else "UPDATE"))
         check(dao.updateTransaction(after) == 1)
+        PaymentStore(database, clock).transactionChanged(before, after, operationId)
         snapshotInside(context, today())
         for (date in listOf(before.date, after.date).distinct()) {
             val month = LocalDate.parse(date)
@@ -677,6 +696,31 @@ internal class RoomLedgerRepository @Inject constructor(
         pending: SubmissionEntity?,
         operation: OperationEntity?,
     ): SubmissionRecoveryItem {
+        val payment = reference?.let { database.paymentDao().rejection(context.ledgerId, it.operationId) }
+        if (payment != null) {
+            val original = dao.submission(context.ledgerId, payment.operationId)
+            val success = dao.operation(context.ledgerId, payment.operationId)
+            val other = dao.rejection(context.ledgerId, payment.operationId)
+            val intent = database.paymentDao().intent(context.ledgerId, payment.operationId)
+            val present = when (payment.collection) {
+                "payment_rules" -> database.paymentDao().rule(context.ledgerId, payment.targetId) != null
+                "payment_items" -> database.paymentDao().item(context.ledgerId, payment.targetId) != null
+                "transactions", "transaction_financial" -> dao.transaction(context.ledgerId, payment.targetId) != null
+                else -> false
+            }
+            return try {
+                check(reference.storageGeneration == context.storageGeneration)
+                SubmissionRecoveryItem.PaymentRejected(com.monit.core.model.SubmissionReference(context, reference.operationId), validatePaymentRejection(context, payment, original, success, other, intent, present))
+            } catch (error: IllegalArgumentException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            } catch (error: IllegalStateException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            } catch (error: org.json.JSONException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            } catch (error: java.time.DateTimeException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            }
+        }
         val rejected = reference?.let { dao.rejection(context.ledgerId, it.operationId) }
         if (rejected != null) {
             val rejectedPending = dao.submission(context.ledgerId, rejected.operationId)
@@ -704,6 +748,8 @@ internal class RoomLedgerRepository @Inject constructor(
                 "accounts" -> dao.account(context.ledgerId, entity.id) != null
                 "anchors" -> dao.anchor(context.ledgerId, entity.id) != null
                 "transactions" -> dao.transaction(context.ledgerId, entity.id) != null
+                "payment_rules" -> database.paymentDao().rule(context.ledgerId, entity.id) != null
+                "payment_items" -> database.paymentDao().item(context.ledgerId, entity.id) != null
                 else -> false
             }
             if (!present) return SubmissionRecoveryItem.Blocked(

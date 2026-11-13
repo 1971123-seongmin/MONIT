@@ -38,6 +38,8 @@ import com.monit.feature.accounts.list.AccountsRoute
 import com.monit.feature.accounts.navigation.AccountRegistrationDestination
 import com.monit.feature.accounts.navigation.AccountRegistrationOrigin
 import com.monit.feature.home.HomeRoute
+import com.monit.feature.home.navigation.PaymentsDestination
+import com.monit.feature.home.payments.PaymentsRoute
 import com.monit.feature.transactions.TransactionsRoute
 import com.monit.feature.transactions.entry.TransactionEntryRoute
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
@@ -52,6 +54,7 @@ fun MonitApp(context: LedgerContext) {
             HomeRoute(
                 context,
                 onNewTransaction = { actions.newTransaction(null) },
+                onPayments = actions.payments,
             )
         },
         transactions = { actions ->
@@ -67,6 +70,22 @@ fun MonitApp(context: LedgerContext) {
                 onRegisterAccount = actions.registerAccount,
                 onImportPreview = actions.previewImport,
             )
+        },
+        payments = { entry, destination, navigator ->
+            var navigationFailed by remember { mutableStateOf(false) }
+
+            EntryRecoveryGate(
+                context,
+                { navigationFailed = navigator.closePayments(entry) == NavigationResult.UNAVAILABLE },
+            ) {
+                PaymentsRoute(
+                    context = context,
+                    entryId = destination.entryId,
+                    onClose = { navigationFailed = navigator.closePayments(entry) == NavigationResult.UNAVAILABLE },
+                    onEditTransaction = { id -> navigationFailed = navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, transactionId = id)) == NavigationResult.UNAVAILABLE },
+                )
+            }
+            if (navigationFailed) NavigationFailureNotice { navigationFailed = false }
         },
         importPreview = { entry, navigator ->
             var navigationFailed by remember { mutableStateOf(false) }
@@ -174,6 +193,7 @@ internal fun MonitAppShell(
     transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination, MainNavigator) -> Unit)? = null,
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination, MainNavigator) -> Unit)? = null,
     importPreview: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
+    payments: (@Composable (NavBackStackEntry, PaymentsDestination, MainNavigator) -> Unit)? = null,
 ) {
     val controller = rememberNavController()
     val navigator = rememberMainNavigator(controller)
@@ -225,6 +245,7 @@ internal fun MonitAppShell(
                         entry,
                         navigator,
                         importPreview != null,
+                        payments != null,
                     ),
                 )
             },
@@ -277,6 +298,15 @@ internal fun MonitAppShell(
                     )
                 }
             },
+            payments = payments?.let { content ->
+                { entry, destination ->
+                    content(
+                        entry,
+                        destination,
+                        navigator,
+                    )
+                }
+            },
             importPreview = importPreview?.let { content ->
                 { entry -> content(entry, navigator) }
             },
@@ -289,12 +319,19 @@ internal data class EntryActions(
     val registerAccount: () -> Unit,
     val previewImport: (() -> Unit)?,
     val editTransaction: (String) -> Unit = {},
+    val payments: (() -> Unit)? = null,
 )
 
-private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean) = EntryActions(
+private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false) = EntryActions(
     newTransaction = { date ->
         navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, date?.toString()))
     },
+    payments = if (paymentsEnabled) (
+        {
+            navigator.openPayments(entry, PaymentsDestination(UUID.randomUUID().toString()))
+            Unit
+        }
+        ) else null,
     editTransaction = { id ->
         navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, transactionId = id))
     },

@@ -20,6 +20,8 @@ sealed interface PendingRecoveryItem {
 
     data class TransactionCreation(override val operationId: String, val value: CreateTransaction) : TypedSubmission
 
+    data class PaymentSubmission(override val operationId: String, val command: PaymentCommand) : TypedSubmission
+
     data class TransactionUpdate(override val operationId: String, val value: UpdateTransaction) : TypedSubmission
     data class TransactionDeletion(override val operationId: String, val value: DeleteTransaction) : TypedSubmission
 

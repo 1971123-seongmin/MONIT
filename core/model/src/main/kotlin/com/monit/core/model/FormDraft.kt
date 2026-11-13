@@ -1,7 +1,7 @@
 package com.monit.core.model
 
-enum class DraftKind { ACCOUNT, TRANSACTION }
-enum class DraftOrigin { HOME, TRANSACTIONS, ACCOUNTS, TRANSACTION_ENTRY }
+enum class DraftKind { ACCOUNT, TRANSACTION, PAYMENT_RULE, PAYMENT_CONFIRM }
+enum class DraftOrigin { HOME, TRANSACTIONS, ACCOUNTS, TRANSACTION_ENTRY, PAYMENTS }
 enum class DraftSlot { DEBIT, CREDIT }
 
 /** 런타임 Nav entry가 아닌 지속 폼 간 호출 문맥이다. */
@@ -13,6 +13,11 @@ data class DraftScope(
     val slot: DraftSlot? = null,
     val transactionId: String? = null,
     val transactionRevision: Long? = null,
+    val paymentId: String? = null,
+    val paymentRevision: Long? = null,
+    val paymentRuleId: String? = null,
+    val paymentRuleRevision: Long? = null,
+    val paymentMonth: String? = null,
 ) {
     init {
         if (transactionId != null) {
@@ -20,8 +25,23 @@ data class DraftScope(
             requireLedgerId(transactionId)
             require(transactionRevision != null && transactionRevision > 0 && transactionRevision < Long.MAX_VALUE)
         } else require(transactionRevision == null)
-        if (kind == DraftKind.TRANSACTION) require(origin == DraftOrigin.HOME || origin == DraftOrigin.TRANSACTIONS)
-        else require(origin == DraftOrigin.ACCOUNTS || origin == DraftOrigin.TRANSACTION_ENTRY)
+        when (kind) {
+            DraftKind.TRANSACTION -> require(origin == DraftOrigin.HOME || origin == DraftOrigin.TRANSACTIONS || origin == DraftOrigin.PAYMENTS)
+
+            DraftKind.ACCOUNT -> require(origin == DraftOrigin.ACCOUNTS || origin == DraftOrigin.TRANSACTION_ENTRY)
+
+            DraftKind.PAYMENT_RULE, DraftKind.PAYMENT_CONFIRM -> {
+                require(origin == DraftOrigin.PAYMENTS)
+                requireLedgerId(requireNotNull(paymentId))
+                require(paymentRevision != null && paymentRevision >= 0 && paymentRevision < Long.MAX_VALUE)
+                if (kind == DraftKind.PAYMENT_CONFIRM) {
+                    requireLedgerId(requireNotNull(paymentRuleId))
+                    require(paymentRuleRevision != null && paymentRuleRevision > 0 && paymentRuleRevision < Long.MAX_VALUE)
+                    com.monit.core.model.paymentMonth(requireNotNull(paymentMonth))
+                } else require(paymentRuleId == null && paymentRuleRevision == null && paymentMonth == null)
+            }
+        }
+        if (kind != DraftKind.PAYMENT_RULE && kind != DraftKind.PAYMENT_CONFIRM) require(paymentId == null && paymentRevision == null && paymentRuleId == null && paymentRuleRevision == null && paymentMonth == null)
         if (origin == DraftOrigin.TRANSACTION_ENTRY) {
             requireLedgerId(requireNotNull(parentDraftId))
             requireLedgerId(requireNotNull(selectionRequestId))
@@ -39,6 +59,7 @@ data class DraftReference(val id: String, val revision: Long) {
 
 /** 유효하지 않은 편집 중 금액/일자도 원문 그대로 보존한다. */
 sealed interface DraftContent {
+    data class Payment(val fields: Map<String, String>) : DraftContent
     data class Account(
         val name: String,
         val nature: AccountNature,

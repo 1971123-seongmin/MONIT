@@ -12,6 +12,7 @@ fun HomeRoute(
     context: LedgerContext,
     viewModel: HomeViewModel = hiltViewModel(),
     onNewTransaction: (() -> Unit)? = null,
+    onPayments: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -25,5 +26,6 @@ fun HomeRoute(
         state,
         onRetry = { viewModel.refresh(context) },
         onNewTransaction = onNewTransaction,
+        onPayments = onPayments,
     )
 }

@@ -8,7 +8,15 @@ private fun obj(vararg fields: Pair<String, String>) = fields.joinToString(",", 
 private fun text(value: String?) = value?.let(JSONObject::quote) ?: "null"
 private fun JSONObject.optional(key: String): String? = if (isNull(key)) null else getString(key)
 
-internal fun captureDraftScope(scope: DraftScope): String = if (scope.transactionId != null) obj(
+internal fun captureDraftScope(scope: DraftScope): String = if (scope.kind == DraftKind.PAYMENT_RULE || scope.kind == DraftKind.PAYMENT_CONFIRM) obj(
+    "kind" to text(scope.kind.name),
+    "origin" to text(scope.origin.name),
+    "paymentId" to text(scope.paymentId),
+    "paymentRevision" to text(scope.paymentRevision.toString()),
+    "paymentRuleId" to text(scope.paymentRuleId),
+    "paymentRuleRevision" to text(scope.paymentRuleRevision?.toString()),
+    "paymentMonth" to text(scope.paymentMonth),
+) else if (scope.transactionId != null) obj(
     "kind" to text(scope.kind.name),
     "origin" to text(scope.origin.name),
     "parent" to text(scope.parentDraftId),
@@ -34,6 +42,7 @@ internal fun decodeDraftScope(json: String): DraftScope {
         value.optional("slot")?.let(DraftSlot::valueOf),
         value.optional("transaction"),
         value.optional("transactionRevision")?.toLong(),
+        value.optional("paymentId"), value.optional("paymentRevision")?.toLong(), value.optional("paymentRuleId"), value.optional("paymentRuleRevision")?.toLong(), value.optional("paymentMonth"),
     )
     check(captureDraftScope(scope) == json)
     return scope
@@ -42,6 +51,16 @@ internal fun decodeDraftScope(json: String): DraftScope {
 internal fun captureDraft(context: LedgerContext, id: String, scope: DraftScope, content: DraftContent): String {
     requireLedgerId(id)
     val fields = when (content) {
+        is DraftContent.Payment -> {
+            require(scope.kind == DraftKind.PAYMENT_RULE || scope.kind == DraftKind.PAYMENT_CONFIRM)
+            require(content.fields.size <= 32)
+            content.fields.forEach { (key, value) ->
+                require(key.matches(Regex("[a-zA-Z]{1,40}")))
+                requireLedgerText(value, allowBlank = true)
+            }
+            obj(*content.fields.toSortedMap().map { it.key to text(it.value) }.toTypedArray())
+        }
+
         is DraftContent.Account -> {
             require(scope.kind == DraftKind.ACCOUNT)
             listOf(content.name, content.anchorDate, content.unknownReason).forEach { requireLedgerText(it, allowBlank = true) }
@@ -83,6 +102,8 @@ internal fun FormDraftEntity.editable(context: LedgerContext): FormDraft {
     val scope = decodeDraftScope(scopeJson)
     val value = json.getJSONObject("content")
     val content = when (scope.kind) {
+        DraftKind.PAYMENT_RULE, DraftKind.PAYMENT_CONFIRM -> DraftContent.Payment(value.keys().asSequence().associateWith { value.getString(it) })
+
         DraftKind.ACCOUNT -> DraftContent.Account(value.getString("name"), AccountNature.valueOf(value.getString("nature")), value.getString("date"), value.getString("reason"))
 
         DraftKind.TRANSACTION -> DraftContent.Transaction(
@@ -95,6 +116,7 @@ internal fun FormDraftEntity.editable(context: LedgerContext): FormDraft {
 }
 
 internal fun FormDraft.matches(command: WriteCommand): Boolean {
+    if (command is WriteCommand.Payment) return content is DraftContent.Payment && paymentCommandFromDraft(scope, (content as DraftContent.Payment).fields) == command.value
     if (command is WriteCommand.Update) {
         if (scope.transactionId != command.value.value.id || scope.transactionRevision != command.value.expectedRevision) return false
         return copy(scope = scope.copy(transactionId = null, transactionRevision = null)).matches(WriteCommand.Transaction(command.value.value))
