@@ -385,7 +385,7 @@ class FormDraftRepositoryTest {
         assertTrue(drafts.drafts(context).isEmpty())
         sql.query("PRAGMA user_version").use {
             assertTrue(it.moveToFirst())
-            assertEquals(7, it.getInt(0))
+            assertEquals(8, it.getInt(0))
         }
         db.close()
         reopen()

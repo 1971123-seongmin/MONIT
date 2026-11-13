@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.VisualTransformation
 import com.monit.core.designsystem.R
 
 /** 편집 값·검증·키보드 정책은 호출자가 관리하는 공통 입력. 문자열을 임의 변환하지 않는다. */
@@ -54,6 +55,7 @@ fun MonitTextField(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     placeholder: (@Composable () -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
 
@@ -79,6 +81,7 @@ fun MonitTextField(
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         placeholder = placeholder,
+        visualTransformation = visualTransformation,
     )
 }
 
@@ -106,6 +109,7 @@ internal fun MonitTextFieldContent(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     placeholder: (@Composable () -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     val active = enabled && !loading
     val borderColor = when {
@@ -144,6 +148,7 @@ internal fun MonitTextFieldContent(
                 cursorBrush = SolidColor(if (errorMessage != null) colors.error else colors.focusedOutline),
                 keyboardOptions = keyboardOptions,
                 keyboardActions = keyboardActions,
+                visualTransformation = visualTransformation,
                 interactionSource = interactionSource,
                 modifier = Modifier
                     .fillMaxWidth()

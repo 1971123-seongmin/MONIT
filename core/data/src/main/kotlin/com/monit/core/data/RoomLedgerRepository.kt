@@ -66,6 +66,7 @@ internal class RoomLedgerRepository @Inject constructor(
     private fun today(): LocalDate = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
 
     override suspend fun openLedger(): LedgerEntryResult = database.withTransaction {
+        database.requireAvailable()
         currentCoroutineContext().ensureActive()
         val ledgers = dao.entryLedgers()
         when {
@@ -293,6 +294,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 throw AnchorRejectedException(AnchorStore(database, clock).verifiedRejection(context, it))
             }
             // 납입 intent의 명시 해제 fence와 다른 명령의 operation ID를 공유하지 않는다.
+            database.requireFreshOperation(operationId)
             check(database.paymentDao().intent(context.ledgerId, operationId) == null)
             if (command is WriteCommand.Update) dao.transaction(context.ledgerId, command.value.value.id)?.takeIf { it.revision == command.value.expectedRevision && it.deletedAt == null }?.let { requireAnchorBoundary(context, it, command.value.value) }
             dao.rejection(context.ledgerId, operationId)?.let {
@@ -460,25 +462,7 @@ internal class RoomLedgerRepository @Inject constructor(
         return decodeRejection(context, row, pending, operation, targetPresent)
     }
 
-    private fun decodeRejection(context: LedgerContext, row: SubmissionRejectionEntity, pendingRow: SubmissionEntity?, operation: OperationEntity?, targetPresent: Boolean): TransactionRejection {
-        check(row.ledgerId == context.ledgerId && row.storageGeneration == context.storageGeneration)
-        requireLedgerId(row.operationId)
-        check(operation == null)
-        check(requestHash(row.requestJson) == row.requestSha256)
-        val pending = checkNotNull(pendingRow)
-        check(pending.requestJson == row.requestJson && pending.requestSha256 == row.requestSha256)
-        val target = when (val command = decodeWrite(context, row.requestJson)) {
-            is WriteCommand.Update -> command.value.value.id to command.value.expectedRevision
-            is WriteCommand.Delete -> command.value.id to command.value.expectedRevision
-            else -> error("Not a transaction change")
-        }
-        check(target == (row.transactionId to row.expectedRevision))
-        check(row.actualRevision > 0 && (row.actualRevision != row.expectedRevision || row.actualDeletedAt != null))
-        java.time.Instant.parse(row.rejectedAt)
-        row.actualDeletedAt?.let(java.time.Instant::parse)
-        check(targetPresent)
-        return TransactionRejection(context, row.operationId, row.transactionId, row.expectedRevision, row.actualRevision, row.actualDeletedAt, row.rejectedAt)
-    }
+    private fun decodeRejection(context: LedgerContext, row: SubmissionRejectionEntity, pendingRow: SubmissionEntity?, operation: OperationEntity?, targetPresent: Boolean): TransactionRejection = validateTransactionRejection(context, row, pendingRow, operation, targetPresent)
 
     private suspend fun lockDraft(context: LedgerContext, operation: String, command: WriteCommand, attempt: DraftAttempt?) {
         val drafts = database.formDraftDao()
@@ -729,6 +713,7 @@ internal class RoomLedgerRepository @Inject constructor(
     }
 
     internal suspend fun requireContext(context: LedgerContext): LedgerEntity {
+        database.requireAvailable()
         val ledger = dao.ledger(context.ledgerId) ?: conflict(LedgerConflict.MISSING_REFERENCE)
         if (ledger.storageGeneration != context.storageGeneration) conflict(LedgerConflict.STALE_GENERATION)
         check(ledger.revision > 0)

@@ -1,0 +1,57 @@
+{
+  "formatVersion": 1,
+  "contractVersion": 1,
+  "createdAt": "2026-11-04T04:00:00Z",
+  "ledger": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "revision": "1",
+    "storageGeneration": "00000000-0000-4000-8000-000000000002",
+    "timeZone": "Asia/Seoul",
+    "currency": "KRW",
+    "accounts": [],
+    "paymentMethods": [],
+    "categories": [],
+    "transactions": [],
+    "transactionHistory": [],
+    "rules": [],
+    "ruleVersions": [],
+    "obligations": [],
+    "anchors": [],
+    "importBatches": [],
+    "importRows": [],
+    "sourceMappings": [],
+    "operations": []
+  },
+  "originals": [],
+  "manifest": {
+    "ledgerId": "00000000-0000-4000-8000-000000000001",
+    "recordCounts": {
+      "accounts": 0,
+      "paymentMethods": 0,
+      "categories": 0,
+      "transactions": 0,
+      "transactionHistory": 0,
+      "rules": 0,
+      "ruleVersions": 0,
+      "obligations": 0,
+      "anchors": 0,
+      "importBatches": 0,
+      "importRows": 0,
+      "sourceMappings": 0,
+      "operations": 0
+    },
+    "originals": [],
+    "coverage": {
+      "ledger": "COMPLETE",
+      "originals": "COMPLETE_EXTRACTS",
+      "excludes": [
+        "UI_DRAFTS",
+        "PASSWORDS",
+        "DERIVED_CACHES",
+        "OS_PERMISSIONS",
+        "OS_ALARMS",
+        "TEMP_FILES"
+      ]
+    }
+  }
+}

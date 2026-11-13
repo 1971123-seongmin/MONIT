@@ -10,6 +10,17 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReminderCoordinatorTest {
+    /** 복원 유지보수는 조회 오류와 다르며 기존 OS 예약/실패 상태를 바꾸지 않는다. */
+    @Test fun maintenanceDefersWithoutCancellingExistingPlatformSchedule() = runTest {
+        val repository = ReminderTestRepository().apply { maintenance = true }
+        val platform = TestPlatform()
+        val before = repository.config
+        runtime(repository, platform, backgroundScope).reconcile()
+        assertEquals(0, platform.cancelAlls)
+        assertEquals(0, platform.posts)
+        assertEquals(0, repository.failedCalls)
+        assertEquals(before, repository.config)
+    }
     private fun runtime(repository: ReminderTestRepository, platform: TestPlatform, scope: CoroutineScope) = ReminderCoordinator(
         repository,
         platform,

@@ -172,6 +172,8 @@ internal interface LedgerDao {
     @Query(
         """
         SELECT EXISTS(SELECT 1 FROM accounts) OR EXISTS(SELECT 1 FROM anchors)
+            OR EXISTS(SELECT 1 FROM restored_evidence) OR EXISTS(SELECT 1 FROM operation_fences)
+            OR EXISTS(SELECT 1 FROM backup_originals) OR EXISTS(SELECT 1 FROM backup_status)
             OR EXISTS(SELECT 1 FROM anchor_history) OR EXISTS(SELECT 1 FROM anchor_rejections)
             OR EXISTS(SELECT 1 FROM payment_rules) OR EXISTS(SELECT 1 FROM payment_rule_versions)
             OR EXISTS(SELECT 1 FROM payment_items) OR EXISTS(SELECT 1 FROM payment_events)
@@ -189,6 +191,8 @@ internal interface LedgerDao {
     @Query(
         """
         SELECT EXISTS(SELECT 1 FROM accounts b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
+            OR EXISTS(SELECT 1 FROM restored_evidence b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id=b.ledgerId))
+            OR EXISTS(SELECT 1 FROM backup_originals b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id=b.ledgerId))
             OR EXISTS(SELECT 1 FROM anchor_history b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM anchor_rejections b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
             OR EXISTS(SELECT 1 FROM anchors b WHERE NOT EXISTS(SELECT 1 FROM ledgers l WHERE l.id = b.ledgerId))
@@ -298,16 +302,50 @@ internal interface LedgerDao {
 @Database(
     entities = [
         LedgerEntity::class, AccountEntity::class, AnchorEntity::class,
+        com.monit.core.data.backup.RestoredEvidenceEntity::class, com.monit.core.data.backup.OperationFenceEntity::class,
+        com.monit.core.data.backup.BackupOriginalEntity::class, com.monit.core.data.backup.BackupStatusEntity::class,
         AnchorHistoryEntity::class, AnchorRejectionEntity::class,
         TransactionEntity::class, OperationEntity::class, SubmissionEntity::class, SubmissionReferenceEntity::class,
         FormDraftEntity::class, TransactionHistoryEntity::class, SubmissionRejectionEntity::class,
         PaymentRuleEntity::class, PaymentRuleVersionEntity::class, PaymentItemEntity::class, PaymentEventEntity::class, PaymentRejectionEntity::class, PaymentIntentEntity::class,
         ReminderSettingsEntity::class, ReminderDayEntity::class, ReminderRuleEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 internal abstract class LedgerDatabase : RoomDatabase() {
+    abstract fun backupDao(): com.monit.core.data.backup.BackupDao
+    private val maintenanceMutex = kotlinx.coroutines.sync.Mutex()
+    private val maintenanceReleased = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(replay = 1)
+    val maintenanceFinished: kotlinx.coroutines.flow.SharedFlow<Unit> get() = maintenanceReleased
+
+    @Volatile private var maintenanceId: String? = null
+
+    fun requireAvailable() {
+        if (maintenanceId != null) throw com.monit.core.model.BackupException(com.monit.core.model.BackupProblem.MAINTENANCE)
+    }
+    suspend fun requireFreshOperation(operation: String) {
+        if (backupDao().fenced(operation)) throw com.monit.core.model.LedgerConflictException(com.monit.core.model.LedgerConflict.DUPLICATE_REQUEST)
+    }
+
+    suspend fun <T> maintenance(action: suspend (String) -> T): T {
+        if (!maintenanceMutex.tryLock()) throw com.monit.core.model.BackupException(com.monit.core.model.BackupProblem.MAINTENANCE)
+        val lease = java.util.UUID.randomUUID().toString()
+        maintenanceId = lease
+        try {
+            return action(lease)
+        } finally {
+            maintenanceId = null
+            maintenanceMutex.unlock()
+            // rollback/성공 모두 이전에 보류한 Receiver/OS 준비를 다시 읽게 한다. 금융 행은 바꾸지 않는다.
+            maintenanceReleased.tryEmit(Unit)
+        }
+    }
+
+    fun requireMaintenanceWriter(lease: String) {
+        check(maintenanceId == lease)
+        requireDurableConnection()
+    }
     abstract fun anchorDao(): AnchorDao
     abstract fun ledgerDao(): LedgerDao
     abstract fun formDraftDao(): FormDraftDao
@@ -316,6 +354,11 @@ internal abstract class LedgerDatabase : RoomDatabase() {
 
     /** 현재 트랜잭션의 writer 연결 설정을 읽어 내구성 설정이 유실되면 쓰기를 거부한다. */
     fun requireDurableWriter() {
+        requireAvailable()
+        requireDurableConnection()
+    }
+
+    private fun requireDurableConnection() {
         val connection = openHelper.writableDatabase
         connection.query("PRAGMA synchronous").use {
             check(it.moveToFirst() && it.getInt(0) == 2) { "FULL synchronous mode is required" }
@@ -329,7 +372,7 @@ internal abstract class LedgerDatabase : RoomDatabase() {
 }
 
 internal fun createLedgerDatabase(context: Context, name: String): LedgerDatabase = Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, name)
-    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5, LedgerMigration5To6, LedgerMigration6To7)
+    .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5, LedgerMigration5To6, LedgerMigration6To7, LedgerMigration7To8)
     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
     .addCallback(object : RoomDatabase.Callback() {
         override fun onOpen(db: SupportSQLiteDatabase) {

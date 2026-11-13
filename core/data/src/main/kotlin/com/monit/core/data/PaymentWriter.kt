@@ -26,6 +26,7 @@ internal class PaymentWriter(private val database: LedgerDatabase, private val c
                 same(it.requestJson, it.requestSha256, raw, hash)
                 return@withTransaction PaymentAttempt.Committed(checkNotNull(ledger.receipt(context, operation)))
             }
+            database.requireFreshOperation(operation)
             dao.rejection(context.ledgerId, operation)?.let {
                 same(it.requestJson, it.requestSha256, raw, hash)
                 return@withTransaction PaymentAttempt.Rejected(verifiedRejection(context, it))
@@ -150,6 +151,7 @@ internal class PaymentWriter(private val database: LedgerDatabase, private val c
 
             PaymentAttempt.Missing -> {
                 if (command == null) return@withTransaction result
+                database.requireFreshOperation(operation)
                 val raw = capturePayment(context, command)
                 dao.insertIntent(PaymentIntentEntity(context.ledgerId, operation, context.storageGeneration, raw, requestHash(raw), "RELEASED", null, null, null))
                 currentCoroutineContext().ensureActive()

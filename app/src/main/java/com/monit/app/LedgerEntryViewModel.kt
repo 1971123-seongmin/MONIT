@@ -39,4 +39,12 @@ class LedgerEntryViewModel @Inject constructor(private val repository: LedgerRep
             }
         }
     }
+
+    /** 복원 후 이전 Ready/back stack을 재사용하지 않고 저장소의 새 generation을 다시 읽는다. */
+    fun afterRestore() {
+        readJob?.cancel()
+        readJob = null
+        mutableState.value = LedgerEntryState.Loading
+        retry()
+    }
 }

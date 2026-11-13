@@ -24,6 +24,7 @@ fun HomeScreen(
     onNewTransaction: (() -> Unit)? = null,
     onPayments: (() -> Unit)? = null,
     onReminders: (() -> Unit)? = null,
+    onBackup: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
@@ -31,6 +32,14 @@ fun HomeScreen(
     ) {
         item("title") {
             MonitTopBar("이번 달 루틴")
+        }
+
+        if (onBackup != null) item("backup", "action") {
+            MonitButton(
+                text = "백업과 복원",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onBackup,
+            )
         }
 
         if (onReminders != null) item("reminder-settings", "action") {

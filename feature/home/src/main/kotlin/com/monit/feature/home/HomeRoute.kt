@@ -14,6 +14,7 @@ fun HomeRoute(
     onNewTransaction: (() -> Unit)? = null,
     onPayments: (() -> Unit)? = null,
     onReminders: (() -> Unit)? = null,
+    onBackup: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -29,5 +30,6 @@ fun HomeRoute(
         onNewTransaction = onNewTransaction,
         onPayments = onPayments,
         onReminders = onReminders,
+        onBackup = onBackup,
     )
 }
