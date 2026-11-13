@@ -175,7 +175,7 @@ class AccountRegistrationViewModelTest {
         assertTrue(repository.requests.isEmpty())
     }
 
-    /** 지원되는 task 재생성에서 미제출 오류 입력도 그대로 유지한다. 재부팅 영속 초안 시험은 아니다. */
+    /** 지원되는 task 재생성에서 미제출 성격/오류 입력도 그대로 유지한다. 재부팅 영속 초안은 별도 시험이다. */
     @Test
     fun taskDraftRestoresWithoutSubmitting() = runTest(dispatcher) {
         val repository = FakeRepository()
@@ -184,10 +184,12 @@ class AccountRegistrationViewModelTest {
         advanceUntilIdle()
         first.onAction(AccountRegistrationAction.NameChanged("  "))
         first.onAction(AccountRegistrationAction.AnchorDateChanged("날짜 원문"))
+        first.onAction(AccountRegistrationAction.NatureChanged(com.monit.core.model.AccountNature.SAVINGS))
         val restored = viewModel(repository, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
         advanceUntilIdle()
         assertEquals("  ", restored.state.value.draft.name)
         assertEquals("날짜 원문", restored.state.value.draft.anchorDate)
+        assertEquals(com.monit.core.model.AccountNature.SAVINGS, restored.state.value.draft.nature)
         assertTrue(repository.requests.isEmpty())
     }
 

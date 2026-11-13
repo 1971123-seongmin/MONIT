@@ -24,6 +24,7 @@ import com.monit.core.designsystem.component.textfield.MonitTextField
 import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.core.model.AccountNature
 import com.monit.core.model.LedgerContext
+import com.monit.feature.accounts.component.AccountNatureSelector
 
 @Composable
 fun AccountRegistrationScreen(
@@ -128,6 +129,13 @@ fun AccountRegistrationScreen(
             },
             enabled = state.editable,
             errorMessage = if (state.inputError == AccountInputError.ANCHOR_DATE) "1900년부터 어제까지의 날짜를 입력해 주세요." else null,
+        )
+
+        AccountNatureSelector(
+            value = draft.nature,
+            enabled = state.editable,
+            onSelect = { onAction(AccountRegistrationAction.NatureChanged(it)) },
+            modifier = Modifier.fillMaxWidth(),
         )
 
         MonitCard(Modifier.fillMaxWidth()) {

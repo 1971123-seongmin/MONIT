@@ -92,6 +92,23 @@ class RoomLedgerRepositoryTest {
         repository.createAccount(context, id(100 + number), it)
     }
 
+    /** 실제 Room 파일에 세 성격을 등록하고 재열어 원래 성격/미확인 기준액/기준일을 읽는다. 기존 계좌 변경은 없다. */
+    @Test fun newlyRegisteredAccountNaturesSurviveDatabaseReopen() = runBlocking {
+        val values = AccountNature.entries.mapIndexed { index, nature -> accountValue(index + 1L).copy(nature = nature) }
+        values.forEachIndexed { index, value -> repository.createAccount(context, id(index + 101L), value) }
+        database.close()
+        reopen()
+        val snapshot = repository.snapshot(context, today)
+        assertEquals(3, snapshot.accounts.size)
+        for (value in values) {
+            val stored = snapshot.accounts.single { it.id == value.id }
+            assertEquals(value.nature, stored.nature)
+            assertEquals(value.anchorDate, stored.anchor.date)
+            assertNull(stored.anchor.amount)
+        }
+        assertTrue(snapshot.transactions.isEmpty())
+    }
+
     private fun transfer(number: Long = 10) = CreateTransaction(
         id(number),
         TransactionKind.TRANSFER,
