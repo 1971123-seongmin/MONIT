@@ -37,6 +37,11 @@ internal class ReminderTestRepository : ReminderRepository {
     var link: ReminderLink? = ReminderLink(context, reminderTestId(70), "2026-11", reminderTestId(50))
     val delivery = ReminderDelivery(reminderTestId(70), LocalDate.of(2026, 11, 13), listOf(PaymentReminder(reminderTestId(50), "2026-11", ReminderStage.DUE, now.minusSeconds(60))))
     override fun changes(): Flow<Boolean> = signals
+    override suspend fun needsReconciliation(): Boolean {
+        if (maintenance) throw BackupException(BackupProblem.MAINTENANCE)
+        if (failRead) throw IOException()
+        return !emptyLedger && (config.dirty || config.failed)
+    }
     override suspend fun configuration(context: LedgerContext): ReminderConfiguration {
         require(context == this.context)
         configurationEntered?.complete(Unit)

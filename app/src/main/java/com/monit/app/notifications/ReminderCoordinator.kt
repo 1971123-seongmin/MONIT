@@ -35,7 +35,7 @@ internal class ReminderCoordinator @Inject constructor(
             reconcile()
             while (true) {
                 try {
-                    repository.changes().collect { dirty -> if (dirty) reconcile() }
+                    repository.changes().collect { dirty -> if (dirty) reconcile(pendingOnly = true) }
                     return@launch
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -47,10 +47,14 @@ internal class ReminderCoordinator @Inject constructor(
         }
     }
 
-    suspend fun reconcile() = mutex.withLock {
+    suspend fun reconcile() = reconcile(pendingOnly = false)
+
+    private suspend fun reconcile(pendingOnly: Boolean) = mutex.withLock {
         repeat(3) {
             var plan: ReminderPlan? = null
             try {
+                // 대기 중 prepare/applied가 끝났다면 그 작업의 과거 dirty 신호는 재실행하지 않는다.
+                if (pendingOnly && !repository.needsReconciliation()) return@withLock
                 platform.createChannel()
                 plan = repository.prepare(platform.read())
                 if (plan == null) {

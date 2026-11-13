@@ -248,6 +248,8 @@ class ReminderRepositoryTest {
         clock.value = assertNotNull(plan.nextAt)
         assertTrue(reminders.acceptsAlarm(context, plan.token))
         assertFalse(reminders.acceptsAlarm(context, id(777)))
+        assertTrue(reminders.applied(plan, false))
+        assertFalse(reminders.needsReconciliation())
         val next = LedgerContext(context.ledgerId, id(902))
         db.openHelper.writableDatabase.execSQL("UPDATE ledgers SET storageGeneration=?", arrayOf(next.storageGeneration))
         assertFalse(reminders.acceptsAlarm(context, plan.token))
@@ -256,6 +258,11 @@ class ReminderRepositoryTest {
         assertTrue(reminders.configuration(next).enabled)
         assertTrue(reminders.configuration(next).dirty)
         assertNull(reminders.configuration(next).nextAt)
+        assertTrue(reminders.needsReconciliation())
+        val restored = assertNotNull(reminders.prepare(allowed))
+        assertEquals(next, restored.configuration.context)
+        assertTrue(reminders.applied(restored, false))
+        assertFalse(reminders.needsReconciliation())
     }
 
     /**
@@ -310,9 +317,30 @@ class ReminderRepositoryTest {
 
     /** 아직 장부가 없는 앱 시작은 금융 메타를 자동 생성하지 않는다. */
     @Test fun emptyStartupDoesNotCreateLedgerOrSettings() = runTest {
+        assertFalse(reminders.needsReconciliation())
         assertNull(reminders.prepare(allowed))
         assertTrue(db.ledgerDao().entryLedgers().isEmpty())
         assertFalse(db.ledgerDao().hasBusinessRecords())
+    }
+
+    /** 현재 장부/기본 설정·적용 revision을 읽고 관찰 과거값 없이 판정하며 유지보수 중에는 기존 예약을 보존하도록 전파한다. */
+    @Test fun reconciliationNeedReadsCurrentPersistentStateAndUnappliedRevision() = runTest {
+        ledger.initialize(context)
+        assertTrue(reminders.needsReconciliation())
+        val first = assertNotNull(reminders.prepare(allowed))
+        assertTrue(reminders.applied(first, false))
+        assertFalse(reminders.needsReconciliation())
+        db.openHelper.writableDatabase.execSQL("UPDATE reminder_settings SET appliedLedgerRevision=0,dirty=0")
+        assertTrue(reminders.needsReconciliation())
+        val refreshed = assertNotNull(reminders.prepare(allowed))
+        assertTrue(reminders.applied(refreshed, false))
+        assertFalse(reminders.needsReconciliation())
+        db.maintenance {
+            val error = assertFailsWith<BackupException> { reminders.needsReconciliation() }
+            assertEquals(BackupProblem.MAINTENANCE, error.problem)
+        }
+        assertFalse(reminders.needsReconciliation())
+        assertTrue(ledger.snapshot(context, LocalDate.of(2026, 11, 13)).transactions.isEmpty())
     }
 }
 

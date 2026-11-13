@@ -29,6 +29,12 @@ internal class RoomReminderRepository @Inject constructor(
         database.maintenanceFinished.map { true },
     )
 
+    override suspend fun needsReconciliation(): Boolean = database.withTransaction {
+        val ledger = currentLedger() ?: return@withTransaction false
+        val config = settings(LedgerContext(ledger.id, ledger.storageGeneration))
+        config.dirty || config.failed || config.appliedLedgerRevision != ledger.revision
+    }
+
     override suspend fun configuration(context: LedgerContext): ReminderConfiguration = database.withTransaction {
         requireContext(context)
         settings(context).configuration(context)

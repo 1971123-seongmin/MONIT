@@ -17,13 +17,15 @@ Issue [#70](https://github.com/1971123-seongmin/MONIT/issues/70), 기준 main `b
 - 실제 조회/권한 projection을 마친 경우만 READY다. 조회 자체 취소/실패는 명시 실패로 표시하며 부모/VM 취소는 전파한다. 장부/세대 변경·VM 제거 뒤 늦은 값은 폐기한다.
 - 서로 다른 두 gate로 첫 조회와 최신 조회를 중단해 직렬 실행·취소 0·최신 조회 전 LOADING·최종 권한/앱/채널/사용자 선호를 단언한다. 독립 조회 취소의 실패/명시 재조회, 장부 변경과 VM 종료의 늦은 응답도 시험한다.
 - 강제 READY·예외 무시·고정 sleep·대기 상한 증가·기존 assertion 삭제·재진입 우회는 사용하지 않는다. 설정 조회는 사용자 선호를 쓰지 않으며 금융 쓰기 API를 호출하지 않는다. 기존 실제 알림 Route 시험도 유지한다.
+- 별도 제어 시험에서 완료된 prepare/applied의 지연 dirty 신호가 불필요한 세 번째 prepare로 들어가는 경로도 재현했다. 관찰 경로는 coordinator mutex를 획득한 뒤 실제 활성 장부의 dirty/failed/미적용 revision을 읽어 필요한 경우에만 조정한다. 명시 권한/OS 복귀/부팅 재조회는 계속 강제로 실행한다. 이 소스 경로의 재현을 S23 초기 지연의 확정 원인으로 확대하지 않는다.
+- 자기 신호 종료·진짜 외부 변경·명시 재조회, 유지보수 중 OS/실패 상태 보존과 해제 뒤 처리, 복원 새 세대의 재예약 필요, 무장부의 명시 OS 취소 의미를 검증했다. 금융/스키마/암호/이관 정책은 바꾸지 않았다.
 
 ## 로컬 검증
 
-- **588 tests, failure/error/skipped 0**: common10/model28/data217/navigation16/designsystem35/accounts59/home21/transactions32/app170. `NO-SOURCE`를 시험 수로 세지 않았다.
+- **591 tests, failure/error/skipped 0**: common10/model28/data218/navigation16/designsystem35/accounts59/home21/transactions32/app172. `NO-SOURCE`를 시험 수로 세지 않았다.
 - `:core:model:test testDebugUnitTest`의 전체 시험 결과, `:app:assembleDebug :app:assembleQa :app:assembleBackupQa`, `:app:lintDebug ktlintCheck`의 성공을 대조했다. Windows/JBR21/Robolectric SDK28·파일 Room·Native host 환경이다.
 - 새 작업 공간의 로컬 SDK 경로 표기 오류로 Lint가 실패한 뒤, 로컬 경로만 수정하고 앱 Lint 분석을 다시 실행해 통과했다. 제품 소스나 Lint 기준을 완화하지 않았다.
-- 시험 보완 뒤 전체 검증 입력 SHA-256은 `982BAAABB9C2E3F91C760BA67FC5570FA691B61DB687946526B97A49F4F26FD5`이며 검사 전후 같았다. Kotlin/KTS/XML/JSON/TOML/gradle.properties를 대상으로 하며 docs/생성물은 제외한다. APK 빌드 당시의 전체 입력 해시와 구분한다.
+- 관찰 재조정 보완 뒤 전체 검증 입력 SHA-256은 `C0B336A4E23CE0888D3E774BF01797CD8A59683181FEFD3F1F6640CD4740E901`이며 검사 전후 같았다. Kotlin/KTS/XML/JSON/TOML/gradle.properties를 대상으로 하며 docs/생성물은 제외한다. 같은 입력으로 전체 시험·debug/qa/backupQa 빌드·Lint·ktlint가 모두 통과했다.
 - `ktlintFormat` 뒤 별도 `ktlintCheck`를 통과했다. DOCS/README/Markdown은 자동 포매팅하지 않았다. 최신 CI는 연결 PR의 정확한 head를 확인한다.
 
 | Light 360dp/100% | Dark 320dp/200% |
@@ -38,12 +40,12 @@ Issue [#70](https://github.com/1971123-seongmin/MONIT/issues/70), 기준 main `b
 
 두 APK는 versionCode1/versionName0.1.0이고 `aapt2 dump badging`의 앱 ID가 metadata와 일치한다. `apksigner verify --verbose --print-certs`를 통과했으며 개발용 인증서 SHA-256은 기존 QA와 같은 `ECCC8070141D875ED47BC4A5DEDB398C27CD111ABAF3AD8880994BE6557B8CEE`다. APK 자체는 Git에 포함하지 않는다.
 
-APK 빌드 소스는 `45cbb002da51f48168660645c1dd029bc2971401`, 당시 전체 검증 입력은 `A2A0BFE50B0F217A3D3309686A89937443595617BF09DF6547035D346B17577A`다. 이후 시험/문서 보완 때문에 APK를 재빌드하지 않는다. 제품 소스/리소스/빌드 파일 294개의 작업 파일 입력 SHA-256은 `B2DEDDE81BFAFB98FE6923099C6CA30B4508E461B2414E5F413D83DE4EB89208`, 해당 Git blob 목록 SHA-256은 `226902A9C6B645C2632E75177AA58A83CD6E44D757EEB2E4078388FEB27FD1B1`이다. 새 시험 검증 head와 빌드 소스의 제품 tree 동일성·APK 파일 hash 불변을 별도로 대조한다. 소스 연결 근거이며 APK에 commit SHA를 내장했다는 의미는 아니다.
+현재 표는 관찰 재조정 제품 보완을 포함해 새로 빌드한 두 APK다. 제품 소스/리소스/빌드 파일 294개의 작업 파일 입력 SHA-256은 `1301A71752AFADD55921F48DAD3AE2992AEEB6AD2DFDD5BBB8BCF178E7745F5B`이며 전체 검증 입력과 구분한다. 소스 commit 연결은 PR/인계 영수증에서 확인하며 APK에 commit SHA를 내장했다는 의미는 아니다. 이전 `45cbb00` 빌드 두 파일은 로컬 버전 경로에 복사·재해시해 보존했다. 이전 head의 CI/기기 관찰을 새 보완의 통과 근거로 사용하지 않는다.
 
 | 변형 | 앱 ID | bytes | APK SHA-256 |
 |---|---|---:|---|
-| qa | `com.monit.app.qa` | 19,820,849 | `519514E9F0F6AEEA5FC3529528B430275C91DB1152F75B5DB7BF366DFF5C90F4` |
-| backupQa | `com.monit.app.qa.backup` | 19,820,865 | `3797782AD73420AB0C0CD9B1DCE577B019EED1EAFCB2F63834FFFC4072463864` |
+| qa | `com.monit.app.qa` | 20,098,886 | `3A009845360E67FB7E59A9E54854A16043C6F6AF0F6E92AFDAD9A62458ADD008` |
+| backupQa | `com.monit.app.qa.backup` | 20,098,902 | `21F20130C23C05C0C7521E43BA646BEDE5B5F69412F3ED231BBB4377F6299E26` |
 
 ## 기기 QA와 병합 경계
 
