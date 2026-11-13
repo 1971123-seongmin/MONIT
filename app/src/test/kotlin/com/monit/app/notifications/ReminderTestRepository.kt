@@ -23,6 +23,8 @@ internal class ReminderTestRepository : ReminderRepository {
     var maintenance = false
     var failWrite = false
     var gate: CompletableDeferred<Unit>? = null
+    var configurationGate: CompletableDeferred<Unit>? = null
+    var configurationEntered: CompletableDeferred<Unit>? = null
     var current = true
     var posted = false
     var changeDuringFirstApply = false
@@ -37,6 +39,8 @@ internal class ReminderTestRepository : ReminderRepository {
     override fun changes(): Flow<Boolean> = signals
     override suspend fun configuration(context: LedgerContext): ReminderConfiguration {
         require(context == this.context)
+        configurationEntered?.complete(Unit)
+        configurationGate?.await()
         if (failRead) throw IOException()
         return config
     }
@@ -51,6 +55,7 @@ internal class ReminderTestRepository : ReminderRepository {
     }
     override suspend fun setRuleEnabled(context: LedgerContext, ruleId: String, expectedRevision: Long, enabled: Boolean): ReminderConfiguration {
         writeCalls++
+        gate?.await()
         if (failWrite) throw IOException()
         require(context == this.context)
         config = config.copy(

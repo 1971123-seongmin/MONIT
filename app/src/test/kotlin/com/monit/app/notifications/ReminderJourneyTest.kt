@@ -34,6 +34,7 @@ import com.monit.feature.home.reminders.*
 import java.io.File
 import java.time.*
 import kotlin.test.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
@@ -159,13 +160,22 @@ class ReminderJourneyTest {
     }
     private fun openSettings() {
         click("알림 설정")
-        awaitText("전체 알림 켜기")
+        awaitSettings("전체 알림 켜기") { !it.enabled && it.rules.single().enabled }
     }
-    private fun ready() {
+
+    /** READY 단독으로는 저장 전/재조회 전 상태도 통과하므로 기대 projection과 실제 화면을 함께 확인한다. */
+    private fun awaitSettings(text: String, expected: (ReminderSettingsUiState) -> Boolean) {
         compose.waitUntil(10_000) {
             compose.waitForIdle()
-            settings.state.value.phase == ReminderSettingsPhase.READY
+            val state = settings.state.value
+            state.phase == ReminderSettingsPhase.READY && expected(state.ui)
         }
+        compose.waitForIdle()
+        if (compose.onAllNodesWithText(text).fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("reminder-settings-list").performScrollToNode(hasText(text))
+        }
+        awaitText(text)
+        compose.runOnIdle { assertTrue(expected(settings.state.value.ui)) }
     }
 
     /** 홈 설정 진입→전체 켜기→일정별 끄기→Back의 실제 화면 연결과 선호 보존을 확인한다. */
@@ -173,11 +183,10 @@ class ReminderJourneyTest {
         show()
         openSettings()
         click("전체 알림 켜기")
-        ready()
-        awaitText("알림 켜짐")
+        awaitSettings("알림 켜짐") { it.enabled && it.allowed }
         capture("reminder-enabled-light")
         click("합성 보험 알림 끄기")
-        ready()
+        awaitSettings("개별 설정 · 꺼짐") { it.enabled && !it.rules.single().enabled }
         assertTrue(repo.config.enabled)
         assertFalse(repo.config.rules.single().enabled)
         assertTrue(payments.calls.isEmpty())
@@ -192,8 +201,7 @@ class ReminderJourneyTest {
         show()
         openSettings()
         click("전체 알림 켜기")
-        ready()
-        awaitText("알림 불가")
+        awaitSettings("알림 불가") { it.enabled && it.permissionDenied }
         assertEquals(0, permissionRequests)
         click("알림 권한 허용")
         assertEquals(1, permissionRequests)
@@ -203,8 +211,7 @@ class ReminderJourneyTest {
             repo.os = ReminderAccess(true, true, true)
             settings.refresh()
         }
-        ready()
-        awaitText("알림 켜짐")
+        awaitSettings("알림 켜짐") { it.enabled && it.allowed }
         assertTrue(repo.config.enabled)
         assertEquals(1, repo.writeCalls)
         assertTrue(payments.calls.isEmpty())
@@ -216,29 +223,61 @@ class ReminderJourneyTest {
         repo.os = ReminderAccess(true, false, true)
         show()
         click("알림 설정")
-        awaitText("알림 불가")
+        awaitSettings("알림 불가") { it.enabled && it.appBlocked && !it.channelBlocked }
         compose.onNodeWithText("기기 설정에서 MONIT 앱 알림이 꺼져 있어요.\n기록과 수동 납입 확인은 계속 가능해요.").assertExists()
         click("알림 설정 열기")
         compose.runOnIdle {
             repo.os = ReminderAccess(true, true, false)
             settings.refresh()
         }
-        ready()
+        awaitSettings("실제 OS 상태 · 권한 허용 / 앱 허용 / 채널 차단·확인 필요") { it.enabled && !it.appBlocked && it.channelBlocked }
         click("알림 설정 열기")
         assertEquals(listOf(false, true), settingsRequests)
         assertTrue(repo.config.enabled)
         assertEquals(0, repo.writeCalls)
     }
 
-    /** 320dp·큰 글꼴 Dark에서도 잘림 없이 일정별 설정까지 스크롤해 조작한다. */
+    /**
+     * 목적: 320dp·큰 글꼴 Dark에서 일정별 설정의 저장/재조회와 화면 반영 완료를 구분한다.
+     * 조건: 쓰기와 이어지는 조회를 서로 다른 gate로 중단하는 합성 Repository다.
+     * 절차: 이전 문구 확인→쓰기 진입/SAVING→쓰기 해제→조회 진입/LOADING→조회 해제→새 projection/문구를 기다린다.
+     * 기대: 저장 전에는 원래 선호를 유지하고, 재조회 뒤 개별 꺼짐 표시/저장1회/금융 제출0이다. gate는 실패 시에도 해제한다.
+     */
     @Test fun darkLargeFontRemainsScrollableAndKeepsMeaningfulActions() {
         repo.os = ReminderAccess(false, true, true)
         show(dark = true, width = 320, font = 2f)
         openSettings()
         capture("reminder-denied-dark-large")
-        click("합성 보험 알림 끄기")
-        ready()
+        val writeGate = CompletableDeferred<Unit>()
+        val readGate = CompletableDeferred<Unit>()
+        val readEntered = CompletableDeferred<Unit>()
+        repo.gate = writeGate
+        repo.configurationGate = readGate
+        repo.configurationEntered = readEntered
+        try {
+            click("합성 보험 알림 끄기")
+            compose.waitUntil(10_000) { repo.writeCalls == 1 }
+            compose.runOnIdle {
+                assertEquals(ReminderSettingsPhase.SAVING, settings.state.value.phase)
+                assertTrue(repo.config.rules.single().enabled)
+            }
+            compose.onNodeWithText("기본값 · 켜짐").assertExists()
+            compose.runOnIdle { writeGate.complete(Unit) }
+            compose.waitUntil(10_000) { readEntered.isCompleted }
+            compose.runOnIdle {
+                assertEquals(ReminderSettingsPhase.LOADING, settings.state.value.phase)
+                assertFalse(repo.config.rules.single().enabled)
+                assertTrue(settings.state.value.ui.rules.single().enabled)
+            }
+            compose.onNodeWithText("개별 설정 · 꺼짐").assertDoesNotExist()
+            compose.runOnIdle { readGate.complete(Unit) }
+            awaitSettings("개별 설정 · 꺼짐") { !it.enabled && !it.rules.single().enabled }
+        } finally {
+            writeGate.complete(Unit)
+            readGate.complete(Unit)
+        }
         compose.onNodeWithText("개별 설정 · 꺼짐").assertExists()
+        assertEquals(1, repo.writeCalls)
         assertFalse(repo.config.rules.single().enabled)
         assertFalse(repo.config.enabled)
         assertTrue(payments.calls.isEmpty())

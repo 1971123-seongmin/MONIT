@@ -8,10 +8,11 @@ Issue [#68](https://github.com/1971123-seongmin/MONIT/issues/68). 구현 계약�
 - Windows/JBR21, 파일 Room·Robolectric SDK28·Native host Compose 환경에서 확인했다.
 - 최종 명령: `./gradlew :core:model:test testDebugUnitTest :app:assembleDebug :app:lintDebug ktlintCheck`.
 - 결과: **576 tests, failure 0 / error 0 / skipped 0**, 앱 debug 빌드·Android Lint·ktlint 통과. `NO-SOURCE` 작업을 시험 수로 세지 않았다.
-- 검증한 제품/시험/리소스 입력 SHA256: `9633AC07AC2277239595661AB71BF472A894DF5F0E749586A7106EE609D1A272`. 검사 후에는 문서·검증 이미지와 Git 메타데이터만 정리했다. 검증 로그의 시간은 캐시를 포함한 실행 시간이며 성능 측정값이 아니다.
+- 검증 전후 제품/시험/리소스 입력 SHA256: `066DB85BA9DA8DDB172556D03FEEA61E01FCDF9BC8B91858A0AB44F14FC0FBB7`로 같았다. 검사 후에는 문서와 Git 메타데이터만 정리했다. 검증 로그의 시간은 캐시를 포함한 실행 시간이며 성능 측정값이 아니다.
 - `ktlintFormat` 후 별도 검사를 실행했다. Markdown·DOCS·README를 자동 정렬하지 않았다.
 - `node scripts/Generate-ImportBackupSchema.cjs` 재생성 전후 v3 schema hash가 같았다. 문서 검사도 통과했다. 원격 CI 판정은 연결 PR의 최신 head를 확인한다.
-- CI에서 실패한 기존 알림 탐색 시험에는 비동기 월별 목록의 준비 표시 대기만 추가했다. 제품 알림 코드를 수정하지 않았다. 이후 로컬 검증은 CI와 같은 `--parallel --max-workers=2` 옵션으로 확인했다.
+- CI에서 드러난 기존 알림 시험의 두 완료 조건을 보완했다. 월별 항목은 목록 준비 뒤 선택하고, 설정은 `READY` 단독 대신 기대한 global/rule/권한 projection→idle→필요한 Lazy 항목 재탐색→실제 변경 문구를 확인한다. 저장 뒤 재조회 전에 이전 projection의 `READY`가 잠시 나타날 수 있고, `LOADING` 동안 비워진 목록은 스크롤 위치가 달라질 수 있기 때문이다.
+- 320dp/200% Dark 시험에서 쓰기/조회 gate를 따로 제어해 `SAVING`의 원래 선호, 쓰기 뒤 `LOADING`의 변경된 저장값/이전 projection, 조회 해제 뒤 새 문구·쓰기 1회·금융 제출 0을 단언했다. 제품 알림 코드·기존 assertion·대기 상한은 유지하며 고정 sleep이나 단순 재실행을 사용하지 않았다. 지속 `LOADING`은 여전히 실패한다. 로컬 전체 검증도 CI와 같은 `--parallel --max-workers=2` 옵션으로 확인했다.
 - v2의 원래 건수/원문 manifest가 변환 중 덮여 잘못된 선언을 받아들이는 경우를 수정 전 실패로 재현했다. 변환 전에 원래 선언을 대조하도록 고쳐 두 변조 사례가 거부됨을 확인했으며 v1/v2의 미기록 버전 구분도 유지한다.
 
 | 모듈 | 시험 수 |
