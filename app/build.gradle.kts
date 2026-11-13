@@ -22,6 +22,12 @@ android {
             applicationIdSuffix = ".qa"
             matchingFallbacks += listOf("debug")
         }
+        create("backupQa") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".qa.backup"
+            matchingFallbacks += listOf("debug")
+            resValue("string", "app_name", "MONIT 백업 검증")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.toVersion(libs.versions.androidJvmTarget.get())
@@ -29,6 +35,7 @@ android {
     }
     buildFeatures {
         compose = true
+        resValues = true
     }
 }
 

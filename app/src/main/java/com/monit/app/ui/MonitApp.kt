@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.rememberNavController
+import com.monit.app.backup.BackupContent
 import com.monit.app.entry.EntryRecoveryGate
 import com.monit.app.navigation.MainNavigator
 import com.monit.app.navigation.MonitNavHost
@@ -63,6 +64,7 @@ fun MonitApp(
     reminderToken: String? = null,
     onReminderConsumed: (String) -> Unit = {},
     onReschedule: () -> Unit = {},
+    onRestored: () -> Unit = {},
 ) {
     val openModel: ReminderOpenViewModel = hiltViewModel()
     val opening by openModel.state.collectAsStateWithLifecycle()
@@ -82,6 +84,13 @@ fun MonitApp(
     }
 
     MonitAppShell(
+        backup = { entry, navigator ->
+            BackupContent(
+                context = context,
+                onBack = { navigator.closeBackup(entry) },
+                onRestored = onRestored,
+            )
+        },
         reminderLink = opening.link?.takeIf { it.token == reminderToken },
         onReminderConsumed = consumeReminder,
         home = { actions ->
@@ -90,6 +99,7 @@ fun MonitApp(
                 onNewTransaction = { actions.newTransaction(null) },
                 onPayments = actions.payments,
                 onReminders = actions.reminders,
+                onBackup = actions.backup,
             )
         },
         transactions = { actions ->
@@ -283,6 +293,7 @@ internal fun MonitAppShell(
     payments: (@Composable (NavBackStackEntry, PaymentsDestination, MainNavigator) -> Unit)? = null,
     reminderSettings: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
     accountDetail: (@Composable (NavBackStackEntry, AccountDetailDestination, MainNavigator) -> Unit)? = null,
+    backup: (@Composable (NavBackStackEntry, MainNavigator) -> Unit)? = null,
     reminderLink: ReminderLink? = null,
     onReminderConsumed: (String) -> Unit = {},
 ) {
@@ -353,6 +364,7 @@ internal fun MonitAppShell(
                         importPreview != null,
                         payments != null,
                         reminderSettings != null,
+                        backupEnabled = backup != null,
                     ),
                 )
             },
@@ -429,6 +441,9 @@ internal fun MonitAppShell(
             accountDetail = accountDetail?.let { content ->
                 { entry, destination -> content(entry, destination, navigator) }
             },
+            backup = backup?.let { content ->
+                { entry -> content(entry, navigator) }
+            },
         )
     }
 }
@@ -441,9 +456,16 @@ internal data class EntryActions(
     val payments: (() -> Unit)? = null,
     val reminders: (() -> Unit)? = null,
     val accountDetail: ((String) -> Unit)? = null,
+    val backup: (() -> Unit)? = null,
 )
 
-private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false, remindersEnabled: Boolean = false, accountDetailEnabled: Boolean = false) = EntryActions(
+private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean, paymentsEnabled: Boolean = false, remindersEnabled: Boolean = false, accountDetailEnabled: Boolean = false, backupEnabled: Boolean = false) = EntryActions(
+    backup = if (backupEnabled) (
+        {
+            navigator.openBackup(entry)
+            Unit
+        }
+        ) else null,
     accountDetail = if (accountDetailEnabled) (
         { id ->
             navigator.openAccountDetail(entry, AccountDetailDestination(UUID.randomUUID().toString(), id))

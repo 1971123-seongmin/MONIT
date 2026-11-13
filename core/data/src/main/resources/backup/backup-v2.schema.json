@@ -1,0 +1,1975 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MONIT logical backup v2; reviewed row adapter fields7",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "contractVersion",
+    "createdAt",
+    "sourceLedger",
+    "collections",
+    "submissionsEvidence",
+    "operationFences",
+    "reminderPreferences",
+    "originals",
+    "manifest"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 2
+    },
+    "contractVersion": {
+      "const": 2
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceLedger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "storageGeneration",
+        "revision",
+        "timeZone",
+        "currency"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "storageGeneration": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "timeZone": {
+          "const": "Asia/Seoul"
+        },
+        "currency": {
+          "const": "KRW"
+        }
+      }
+    },
+    "collections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accounts",
+        "anchors",
+        "transactions",
+        "transaction_history",
+        "payment_rules",
+        "payment_rule_versions",
+        "payment_items",
+        "payment_events",
+        "anchor_history"
+      ],
+      "properties": {
+        "accounts": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/accounts"
+          }
+        },
+        "anchors": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/anchors"
+          }
+        },
+        "transactions": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/transactions"
+          }
+        },
+        "transaction_history": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/transaction_history"
+          }
+        },
+        "payment_rules": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/payment_rules"
+          }
+        },
+        "payment_rule_versions": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/payment_rule_versions"
+          }
+        },
+        "payment_items": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/payment_items"
+          }
+        },
+        "payment_events": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/payment_events"
+          }
+        },
+        "anchor_history": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/$defs/anchor_history"
+          }
+        }
+      }
+    },
+    "submissionsEvidence": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceContext",
+          "operationId",
+          "draftAvailability",
+          "operations",
+          "submissions",
+          "submission_references",
+          "submission_rejections",
+          "payment_rejections",
+          "payment_intents",
+          "anchor_rejections"
+        ],
+        "properties": {
+          "sourceContext": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ledgerId",
+              "storageGeneration"
+            ],
+            "properties": {
+              "ledgerId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "storageGeneration": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            }
+          },
+          "operationId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "draftAvailability": {
+            "enum": [
+              "NOT_REFERENCED",
+              "EXCLUDED_BY_POLICY"
+            ]
+          },
+          "operations": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/operations"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submissions": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/submissions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submission_references": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/submission_references"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submission_rejections": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/submission_rejections"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_rejections": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/payment_rejections"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_intents": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/payment_intents"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "anchor_rejections": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/anchor_rejections"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "operationFences": {
+      "type": "array",
+      "maxItems": 50000,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      }
+    },
+    "reminderPreferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage",
+        "global",
+        "rules"
+      ],
+      "properties": {
+        "coverage": {
+          "enum": [
+            "RECORDED",
+            "NOT_RECORDED_BY_V1"
+          ]
+        },
+        "global": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "present",
+            "enabled",
+            "revision"
+          ],
+          "properties": {
+            "present": {
+              "type": "boolean"
+            },
+            "enabled": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ruleId",
+              "enabled",
+              "revision"
+            ],
+            "properties": {
+              "ruleId": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+                "maxLength": 20
+              }
+            }
+          }
+        }
+      }
+    },
+    "originals": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "sourceNamespace",
+          "fileName",
+          "byteLength",
+          "sha256",
+          "bytesBase64"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "sourceNamespace": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "byteLength": {
+            "type": "string",
+            "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+            "maxLength": 20
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "bytesBase64": {
+            "type": "string",
+            "maxLength": 2796204
+          }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "recordCounts",
+        "recordTotal",
+        "originals",
+        "sourceMappings",
+        "submissionCoverage",
+        "excludes"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "recordCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "accounts",
+            "anchors",
+            "transactions",
+            "transaction_history",
+            "payment_rules",
+            "payment_rule_versions",
+            "payment_items",
+            "payment_events",
+            "anchor_history",
+            "operations",
+            "submissions",
+            "submission_references",
+            "submission_rejections",
+            "payment_rejections",
+            "payment_intents",
+            "anchor_rejections",
+            "operationFences",
+            "reminderGlobal",
+            "reminderRules"
+          ],
+          "properties": {
+            "accounts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "anchors": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "transactions": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "transaction_history": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "payment_rules": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "payment_rule_versions": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "payment_items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "payment_events": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "anchor_history": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "operations": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "submissions": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "submission_references": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "submission_rejections": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "payment_rejections": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "payment_intents": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "anchor_rejections": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "operationFences": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "reminderGlobal": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "reminderRules": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50000
+            }
+          }
+        },
+        "recordTotal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50000
+        },
+        "originals": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "byteLength",
+              "sha256"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "byteLength": {
+                "type": "string",
+                "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+                "maxLength": 20
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "sourceMappings": {
+          "enum": [
+            "NONE_PRESENT",
+            "NOT_RECORDED_BY_V1"
+          ]
+        },
+        "submissionCoverage": {
+          "enum": [
+            "RECORDED",
+            "NOT_RECORDED_BY_V1"
+          ]
+        },
+        "excludes": {
+          "const": [
+            "UI_DRAFT_PAYLOADS",
+            "PASSWORDS",
+            "DERIVED_CACHES",
+            "OS_PERMISSIONS",
+            "OS_ALARMS",
+            "NOTIFICATION_TOKENS",
+            "TEMP_FILES"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "accounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "id",
+        "name",
+        "nature",
+        "status",
+        "revision"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "nature": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "id"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "anchors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "id",
+        "accountId",
+        "date",
+        "amount",
+        "confirmedAt",
+        "unknownReason",
+        "revision"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "accountId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unknownReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "id"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "accounts",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "accountId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "transactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "id",
+        "kind",
+        "date",
+        "amount",
+        "debitAccountId",
+        "creditAccountId",
+        "debitNature",
+        "creditNature",
+        "memo",
+        "revision",
+        "financialRevision",
+        "deletedAt"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "kind": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "debitAccountId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "creditAccountId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "debitNature": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "creditNature": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "financialRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "deletedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "id"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        },
+        {
+          "table": "accounts",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "debitAccountId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        {
+          "table": "accounts",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "creditAccountId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "transaction_history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationId",
+        "changedAt",
+        "changeKind",
+        "ledgerId",
+        "id",
+        "kind",
+        "date",
+        "amount",
+        "debitAccountId",
+        "creditAccountId",
+        "debitNature",
+        "creditNature",
+        "memo",
+        "revision",
+        "financialRevision",
+        "deletedAt"
+      ],
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "changedAt": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "changeKind": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "kind": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "debitAccountId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "creditAccountId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "debitNature": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "creditNature": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "financialRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "deletedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "id",
+        "revision"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "transactions",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "id"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "payment_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "id",
+        "revision",
+        "startMonth",
+        "endMonth"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "startMonth": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "endMonth": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "id"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "payment_rule_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "ruleId",
+        "revision",
+        "effectiveMonth",
+        "termsJson"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "ruleId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "effectiveMonth": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "termsJson": {
+          "type": "string",
+          "maxLength": 8388608
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "ruleId",
+        "revision"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "payment_rules",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "ruleId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "payment_items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "id",
+        "ruleId",
+        "month",
+        "revision",
+        "ruleVersion",
+        "termsJson",
+        "dueDate",
+        "status",
+        "active",
+        "transactionId",
+        "confirmedFinancialRevision",
+        "confirmedJson"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "id": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "ruleId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "month": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "ruleVersion": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "termsJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "dueDate": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "transactionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmedFinancialRevision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmedJson": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 8388608
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "id"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "payment_rules",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "ruleId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        },
+        {
+          "table": "transactions",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "transactionId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "payment_events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "itemId",
+        "kind",
+        "transactionId",
+        "full",
+        "reason",
+        "beforeJson",
+        "afterJson",
+        "changedAt"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "itemId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "kind": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "transactionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "full": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "beforeJson": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 8388608
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "afterJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "changedAt": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId",
+        "itemId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "payment_items",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "itemId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "anchor_history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "anchorId",
+        "revision",
+        "accountId",
+        "operationId",
+        "date",
+        "beforeAmount",
+        "beforeConfirmedAt",
+        "beforeUnknownReason",
+        "beforeRevision",
+        "amount",
+        "reason",
+        "confirmedAt"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "anchorId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "accountId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "date": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "beforeAmount": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "beforeConfirmedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "beforeUnknownReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "beforeRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "confirmedAt": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "anchorId",
+        "revision"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "anchors",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId",
+            "anchorId"
+          ],
+          "referencedColumns": [
+            "ledgerId",
+            "id"
+          ]
+        }
+      ]
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "storageGeneration",
+        "kind",
+        "requestJson",
+        "requestSha256",
+        "committedAt",
+        "ledgerRevision",
+        "resultJson"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "storageGeneration": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "kind": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "requestJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "requestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "committedAt": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "ledgerRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "resultJson": {
+          "type": "string",
+          "maxLength": 8388608
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "submissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "requestJson",
+        "requestSha256"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "requestJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "requestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "submission_references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "storageGeneration"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "storageGeneration": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "submission_rejections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "storageGeneration",
+        "requestJson",
+        "requestSha256",
+        "transactionId",
+        "expectedRevision",
+        "actualRevision",
+        "actualDeletedAt",
+        "rejectedAt"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "storageGeneration": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "requestJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "requestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "transactionId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "expectedRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "actualRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "actualDeletedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rejectedAt": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "payment_rejections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "storageGeneration",
+        "requestJson",
+        "requestSha256",
+        "collection",
+        "targetId",
+        "expectedRevision",
+        "actualRevision",
+        "rejectedAt"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "storageGeneration": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "requestJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "requestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "collection": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "targetId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "expectedRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "actualRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "rejectedAt": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "payment_intents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "storageGeneration",
+        "requestJson",
+        "requestSha256",
+        "status",
+        "draftId",
+        "draftRevision",
+        "draftScopeJson"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "storageGeneration": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "requestJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "requestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "draftId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "draftRevision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "draftScopeJson": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 8388608
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "anchor_rejections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "operationId",
+        "storageGeneration",
+        "requestJson",
+        "requestSha256",
+        "anchorId",
+        "expectedRevision",
+        "actualRevision",
+        "rejectedAt"
+      ],
+      "properties": {
+        "ledgerId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "operationId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "storageGeneration": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "requestJson": {
+          "type": "string",
+          "maxLength": 8388608
+        },
+        "requestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "anchorId": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "expectedRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "actualRevision": {
+          "type": "string",
+          "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$",
+          "maxLength": 20
+        },
+        "rejectedAt": {
+          "type": "string",
+          "maxLength": 16384
+        }
+      },
+      "x-primaryKey": [
+        "ledgerId",
+        "operationId"
+      ],
+      "x-foreignKeys": [
+        {
+          "table": "ledgers",
+          "onDelete": "NO ACTION",
+          "onUpdate": "NO ACTION",
+          "columns": [
+            "ledgerId"
+          ],
+          "referencedColumns": [
+            "id"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,776 @@
+{
+  "formatVersion": 1,
+  "contractVersion": 1,
+  "createdAt": "2026-11-04T04:00:00Z",
+  "ledger": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "revision": "24",
+    "storageGeneration": "00000000-0000-4000-8000-000000000002",
+    "timeZone": "Asia/Seoul",
+    "currency": "KRW",
+    "accounts": [
+      {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "revision": "1",
+        "name": "가상 일반",
+        "role": "GENERAL",
+        "currency": "KRW",
+        "status": "ACTIVE",
+        "currentAnchorId": "00000000-0000-4000-8000-000000000020"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "revision": "1",
+        "name": "가상 저축",
+        "role": "SAVING",
+        "currency": "KRW",
+        "status": "ACTIVE",
+        "currentAnchorId": "00000000-0000-4000-8000-000000000021"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "revision": "1",
+        "name": "가상 투자",
+        "role": "INVESTMENT",
+        "currency": "KRW",
+        "status": "ACTIVE",
+        "currentAnchorId": "00000000-0000-4000-8000-000000000022"
+      }
+    ],
+    "paymentMethods": [
+      {
+        "id": "00000000-0000-4000-8000-000000000030",
+        "revision": "1",
+        "name": "가상 출금 수단",
+        "kind": "OTHER",
+        "linkedAccountId": "00000000-0000-4000-8000-000000000010",
+        "unresolvedReason": null,
+        "status": "ACTIVE"
+      }
+    ],
+    "categories": [
+      {
+        "id": "00000000-0000-4000-8000-000000000031",
+        "revision": "1",
+        "name": "가상 지출 분류",
+        "transactionKind": "EXPENSE",
+        "status": "ACTIVE"
+      }
+    ],
+    "transactions": [
+      {
+        "id": "00000000-0000-4000-8000-000000000100",
+        "revision": "1",
+        "financialRevision": "1",
+        "kind": "INCOME",
+        "date": "2026-10-30",
+        "amount": "100000",
+        "fromAccountId": null,
+        "toAccountId": "00000000-0000-4000-8000-000000000010",
+        "fromRole": null,
+        "toRole": "GENERAL",
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-10-30T00:00:00Z",
+        "updatedAt": "2026-10-30T00:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000200",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000101",
+        "revision": "2",
+        "financialRevision": "1",
+        "kind": "TRANSFER",
+        "date": "2026-11-01",
+        "amount": "200000",
+        "fromAccountId": "00000000-0000-4000-8000-000000000010",
+        "toAccountId": "00000000-0000-4000-8000-000000000011",
+        "fromRole": "GENERAL",
+        "toRole": "SAVING",
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 메모만 수정",
+        "createdAt": "2026-11-01T00:00:00Z",
+        "updatedAt": "2026-11-04T04:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000201",
+        "sourceMappingIds": [],
+        "paymentEvidence": {
+          "obligationId": "00000000-0000-4000-8000-000000000060",
+          "assessment": "FULL",
+          "financialRevision": "1",
+          "assessedAt": "2026-11-04T04:00:00Z",
+          "differenceReason": null
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000102",
+        "revision": "1",
+        "financialRevision": "1",
+        "kind": "TRANSFER",
+        "date": "2026-11-02",
+        "amount": "50000",
+        "fromAccountId": "00000000-0000-4000-8000-000000000011",
+        "toAccountId": "00000000-0000-4000-8000-000000000012",
+        "fromRole": "SAVING",
+        "toRole": "INVESTMENT",
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-11-02T00:00:00Z",
+        "updatedAt": "2026-11-02T00:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000202",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000103",
+        "revision": "1",
+        "financialRevision": "1",
+        "kind": "EXPENSE",
+        "date": "2026-11-03",
+        "amount": "30000",
+        "fromAccountId": "00000000-0000-4000-8000-000000000010",
+        "toAccountId": null,
+        "fromRole": "GENERAL",
+        "toRole": null,
+        "paymentMethodId": "00000000-0000-4000-8000-000000000030",
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-11-03T00:00:00Z",
+        "updatedAt": "2026-11-03T00:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000203",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000104",
+        "revision": "1",
+        "financialRevision": "1",
+        "kind": "TRANSFER",
+        "date": "2026-11-04",
+        "amount": "20000",
+        "fromAccountId": "00000000-0000-4000-8000-000000000011",
+        "toAccountId": "00000000-0000-4000-8000-000000000010",
+        "fromRole": "SAVING",
+        "toRole": "GENERAL",
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-11-04T00:00:00Z",
+        "updatedAt": "2026-11-04T00:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000204",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000105",
+        "revision": "2",
+        "financialRevision": "2",
+        "kind": "EXPENSE",
+        "date": "2026-11-03",
+        "amount": "99",
+        "fromAccountId": "00000000-0000-4000-8000-000000000010",
+        "toAccountId": null,
+        "fromRole": "GENERAL",
+        "toRole": null,
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-11-03T00:00:00Z",
+        "updatedAt": "2026-11-04T04:00:00Z",
+        "deletedAt": "2026-11-04T04:00:00Z",
+        "originOperationId": "00000000-0000-4000-8000-000000000205",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      }
+    ],
+    "transactionHistory": [
+      {
+        "id": "00000000-0000-4000-8000-000000000101",
+        "revision": "1",
+        "financialRevision": "1",
+        "kind": "TRANSFER",
+        "date": "2026-11-01",
+        "amount": "200000",
+        "fromAccountId": "00000000-0000-4000-8000-000000000010",
+        "toAccountId": "00000000-0000-4000-8000-000000000011",
+        "fromRole": "GENERAL",
+        "toRole": "SAVING",
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-11-01T00:00:00Z",
+        "updatedAt": "2026-11-01T00:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000201",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000105",
+        "revision": "1",
+        "financialRevision": "1",
+        "kind": "EXPENSE",
+        "date": "2026-11-03",
+        "amount": "99",
+        "fromAccountId": "00000000-0000-4000-8000-000000000010",
+        "toAccountId": null,
+        "fromRole": "GENERAL",
+        "toRole": null,
+        "paymentMethodId": null,
+        "categoryId": null,
+        "memo": "가상 기록",
+        "createdAt": "2026-11-03T00:00:00Z",
+        "updatedAt": "2026-11-03T00:00:00Z",
+        "deletedAt": null,
+        "originOperationId": "00000000-0000-4000-8000-000000000205",
+        "sourceMappingIds": [],
+        "paymentEvidence": null
+      }
+    ],
+    "rules": [
+      {
+        "id": "00000000-0000-4000-8000-000000000040",
+        "revision": "1",
+        "name": "가상 저축 루틴",
+        "status": "ACTIVE",
+        "startMonth": "2026-11",
+        "endMonth": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000041",
+        "revision": "1",
+        "name": "가상 보험 루틴",
+        "status": "ACTIVE",
+        "startMonth": "2026-11",
+        "endMonth": null
+      }
+    ],
+    "ruleVersions": [
+      {
+        "id": "00000000-0000-4000-8000-000000000050",
+        "ruleId": "00000000-0000-4000-8000-000000000040",
+        "ruleRevision": "1",
+        "effectiveFromMonth": "2026-11",
+        "snapshot": {
+          "purpose": "SAVING",
+          "expectedAmount": "200000",
+          "dayOfMonth": 1,
+          "fromAccountId": "00000000-0000-4000-8000-000000000010",
+          "toAccountId": "00000000-0000-4000-8000-000000000011",
+          "paymentMethodId": null,
+          "notifications": {
+            "enabled": true,
+            "dayBefore": true,
+            "onDueDate": true,
+            "dayAfterIfUnpaid": true
+          }
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000051",
+        "ruleId": "00000000-0000-4000-8000-000000000041",
+        "ruleRevision": "1",
+        "effectiveFromMonth": "2026-11",
+        "snapshot": {
+          "purpose": "INSURANCE",
+          "expectedAmount": "30000",
+          "dayOfMonth": 3,
+          "fromAccountId": "00000000-0000-4000-8000-000000000010",
+          "toAccountId": null,
+          "paymentMethodId": "00000000-0000-4000-8000-000000000030",
+          "notifications": {
+            "enabled": true,
+            "dayBefore": true,
+            "onDueDate": true,
+            "dayAfterIfUnpaid": true
+          }
+        }
+      }
+    ],
+    "obligations": [
+      {
+        "id": "00000000-0000-4000-8000-000000000060",
+        "revision": "2",
+        "ruleId": "00000000-0000-4000-8000-000000000040",
+        "month": "2026-11",
+        "ruleRevision": "1",
+        "snapshot": {
+          "purpose": "SAVING",
+          "expectedAmount": "200000",
+          "dayOfMonth": 1,
+          "fromAccountId": "00000000-0000-4000-8000-000000000010",
+          "toAccountId": "00000000-0000-4000-8000-000000000011",
+          "paymentMethodId": null,
+          "notifications": {
+            "enabled": true,
+            "dayBefore": true,
+            "onDueDate": true,
+            "dayAfterIfUnpaid": true
+          }
+        },
+        "dueDate": "2026-11-01",
+        "status": "COMPLETED",
+        "scheduleActive": true,
+        "transactionId": "00000000-0000-4000-8000-000000000101",
+        "confirmation": {
+          "transactionId": "00000000-0000-4000-8000-000000000101",
+          "financialRevision": "1",
+          "confirmedAt": "2026-11-04T04:00:00Z",
+          "wholePayment": true,
+          "differenceReason": null
+        },
+        "lastTransactionId": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000061",
+        "revision": "2",
+        "ruleId": "00000000-0000-4000-8000-000000000041",
+        "month": "2026-11",
+        "ruleRevision": "1",
+        "snapshot": {
+          "purpose": "INSURANCE",
+          "expectedAmount": "30000",
+          "dayOfMonth": 3,
+          "fromAccountId": "00000000-0000-4000-8000-000000000010",
+          "toAccountId": null,
+          "paymentMethodId": "00000000-0000-4000-8000-000000000030",
+          "notifications": {
+            "enabled": true,
+            "dayBefore": true,
+            "onDueDate": true,
+            "dayAfterIfUnpaid": true
+          }
+        },
+        "dueDate": "2026-11-03",
+        "status": "NEEDS_REVIEW",
+        "scheduleActive": true,
+        "transactionId": null,
+        "confirmation": null,
+        "lastTransactionId": "00000000-0000-4000-8000-000000000105"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000062",
+        "revision": "2",
+        "ruleId": "00000000-0000-4000-8000-000000000040",
+        "month": "2026-12",
+        "ruleRevision": "1",
+        "snapshot": {
+          "purpose": "SAVING",
+          "expectedAmount": "200000",
+          "dayOfMonth": 1,
+          "fromAccountId": "00000000-0000-4000-8000-000000000010",
+          "toAccountId": "00000000-0000-4000-8000-000000000011",
+          "paymentMethodId": null,
+          "notifications": {
+            "enabled": true,
+            "dayBefore": true,
+            "onDueDate": true,
+            "dayAfterIfUnpaid": true
+          }
+        },
+        "dueDate": "2026-12-01",
+        "status": "SKIPPED",
+        "scheduleActive": true,
+        "transactionId": null,
+        "confirmation": null,
+        "lastTransactionId": null
+      }
+    ],
+    "anchors": [
+      {
+        "id": "00000000-0000-4000-8000-000000000020",
+        "revision": "1",
+        "accountId": "00000000-0000-4000-8000-000000000010",
+        "date": "2026-10-31",
+        "amount": "1000000",
+        "confirmedAt": "2026-11-01T00:00:00Z",
+        "reason": "가상 전환일 마감액",
+        "isCurrent": true,
+        "importBatchId": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000021",
+        "revision": "1",
+        "accountId": "00000000-0000-4000-8000-000000000011",
+        "date": "2026-10-31",
+        "amount": "2000000",
+        "confirmedAt": "2026-11-01T00:00:00Z",
+        "reason": "가상 전환일 마감액",
+        "isCurrent": true,
+        "importBatchId": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000022",
+        "revision": "1",
+        "accountId": "00000000-0000-4000-8000-000000000012",
+        "date": "2026-10-31",
+        "amount": "500000",
+        "confirmedAt": "2026-11-01T00:00:00Z",
+        "reason": "가상 전환일 마감액",
+        "isCurrent": true,
+        "importBatchId": null
+      }
+    ],
+    "importBatches": [
+      {
+        "id": "00000000-0000-4000-8000-000000000070",
+        "revision": "1",
+        "sourceNamespace": "synthetic-fixture-v1",
+        "originalIds": [
+          "00000000-0000-4000-8000-000000000080"
+        ],
+        "transformerVersion": "fixture-1",
+        "mappingVersion": "1",
+        "cutoffDate": "2026-10-31",
+        "state": "APPLIED",
+        "reviewToken": "00000000-0000-4000-8000-000000000072",
+        "reviewedLedgerRevision": "20",
+        "approvedAt": "2026-11-04T04:00:00Z",
+        "operationId": "00000000-0000-4000-8000-000000000219"
+      }
+    ],
+    "importRows": [
+      {
+        "id": "00000000-0000-4000-8000-000000000071",
+        "revision": "1",
+        "batchId": "00000000-0000-4000-8000-000000000070",
+        "originalId": "00000000-0000-4000-8000-000000000080",
+        "locator": "line:2",
+        "decision": "EXCLUDED",
+        "reason": "가상 미지원 USD 기록",
+        "sourceMappingId": "00000000-0000-4000-8000-000000000090",
+        "targetRefs": []
+      }
+    ],
+    "sourceMappings": [
+      {
+        "id": "00000000-0000-4000-8000-000000000090",
+        "revision": "1",
+        "sourceKey": {
+          "namespace": "synthetic-fixture-v1",
+          "entityKind": "transaction",
+          "sourceId": "row-1"
+        },
+        "originalId": "00000000-0000-4000-8000-000000000080",
+        "locator": "line:2",
+        "sourceDigest": "f0d67d8a6f4a3a64195ba48bdb48e52a982ea291b3b1d385079d9195e46e2f2b",
+        "lastBatchId": "00000000-0000-4000-8000-000000000070",
+        "targetRef": null,
+        "lastAppliedPayloadJson": null,
+        "lastAppliedPayloadSha256": null,
+        "lastAppliedRevision": null,
+        "disposition": "EXCLUDED",
+        "reason": "가상 미지원 USD 기록"
+      }
+    ],
+    "operations": [
+      {
+        "id": "00000000-0000-4000-8000-000000000200",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CREATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"CREATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000100\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"kind\":\"INCOME\",\"date\":\"2026-10-30\",\"amount\":\"100000\",\"fromAccountId\":null,\"toAccountId\":\"00000000-0000-4000-8000-000000000010\",\"memo\":\"가상 기록\"}}",
+        "requestSha256": "4563b89510b449a392b251d84bc70ed18bd4ee50f6d8463b8db8c72dab096c29",
+        "committedAt": "2026-10-30T00:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "2",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000100",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000201",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CREATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"CREATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000101\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"kind\":\"TRANSFER\",\"date\":\"2026-11-01\",\"amount\":\"200000\",\"fromAccountId\":\"00000000-0000-4000-8000-000000000010\",\"toAccountId\":\"00000000-0000-4000-8000-000000000011\",\"memo\":\"가상 기록\"}}",
+        "requestSha256": "fc8d2fd9ba148cfaca04e9132746bd3ae273fe6dac3f1cea8a55b29e2d8f89f6",
+        "committedAt": "2026-11-01T00:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "3",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000101",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000202",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CREATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"CREATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000102\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"kind\":\"TRANSFER\",\"date\":\"2026-11-02\",\"amount\":\"50000\",\"fromAccountId\":\"00000000-0000-4000-8000-000000000011\",\"toAccountId\":\"00000000-0000-4000-8000-000000000012\",\"memo\":\"가상 기록\"}}",
+        "requestSha256": "03a98b73b8de893b74f775286fa77f5eda55061ba8bd77093480f61a04969978",
+        "committedAt": "2026-11-02T00:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "4",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000102",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000203",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CREATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"CREATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000103\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"kind\":\"EXPENSE\",\"date\":\"2026-11-03\",\"amount\":\"30000\",\"fromAccountId\":\"00000000-0000-4000-8000-000000000010\",\"toAccountId\":null,\"memo\":\"가상 기록\"}}",
+        "requestSha256": "7b18d58743cf4056b30ce8abaab670f1b4f7ba87bdd08d7fe319380c43f525a8",
+        "committedAt": "2026-11-03T00:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "5",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000103",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000204",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CREATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"CREATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000104\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"kind\":\"TRANSFER\",\"date\":\"2026-11-04\",\"amount\":\"20000\",\"fromAccountId\":\"00000000-0000-4000-8000-000000000011\",\"toAccountId\":\"00000000-0000-4000-8000-000000000010\",\"memo\":\"가상 기록\"}}",
+        "requestSha256": "71117b22f1c07003f17bd48187fb7acb6fb2aaa90f12a4136cb4bf679683ecfe",
+        "committedAt": "2026-11-04T00:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "6",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000104",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000205",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CREATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"CREATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000105\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"kind\":\"EXPENSE\",\"date\":\"2026-11-03\",\"amount\":\"99\",\"fromAccountId\":\"00000000-0000-4000-8000-000000000010\",\"toAccountId\":null,\"memo\":\"가상 기록\"}}",
+        "requestSha256": "d832a06be0ae738b075533994c25905de6902308d8d0ec3064eafb7bfe62c8d2",
+        "committedAt": "2026-11-03T00:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "7",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000105",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000216",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "UPDATE_TRANSACTION",
+        "requestJson": "{\"kind\":\"UPDATE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000101\",\"expectedRevision\":\"1\",\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"memo\":\"가상 메모만 수정\"}}",
+        "requestSha256": "43a2c510e5b8f28bf694f5e25db00a86d1a59b143d0453da52f19ec570d7ffb0",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "18",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000101",
+              "revision": "2"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000217",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "DELETE_TRANSACTION",
+        "requestJson": "{\"kind\":\"DELETE_TRANSACTION\",\"targetId\":\"00000000-0000-4000-8000-000000000105\",\"expectedRevision\":\"1\",\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"deletedAt\":\"2026-11-04T04:00:00Z\"}}",
+        "requestSha256": "1160ad8f613b6f7ca47edd50c00dfbc91ebd2a4680e41b38f968caa6d121341f",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "19",
+          "entityRefs": [
+            {
+              "collection": "transactions",
+              "id": "00000000-0000-4000-8000-000000000105",
+              "revision": "2"
+            },
+            {
+              "collection": "obligations",
+              "id": "00000000-0000-4000-8000-000000000061",
+              "revision": "2"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000218",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "CONFIRM_OBLIGATION",
+        "requestJson": "{\"kind\":\"CONFIRM_OBLIGATION\",\"targetId\":\"00000000-0000-4000-8000-000000000060\",\"expectedRevision\":\"1\",\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"transactionId\":\"00000000-0000-4000-8000-000000000101\",\"financialRevision\":\"1\",\"wholePayment\":true,\"differenceReason\":null}}",
+        "requestSha256": "e57a0af330acbb88e6fa145bef9680f9edce0298ae870cc00d9c56140e9b1e41",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "20",
+          "entityRefs": [
+            {
+              "collection": "obligations",
+              "id": "00000000-0000-4000-8000-000000000060",
+              "revision": "2"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000219",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "IMPORT_BATCH",
+        "requestJson": "{\"kind\":\"IMPORT_BATCH\",\"targetId\":\"00000000-0000-4000-8000-000000000070\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"reviewToken\":\"00000000-0000-4000-8000-000000000072\",\"originalIds\":[\"00000000-0000-4000-8000-000000000080\"],\"rows\":[{\"id\":\"00000000-0000-4000-8000-000000000071\",\"decision\":\"EXCLUDED\"}]}}",
+        "requestSha256": "57968867ce3c486225eeaa3721d76d3431694832017d9975145d4523f4dae9ba",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "21",
+          "entityRefs": [
+            {
+              "collection": "importBatches",
+              "id": "00000000-0000-4000-8000-000000000070",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000220",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "UPDATE_PAYMENT_METHOD",
+        "requestJson": "{\"kind\":\"UPDATE_PAYMENT_METHOD\",\"targetId\":\"00000000-0000-4000-8000-000000000030\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"name\":\"가상 출금 수단\",\"kind\":\"OTHER\",\"linkedAccountId\":\"00000000-0000-4000-8000-000000000010\",\"unresolvedReason\":null,\"status\":\"ACTIVE\"}}",
+        "requestSha256": "a67cd6b138179677e15b55d525777d428870249e6ca8cef88f4298eefb55ecb0",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "22",
+          "entityRefs": [
+            {
+              "collection": "paymentMethods",
+              "id": "00000000-0000-4000-8000-000000000030",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000221",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "UPDATE_CATEGORY",
+        "requestJson": "{\"kind\":\"UPDATE_CATEGORY\",\"targetId\":\"00000000-0000-4000-8000-000000000031\",\"expectedRevision\":null,\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"name\":\"가상 지출 분류\",\"transactionKind\":\"EXPENSE\",\"status\":\"ACTIVE\"}}",
+        "requestSha256": "dbf23127bad6f8ea7ef6c7ae089824d49d076ed17665187e4a9a3435acfe7f63",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "23",
+          "entityRefs": [
+            {
+              "collection": "categories",
+              "id": "00000000-0000-4000-8000-000000000031",
+              "revision": "1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000222",
+        "storageGeneration": "00000000-0000-4000-8000-000000000002",
+        "kind": "SKIP_OBLIGATION",
+        "requestJson": "{\"kind\":\"SKIP_OBLIGATION\",\"targetId\":\"00000000-0000-4000-8000-000000000062\",\"expectedRevision\":\"1\",\"expectedStorageGeneration\":\"00000000-0000-4000-8000-000000000002\",\"value\":{\"status\":\"SKIPPED\"}}",
+        "requestSha256": "2a4d8474fc17fe090466795655731c5ba1340a07ff61491123c0bd3632d9ced9",
+        "committedAt": "2026-11-04T04:00:00Z",
+        "result": {
+          "status": "COMMITTED",
+          "ledgerRevision": "24",
+          "entityRefs": [
+            {
+              "collection": "obligations",
+              "id": "00000000-0000-4000-8000-000000000062",
+              "revision": "2"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "originals": [
+    {
+      "id": "00000000-0000-4000-8000-000000000080",
+      "sourceNamespace": "synthetic-fixture-v1",
+      "fileName": "synthetic-export.txt",
+      "bytesBase64": "c3ludGhldGljLWV4cG9ydC12MQpyb3ctMSx1bnN1cHBvcnRlZCxVU0QK",
+      "byteLength": 42,
+      "sha256": "81967bc805a32351f15f65e7c7d4d1076bcd3a8250f22bc1a519f12f22be11c7"
+    }
+  ],
+  "manifest": {
+    "ledgerId": "00000000-0000-4000-8000-000000000001",
+    "recordCounts": {
+      "accounts": 3,
+      "paymentMethods": 1,
+      "categories": 1,
+      "transactions": 6,
+      "transactionHistory": 2,
+      "rules": 2,
+      "ruleVersions": 2,
+      "obligations": 3,
+      "anchors": 3,
+      "importBatches": 1,
+      "importRows": 1,
+      "sourceMappings": 1,
+      "operations": 13
+    },
+    "originals": [
+      {
+        "id": "00000000-0000-4000-8000-000000000080",
+        "byteLength": 42,
+        "sha256": "81967bc805a32351f15f65e7c7d4d1076bcd3a8250f22bc1a519f12f22be11c7"
+      }
+    ],
+    "coverage": {
+      "ledger": "COMPLETE",
+      "originals": "COMPLETE_EXTRACTS",
+      "excludes": [
+        "UI_DRAFTS",
+        "PASSWORDS",
+        "DERIVED_CACHES",
+        "OS_PERMISSIONS",
+        "OS_ALARMS",
+        "TEMP_FILES"
+      ]
+    }
+  }
+}

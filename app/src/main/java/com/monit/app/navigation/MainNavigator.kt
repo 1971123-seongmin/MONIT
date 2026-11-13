@@ -15,9 +15,11 @@ import com.monit.feature.accounts.navigation.navigateToAccountDetail
 import com.monit.feature.accounts.navigation.navigateToAccountRegistration
 import com.monit.feature.accounts.navigation.navigateToAccounts
 import com.monit.feature.accounts.navigation.navigateToImportPreview
+import com.monit.feature.home.navigation.BackupDestination
 import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.home.navigation.PaymentsDestination
 import com.monit.feature.home.navigation.ReminderSettingsDestination
+import com.monit.feature.home.navigation.navigateToBackup
 import com.monit.feature.home.navigation.navigateToHome
 import com.monit.feature.home.navigation.navigateToPayments
 import com.monit.feature.home.navigation.navigateToReminderSettings
@@ -30,6 +32,14 @@ import com.monit.feature.transactions.navigation.navigateToTransactions
 
 /** 제품 탐색 정책만 소유하며 금융 성공/복구 여부는 호출 feature가 확인한다. */
 class MainNavigator(private val navigator: Navigator) {
+    fun openBackup(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<HomeDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.navigateToBackup(source)
+    }
+    fun closeBackup(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<BackupDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.back(source) { it.destination.hasRoute<HomeDestination>() }
+    }
     fun openAccountDetail(source: NavBackStackEntry, destination: AccountDetailDestination): NavigationResult {
         if (!source.destination.hasRoute<AccountsDestination>()) return NavigationResult.UNAVAILABLE
         return navigator.navigateToAccountDetail(source, destination)

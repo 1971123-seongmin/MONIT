@@ -20,6 +20,7 @@ internal class ReminderTestRepository : ReminderRepository {
         override fun read() = os
     }
     var failRead = false
+    var maintenance = false
     var failWrite = false
     var gate: CompletableDeferred<Unit>? = null
     var current = true
@@ -67,6 +68,7 @@ internal class ReminderTestRepository : ReminderRepository {
     }
     override suspend fun prepare(access: ReminderAccess): ReminderPlan? {
         prepareCalls++
+        if (maintenance) throw BackupException(BackupProblem.MAINTENANCE)
         if (failRead) throw IOException()
         if (emptyLedger) return null
         val enabled = config.enabled && access.allowed

@@ -24,7 +24,10 @@ internal class RoomReminderRepository @Inject constructor(
 ) : ReminderRepository {
     private val dao get() = database.reminderDao()
     private val ledgerDao get() = database.ledgerDao()
-    override fun changes() = dao.signals().distinctUntilChanged().map { rows -> rows.any { it.dirty } }
+    override fun changes() = kotlinx.coroutines.flow.merge(
+        dao.signals().distinctUntilChanged().map { rows -> rows.any { it.dirty } },
+        database.maintenanceFinished.map { true },
+    )
 
     override suspend fun configuration(context: LedgerContext): ReminderConfiguration = database.withTransaction {
         requireContext(context)
@@ -189,6 +192,7 @@ internal class RoomReminderRepository @Inject constructor(
     }
 
     private suspend fun currentLedger(): LedgerEntity? {
+        database.requireAvailable()
         val values = ledgerDao.entryLedgers()
         check(!ledgerDao.hasRecordsWithoutLedger())
         if (values.isEmpty()) {

@@ -69,7 +69,9 @@ internal class ReminderCoordinator @Inject constructor(
                 if (repository.applied(plan, posted)) return@withLock
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                // 임시 배타 경계를 DB 오류로 오인해 이전 예약을 지우지 않는다. 해제 신호가 다시 조정한다.
+                if (error is BackupException && error.problem == BackupProblem.MAINTENANCE) return@withLock
                 try {
                     repository.failed(plan)
                 } catch (cancelled: CancellationException) {

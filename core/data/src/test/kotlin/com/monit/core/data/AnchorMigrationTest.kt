@@ -30,7 +30,7 @@ class AnchorMigrationTest {
 
     /** 목적: 실제 schema6의 모든 열과 원래 context/raw/hash/초안·알림 선호를 비파괴 승격한다.
      * 조건: 현 writer로 만든 금융/거절/초안/알림 자료를 checked-in6 DDL 파일로 복사한다.
-     * 절차: user_version6 파일을 열어 6→7 검증 후 기준액 명시확정·재열기한다.
+     * 절차: user_version6 파일을 최신 schema8로 열어 기준액 명시확정·재열기한다.
      * 기대: 기존 모든 열/행 동일, 새테이블 빈 상태→이력1, 이전 계좌receipt 및 알림설정 보존.
      */
     @Test fun actualVersionSixPreservesAllExistingColumnsAndAllowsExplicitAnchorConfirmation() = runTest {
@@ -69,7 +69,7 @@ class AnchorMigrationTest {
             }
             var migrated = createLedgerDatabase(app, "anchor-v6.db")
             try {
-                assertEquals(7, migrated.openHelper.writableDatabase.version)
+                assertEquals(8, migrated.openHelper.writableDatabase.version)
                 assertEquals(expected, rows(migrated))
                 var upgraded = RoomLedgerRepository(migrated, clock, contexts)
                 assertEquals(receipt, upgraded.receipt(context, id(110)))

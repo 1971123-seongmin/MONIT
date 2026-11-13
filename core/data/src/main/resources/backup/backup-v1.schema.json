@@ -1,0 +1,1673 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MONIT backup payload v1",
+  "description": "Decrypted UTF-8 JSON payload only. Not the encrypted .monitbak envelope or a DB schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "contractVersion",
+    "createdAt",
+    "ledger",
+    "originals",
+    "manifest"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "contractVersion": {
+      "const": 1
+    },
+    "createdAt": {
+      "$ref": "#/$defs/instant"
+    },
+    "ledger": {
+      "$ref": "#/$defs/ledger"
+    },
+    "originals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/original"
+      },
+      "maxItems": 32
+    },
+    "manifest": {
+      "$ref": "#/$defs/manifest"
+    }
+  },
+  "$defs": {
+    "capturedJson": {
+      "type": "string",
+      "maxLength": 8388608,
+      "$comment": "Exact serialized JSON snapshot, not a leaf business text field. Preserve its UTF-8 bytes and digest. The complete outer UTF-8 payload including escaping remains limited to 8388608 bytes; JSON Schema maxLength counts characters and does not enforce that byte budget."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,18}(?![\\s\\S])",
+      "$comment": "Integer 1..Long.MAX_VALUE must also be checked without float."
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,11}(?![\\s\\S])"
+    },
+    "anchorAmount": {
+      "type": "string",
+      "pattern": "^(0|-?[1-9][0-9]{0,11})(?![\\s\\S])"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(19[0-9]{2}|[2-9][0-9]{3})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])(?![\\s\\S])"
+    },
+    "month": {
+      "type": "string",
+      "pattern": "^(19[0-9]{2}|[2-9][0-9]{3})-(0[1-9]|1[0-2])(?![\\s\\S])"
+    },
+    "instant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z(?![\\s\\S])"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "role": {
+      "enum": [
+        "GENERAL",
+        "SAVING",
+        "INVESTMENT"
+      ]
+    },
+    "entityStatus": {
+      "enum": [
+        "ACTIVE",
+        "ARCHIVED"
+      ]
+    },
+    "base64": {
+      "type": "string",
+      "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![\\s\\S])",
+      "maxLength": 2796204
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 50000
+    },
+    "account": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "name",
+        "role",
+        "currency",
+        "status",
+        "currentAnchorId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "currency": {
+          "const": "KRW"
+        },
+        "status": {
+          "$ref": "#/$defs/entityStatus"
+        },
+        "currentAnchorId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "paymentMethod": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "name",
+        "kind",
+        "linkedAccountId",
+        "unresolvedReason",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "kind": {
+          "enum": [
+            "CASH",
+            "DEBIT_CARD",
+            "CREDIT_CARD_LABEL",
+            "OTHER"
+          ]
+        },
+        "linkedAccountId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unresolvedReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/entityStatus"
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "name",
+        "transactionKind",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "transactionKind": {
+          "enum": [
+            "INCOME",
+            "EXPENSE"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/entityStatus"
+        }
+      }
+    },
+    "paymentEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "obligationId",
+        "assessment",
+        "financialRevision",
+        "assessedAt",
+        "differenceReason"
+      ],
+      "properties": {
+        "obligationId": {
+          "$ref": "#/$defs/id"
+        },
+        "assessment": {
+          "enum": [
+            "FULL",
+            "PARTIAL"
+          ]
+        },
+        "financialRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "assessedAt": {
+          "$ref": "#/$defs/instant"
+        },
+        "differenceReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "transaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "financialRevision",
+        "kind",
+        "date",
+        "amount",
+        "fromAccountId",
+        "toAccountId",
+        "fromRole",
+        "toRole",
+        "paymentMethodId",
+        "categoryId",
+        "memo",
+        "createdAt",
+        "updatedAt",
+        "deletedAt",
+        "originOperationId",
+        "sourceMappingIds",
+        "paymentEvidence"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "financialRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "kind": {
+          "enum": [
+            "INCOME",
+            "EXPENSE",
+            "TRANSFER"
+          ]
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "amount": {
+          "$ref": "#/$defs/amount"
+        },
+        "fromAccountId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "toAccountId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fromRole": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/role"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "toRole": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/role"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "paymentMethodId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "categoryId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 16384
+        },
+        "createdAt": {
+          "$ref": "#/$defs/instant"
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/instant"
+        },
+        "deletedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/instant"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "originOperationId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceMappingIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "uniqueItems": true,
+          "maxItems": 50000
+        },
+        "paymentEvidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/paymentEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "INCOME"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "toAccountId": {
+                "$ref": "#/$defs/id"
+              },
+              "toRole": {
+                "$ref": "#/$defs/role"
+              },
+              "fromAccountId": {
+                "type": "null"
+              },
+              "fromRole": {
+                "type": "null"
+              },
+              "paymentMethodId": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "EXPENSE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fromAccountId": {
+                "$ref": "#/$defs/id"
+              },
+              "fromRole": {
+                "$ref": "#/$defs/role"
+              },
+              "toAccountId": {
+                "type": "null"
+              },
+              "toRole": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "TRANSFER"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fromAccountId": {
+                "$ref": "#/$defs/id"
+              },
+              "fromRole": {
+                "$ref": "#/$defs/role"
+              },
+              "toAccountId": {
+                "$ref": "#/$defs/id"
+              },
+              "toRole": {
+                "$ref": "#/$defs/role"
+              },
+              "categoryId": {
+                "type": "null"
+              },
+              "paymentMethodId": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "notifications": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "dayBefore",
+        "onDueDate",
+        "dayAfterIfUnpaid"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "dayBefore": {
+          "type": "boolean"
+        },
+        "onDueDate": {
+          "type": "boolean"
+        },
+        "dayAfterIfUnpaid": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ruleSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "expectedAmount",
+        "dayOfMonth",
+        "fromAccountId",
+        "toAccountId",
+        "paymentMethodId",
+        "notifications"
+      ],
+      "properties": {
+        "purpose": {
+          "enum": [
+            "GENERAL_PAYMENT",
+            "INSURANCE",
+            "SAVING",
+            "INVESTMENT"
+          ]
+        },
+        "expectedAmount": {
+          "$ref": "#/$defs/amount"
+        },
+        "dayOfMonth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31
+        },
+        "fromAccountId": {
+          "$ref": "#/$defs/id"
+        },
+        "toAccountId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "paymentMethodId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notifications": {
+          "$ref": "#/$defs/notifications"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "name",
+        "status",
+        "startMonth",
+        "endMonth"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "status": {
+          "$ref": "#/$defs/entityStatus"
+        },
+        "startMonth": {
+          "$ref": "#/$defs/month"
+        },
+        "endMonth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/month"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ruleVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ruleId",
+        "ruleRevision",
+        "effectiveFromMonth",
+        "snapshot"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/id"
+        },
+        "ruleRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "effectiveFromMonth": {
+          "$ref": "#/$defs/month"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ruleSnapshot"
+        }
+      }
+    },
+    "confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transactionId",
+        "financialRevision",
+        "confirmedAt",
+        "wholePayment",
+        "differenceReason"
+      ],
+      "properties": {
+        "transactionId": {
+          "$ref": "#/$defs/id"
+        },
+        "financialRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "confirmedAt": {
+          "$ref": "#/$defs/instant"
+        },
+        "wholePayment": {
+          "const": true
+        },
+        "differenceReason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "ruleId",
+        "month",
+        "ruleRevision",
+        "snapshot",
+        "dueDate",
+        "status",
+        "scheduleActive",
+        "transactionId",
+        "confirmation",
+        "lastTransactionId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/id"
+        },
+        "month": {
+          "$ref": "#/$defs/month"
+        },
+        "ruleRevision": {
+          "$ref": "#/$defs/revision"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ruleSnapshot"
+        },
+        "dueDate": {
+          "$ref": "#/$defs/date"
+        },
+        "status": {
+          "enum": [
+            "UNPAID",
+            "COMPLETED",
+            "SKIPPED",
+            "NEEDS_REVIEW"
+          ]
+        },
+        "scheduleActive": {
+          "type": "boolean"
+        },
+        "transactionId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/confirmation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastTransactionId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "COMPLETED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "transactionId": {
+                "$ref": "#/$defs/id"
+              },
+              "confirmation": {
+                "$ref": "#/$defs/confirmation"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "UNPAID",
+                  "SKIPPED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "transactionId": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "accountId",
+        "date",
+        "amount",
+        "confirmedAt",
+        "reason",
+        "isCurrent",
+        "importBatchId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "accountId": {
+          "$ref": "#/$defs/id"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/anchorAmount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confirmedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/instant"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isCurrent": {
+          "type": "boolean"
+        },
+        "importBatchId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "amount": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "confirmedAt": {
+                "type": "null"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "confirmedAt": {
+                "$ref": "#/$defs/instant"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "entityRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collection",
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "collection": {
+          "enum": [
+            "accounts",
+            "paymentMethods",
+            "categories",
+            "transactions",
+            "rules",
+            "obligations",
+            "anchors",
+            "importBatches",
+            "importRows",
+            "sourceMappings"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "importBatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "sourceNamespace",
+        "originalIds",
+        "transformerVersion",
+        "mappingVersion",
+        "cutoffDate",
+        "state",
+        "reviewToken",
+        "reviewedLedgerRevision",
+        "approvedAt",
+        "operationId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "sourceNamespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "originalIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "transformerVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "mappingVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "cutoffDate": {
+          "$ref": "#/$defs/date"
+        },
+        "state": {
+          "enum": [
+            "READ",
+            "REVIEWING",
+            "READY",
+            "APPLIED",
+            "FAILED",
+            "CANCELLED",
+            "NEEDS_REVIEW"
+          ]
+        },
+        "reviewToken": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewedLedgerRevision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approvedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/instant"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "importRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "batchId",
+        "originalId",
+        "locator",
+        "decision",
+        "reason",
+        "sourceMappingId",
+        "targetRefs"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "batchId": {
+          "$ref": "#/$defs/id"
+        },
+        "originalId": {
+          "$ref": "#/$defs/id"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "decision": {
+          "enum": [
+            "APPLIED",
+            "EXISTS",
+            "HELD",
+            "EXCLUDED"
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sourceMappingId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targetRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entityRef"
+          },
+          "maxItems": 50000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "enum": [
+                  "HELD",
+                  "EXCLUDED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sourceKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "entityKind",
+        "sourceId"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "entityKind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        }
+      }
+    },
+    "sourceMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "sourceKey",
+        "originalId",
+        "locator",
+        "sourceDigest",
+        "lastBatchId",
+        "targetRef",
+        "lastAppliedPayloadJson",
+        "lastAppliedPayloadSha256",
+        "lastAppliedRevision",
+        "disposition",
+        "reason"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "sourceKey": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sourceKey"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "originalId": {
+          "$ref": "#/$defs/id"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "sourceDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "lastBatchId": {
+          "$ref": "#/$defs/id"
+        },
+        "targetRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/entityRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastAppliedPayloadJson": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/capturedJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastAppliedPayloadSha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastAppliedRevision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "APPLIED",
+            "EXISTS",
+            "HELD",
+            "EXCLUDED",
+            "LOCALLY_DELETED"
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 16384
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "storageGeneration",
+        "kind",
+        "requestJson",
+        "requestSha256",
+        "committedAt",
+        "result"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "storageGeneration": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "CREATE_TRANSACTION",
+            "UPDATE_TRANSACTION",
+            "DELETE_TRANSACTION",
+            "CONFIRM_OBLIGATION",
+            "UNLINK_OBLIGATION",
+            "SKIP_OBLIGATION",
+            "UNSKIP_OBLIGATION",
+            "GENERATE_OBLIGATIONS",
+            "UPDATE_RULE",
+            "IMPORT_BATCH",
+            "RESTORE_LEDGER",
+            "UPDATE_ACCOUNT",
+            "UPDATE_PAYMENT_METHOD",
+            "UPDATE_CATEGORY",
+            "CONFIRM_ANCHOR"
+          ]
+        },
+        "requestJson": {
+          "$ref": "#/$defs/capturedJson",
+          "minLength": 2
+        },
+        "requestSha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "committedAt": {
+          "$ref": "#/$defs/instant"
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "ledgerRevision",
+            "entityRefs"
+          ],
+          "properties": {
+            "status": {
+              "const": "COMMITTED"
+            },
+            "ledgerRevision": {
+              "$ref": "#/$defs/revision"
+            },
+            "entityRefs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/entityRef"
+              },
+              "maxItems": 50000
+            }
+          }
+        }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision",
+        "storageGeneration",
+        "timeZone",
+        "currency",
+        "accounts",
+        "paymentMethods",
+        "categories",
+        "transactions",
+        "transactionHistory",
+        "rules",
+        "ruleVersions",
+        "obligations",
+        "anchors",
+        "importBatches",
+        "importRows",
+        "sourceMappings",
+        "operations"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "storageGeneration": {
+          "$ref": "#/$defs/id"
+        },
+        "timeZone": {
+          "const": "Asia/Seoul"
+        },
+        "currency": {
+          "const": "KRW"
+        },
+        "accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/account"
+          },
+          "maxItems": 50000
+        },
+        "paymentMethods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/paymentMethod"
+          },
+          "maxItems": 50000
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/category"
+          },
+          "maxItems": 50000
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transaction"
+          },
+          "maxItems": 50000
+        },
+        "transactionHistory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transaction"
+          },
+          "maxItems": 50000
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          },
+          "maxItems": 50000
+        },
+        "ruleVersions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ruleVersion"
+          },
+          "maxItems": 50000
+        },
+        "obligations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/obligation"
+          },
+          "maxItems": 50000
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          },
+          "maxItems": 50000
+        },
+        "importBatches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/importBatch"
+          },
+          "maxItems": 50000
+        },
+        "importRows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/importRow"
+          },
+          "maxItems": 50000
+        },
+        "sourceMappings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceMapping"
+          },
+          "maxItems": 50000
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operation"
+          },
+          "maxItems": 50000
+        }
+      }
+    },
+    "original": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sourceNamespace",
+        "fileName",
+        "bytesBase64",
+        "byteLength",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "sourceNamespace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "bytesBase64": {
+          "$ref": "#/$defs/base64"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2097152
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "originalManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "byteLength",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2097152
+        },
+        "sha256": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledgerId",
+        "recordCounts",
+        "originals",
+        "coverage"
+      ],
+      "properties": {
+        "ledgerId": {
+          "$ref": "#/$defs/id"
+        },
+        "recordCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "accounts",
+            "paymentMethods",
+            "categories",
+            "transactions",
+            "transactionHistory",
+            "rules",
+            "ruleVersions",
+            "obligations",
+            "anchors",
+            "importBatches",
+            "importRows",
+            "sourceMappings",
+            "operations"
+          ],
+          "properties": {
+            "accounts": {
+              "$ref": "#/$defs/count"
+            },
+            "paymentMethods": {
+              "$ref": "#/$defs/count"
+            },
+            "categories": {
+              "$ref": "#/$defs/count"
+            },
+            "transactions": {
+              "$ref": "#/$defs/count"
+            },
+            "transactionHistory": {
+              "$ref": "#/$defs/count"
+            },
+            "rules": {
+              "$ref": "#/$defs/count"
+            },
+            "ruleVersions": {
+              "$ref": "#/$defs/count"
+            },
+            "obligations": {
+              "$ref": "#/$defs/count"
+            },
+            "anchors": {
+              "$ref": "#/$defs/count"
+            },
+            "importBatches": {
+              "$ref": "#/$defs/count"
+            },
+            "importRows": {
+              "$ref": "#/$defs/count"
+            },
+            "sourceMappings": {
+              "$ref": "#/$defs/count"
+            },
+            "operations": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "originals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/originalManifest"
+          },
+          "maxItems": 32
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ledger",
+            "originals",
+            "excludes"
+          ],
+          "properties": {
+            "ledger": {
+              "const": "COMPLETE"
+            },
+            "originals": {
+              "const": "COMPLETE_EXTRACTS"
+            },
+            "excludes": {
+              "const": [
+                "UI_DRAFTS",
+                "PASSWORDS",
+                "DERIVED_CACHES",
+                "OS_PERMISSIONS",
+                "OS_ALARMS",
+                "TEMP_FILES"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
