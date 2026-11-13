@@ -53,6 +53,9 @@ interface ReminderAccessSource {
 interface ReminderRepository {
     /** 금융/설정 변경과 영속 dirty 상태를 관찰한다. OS 작업은 소비자가 실행한다. */
     fun changes(): Flow<Boolean>
+
+    /** 관찰 신호는 과거 값일 수 있다. 실제 활성 장부의 미적용 상태를 다시 읽는다. */
+    suspend fun needsReconciliation(): Boolean
     suspend fun configuration(context: LedgerContext): ReminderConfiguration
     suspend fun setEnabled(context: LedgerContext, expectedRevision: Long, enabled: Boolean): ReminderConfiguration
     suspend fun setRuleEnabled(context: LedgerContext, ruleId: String, expectedRevision: Long, enabled: Boolean): ReminderConfiguration

@@ -5,8 +5,10 @@ import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.*
 import java.time.*
 import kotlin.test.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -84,21 +86,54 @@ class ReminderRepositoryTest {
     /**
      * 목적: 응답 유실/재열기/동시 준비가 일별 중복 요약이나 단계 되돌림을 만들지 않는다.
      * 조건: 같은 날 유효한 두 회차와 실제 파일 DB가 있다.
-     * 절차: 병렬 prepare→발송 기록→재열기→같은 날 재준비한다.
-     * 기대: 일별 token 하나·두 멤버, 이미 처리한 날 새 발송 없음, 다음날 최신 AFTER 하나씩이다.
+     * 절차: 병렬 prepare→실제 current 계획 판별→발송 기록→재열기→같은 날 재준비한다.
+     * 기대: current 계획 하나/나머지 stale·일별 token 하나/두 멤버, 재열기 중복0·다음날 AFTER다.
      */
     @Test fun dailyClaimSurvivesConcurrencyAndReopenWithoutAdditionalPush() = runTest {
+        verifyDailyClaim(reversePreparationOrder = false)
+    }
+
+    /**
+     * 목적: async 호출/await 라벨 순서를 DB 확정 순서로 오인하지 않는다.
+     * 조건: 두 작업을 만들되 a는 b의 prepare 완료 gate 뒤 실제 DB 준비를 실행한다.
+     * 절차: b 확정→a 확정→두 결과의 현재성 판별→발송 기록→재열기/다음날 확인.
+     * 기대: 역순에서도 현재 plan 하나, 일별 요약 token 하나, 재열기 후 중복0이다. 일반 병렬 시나리오는 별도 유지한다.
+     */
+    @Test fun reversePreparationOrderKeepsOneDailyClaimAndNoReplay() = runTest {
+        verifyDailyClaim(reversePreparationOrder = true)
+    }
+
+    private suspend fun verifyDailyClaim(reversePreparationOrder: Boolean) = coroutineScope {
         seed()
         seed(number = 41)
         enabled()
-        val a = async(Dispatchers.Default) { reminders.prepare(allowed) }
-        val b = async(Dispatchers.Default) { reminders.prepare(allowed) }
+        val secondPrepared = CompletableDeferred<Unit>()
+        val a = async(Dispatchers.Default) {
+            if (reversePreparationOrder) secondPrepared.await()
+            reminders.prepare(allowed)
+        }
+        val b = async(Dispatchers.Default) {
+            try {
+                reminders.prepare(allowed)
+            } finally {
+                secondPrepared.complete(Unit)
+            }
+        }
         val first = assertNotNull(a.await())
         val second = assertNotNull(b.await())
         assertEquals(first.delivery!!.token, second.delivery!!.token)
         assertEquals(2, first.delivery!!.members.size)
-        assertFalse(reminders.current(first))
-        assertTrue(reminders.applied(second, true))
+        assertEquals(2, second.delivery!!.members.size)
+        assertEquals(first.delivery!!.members.toSet(), second.delivery!!.members.toSet())
+        assertNotEquals(first.token, second.token)
+        val plans = listOf(first, second)
+        val current = plans.filter { reminders.current(it) }
+        assertEquals(1, current.size)
+        val active = current.single()
+        val stale = plans.single { it.token != active.token }
+        assertFalse(reminders.current(stale))
+        assertTrue(reminders.current(active))
+        assertTrue(reminders.applied(active, true))
         db.close()
         reopen()
         assertNull(reminders.prepare(allowed)!!.delivery)
@@ -213,6 +248,8 @@ class ReminderRepositoryTest {
         clock.value = assertNotNull(plan.nextAt)
         assertTrue(reminders.acceptsAlarm(context, plan.token))
         assertFalse(reminders.acceptsAlarm(context, id(777)))
+        assertTrue(reminders.applied(plan, false))
+        assertFalse(reminders.needsReconciliation())
         val next = LedgerContext(context.ledgerId, id(902))
         db.openHelper.writableDatabase.execSQL("UPDATE ledgers SET storageGeneration=?", arrayOf(next.storageGeneration))
         assertFalse(reminders.acceptsAlarm(context, plan.token))
@@ -221,6 +258,11 @@ class ReminderRepositoryTest {
         assertTrue(reminders.configuration(next).enabled)
         assertTrue(reminders.configuration(next).dirty)
         assertNull(reminders.configuration(next).nextAt)
+        assertTrue(reminders.needsReconciliation())
+        val restored = assertNotNull(reminders.prepare(allowed))
+        assertEquals(next, restored.configuration.context)
+        assertTrue(reminders.applied(restored, false))
+        assertFalse(reminders.needsReconciliation())
     }
 
     /**
@@ -275,9 +317,30 @@ class ReminderRepositoryTest {
 
     /** 아직 장부가 없는 앱 시작은 금융 메타를 자동 생성하지 않는다. */
     @Test fun emptyStartupDoesNotCreateLedgerOrSettings() = runTest {
+        assertFalse(reminders.needsReconciliation())
         assertNull(reminders.prepare(allowed))
         assertTrue(db.ledgerDao().entryLedgers().isEmpty())
         assertFalse(db.ledgerDao().hasBusinessRecords())
+    }
+
+    /** 현재 장부/기본 설정·적용 revision을 읽고 관찰 과거값 없이 판정하며 유지보수 중에는 기존 예약을 보존하도록 전파한다. */
+    @Test fun reconciliationNeedReadsCurrentPersistentStateAndUnappliedRevision() = runTest {
+        ledger.initialize(context)
+        assertTrue(reminders.needsReconciliation())
+        val first = assertNotNull(reminders.prepare(allowed))
+        assertTrue(reminders.applied(first, false))
+        assertFalse(reminders.needsReconciliation())
+        db.openHelper.writableDatabase.execSQL("UPDATE reminder_settings SET appliedLedgerRevision=0,dirty=0")
+        assertTrue(reminders.needsReconciliation())
+        val refreshed = assertNotNull(reminders.prepare(allowed))
+        assertTrue(reminders.applied(refreshed, false))
+        assertFalse(reminders.needsReconciliation())
+        db.maintenance {
+            val error = assertFailsWith<BackupException> { reminders.needsReconciliation() }
+            assertEquals(BackupProblem.MAINTENANCE, error.problem)
+        }
+        assertFalse(reminders.needsReconciliation())
+        assertTrue(ledger.snapshot(context, LocalDate.of(2026, 11, 13)).transactions.isEmpty())
     }
 }
 

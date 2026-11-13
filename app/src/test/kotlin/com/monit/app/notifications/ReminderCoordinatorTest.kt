@@ -5,6 +5,7 @@ import com.monit.core.model.*
 import java.io.IOException
 import kotlin.test.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.*
 import org.junit.Test
 
@@ -21,7 +22,7 @@ class ReminderCoordinatorTest {
         assertEquals(0, repository.failedCalls)
         assertEquals(before, repository.config)
     }
-    private fun runtime(repository: ReminderTestRepository, platform: TestPlatform, scope: CoroutineScope) = ReminderCoordinator(
+    private fun runtime(repository: ReminderRepository, platform: TestPlatform, scope: CoroutineScope) = ReminderCoordinator(
         repository,
         platform,
         object : CoroutineScopeProvider {
@@ -117,6 +118,106 @@ class ReminderCoordinatorTest {
         runCurrent()
         assertEquals(1, repository.prepareCalls)
         assertEquals(1, repository.signals.subscriptionCount.value)
+    }
+
+    /**
+     * 목적: 완료된 prepare/applied의 지연 dirty 신호가 자기 재조정 루프를 만들지 않는다.
+     * 조건: 실제 Room의 true→false 변경을 공유 Flow로 지연 전달하고 불필요한 세 번째 준비는 gate에서 중단한다.
+     * 절차: observer 시작→명시 OS 재조회→과거 신호 소비→진짜 외부 변경→clean 상태의 명시 재조회.
+     * 기대: 자기 신호 추가 준비0, 외부/명시 요청은 각각 실행하며 일별 post1이다. 실패 시 observer부터 취소해 루프를 남기지 않는다.
+     */
+    @Test fun delayedOwnDirtySignalIsIgnoredButExternalAndExplicitRequestsStillReconcile() = runTest {
+        val base = ReminderTestRepository()
+        val signals = MutableSharedFlow<Boolean>(extraBufferCapacity = 16)
+        val unexpected = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var externalChangesAllowed = false
+        val repository = object : ReminderRepository by base {
+            override fun changes() = signals
+            override suspend fun prepare(access: ReminderAccess): ReminderPlan? {
+                if (base.prepareCalls >= 2 && !externalChangesAllowed) {
+                    unexpected.complete(Unit)
+                    release.await()
+                }
+                base.config = base.config.copy(dirty = true)
+                val plan = base.prepare(access)
+                signals.emit(true)
+                return plan
+            }
+            override suspend fun applied(plan: ReminderPlan, posted: Boolean): Boolean {
+                val result = base.applied(plan, posted)
+                signals.emit(false)
+                return result
+            }
+        }
+        val platform = TestPlatform()
+        val coordinator = runtime(repository, platform, backgroundScope)
+        try {
+            coordinator.start()
+            runCurrent()
+            assertEquals(1, base.prepareCalls)
+            coordinator.reconcile()
+            runCurrent()
+            assertFalse(unexpected.isCompleted)
+            assertEquals(2, base.prepareCalls)
+            assertFalse(base.config.dirty)
+            externalChangesAllowed = true
+            base.config = base.config.copy(enabled = true, revision = base.config.revision + 1, dirty = true)
+            signals.emit(true)
+            runCurrent()
+            assertEquals(3, base.prepareCalls)
+            assertFalse(base.config.dirty)
+            assertTrue(base.config.enabled)
+            coordinator.reconcile()
+            runCurrent()
+            assertEquals(4, base.prepareCalls)
+            assertEquals(1, platform.posts)
+            assertEquals(0, base.failedCalls)
+        } finally {
+            backgroundScope.cancel()
+            release.complete(Unit)
+        }
+    }
+
+    /**
+     * 목적: 관찰 중 유지보수는 OS 예약을 지우지 않고 해제 뒤 진짜 dirty를 처리한다.
+     * 조건: 같은 사용자 선호에 maintenance 신호와 같은 값의 해제 신호를 전달한다.
+     * 절차: 시작/확정→maintenance 중 dirty 관찰→해제 재관찰→무장부 명시 재조회→과거 신호.
+     * 기대: 유지보수 중 변경/실패0, 해제 뒤 재조정/선호 보존, 무장부 명시 취소1·추가 자기 실행0이다.
+     */
+    @Test fun observedMaintenanceResumesPendingWorkAndEmptyLedgerStillCancelsExplicitly() = runTest {
+        val base = ReminderTestRepository().apply { config = config.copy(enabled = true) }
+        val signals = MutableSharedFlow<Boolean>(extraBufferCapacity = 4)
+        val repository = object : ReminderRepository by base {
+            override fun changes() = signals
+        }
+        val platform = TestPlatform()
+        val coordinator = runtime(repository, platform, backgroundScope)
+        coordinator.start()
+        runCurrent()
+        assertEquals(1, base.prepareCalls)
+        base.maintenance = true
+        base.config = base.config.copy(dirty = true)
+        val pending = base.config
+        signals.emit(true)
+        runCurrent()
+        assertEquals(1, base.prepareCalls)
+        assertEquals(pending, base.config)
+        assertEquals(0, base.failedCalls)
+        assertEquals(0, platform.cancelAlls)
+        base.maintenance = false
+        signals.emit(true)
+        runCurrent()
+        assertEquals(2, base.prepareCalls)
+        assertFalse(base.config.dirty)
+        assertTrue(base.config.enabled)
+        assertEquals(1, platform.posts)
+        base.emptyLedger = true
+        coordinator.reconcile()
+        signals.emit(true)
+        runCurrent()
+        assertEquals(1, platform.cancelAlls)
+        assertEquals(3, base.prepareCalls)
     }
 }
 

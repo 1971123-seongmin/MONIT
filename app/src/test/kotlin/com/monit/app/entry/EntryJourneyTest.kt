@@ -159,7 +159,7 @@ class EntryJourneyTest {
     /**
      * 목적: 입력 중 계좌 등록 왕복과 명시 적용, 저장 완료 복귀를 실제 탐색에서 검증한다.
      * 조건: 실제 셸·입력/등록 Route·VM과 합성 장부 대역이다.
-     * 절차: 금액/메모 입력 → 계좌 등록 → 등록 확인 → 후보 직접 적용 → 저장 → 목록 복귀.
+     * 절차: 금액/메모 입력 → 저축 계좌 명시 선택/등록 → 등록 확인 → 후보 직접 적용 → 저장 → 목록 복귀.
      * 기대: 원래 입력 보존, 자동 적용 없음, 계좌·거래 각 한 번 저장, 명시 확인된 참조만 종료한다.
      */
     @Test fun registerAccountThenExplicitlyApplyAndSaveTransaction() {
@@ -173,6 +173,8 @@ class EntryJourneyTest {
         compose.onNodeWithText("새 계좌 추가").performClick()
         compose.waitForIdle()
         compose.onNodeWithContentDescription("계좌 이름").performTextInput("합성 생활비")
+        compose.onNodeWithText("저축").performScrollTo().performClick().assertIsSelected()
+        captureDraft("account-nature-light")
         compose.onNodeWithText("계좌 저장").performScrollTo().performClick()
         compose.waitForIdle()
         compose.onNodeWithText("등록 확인").performScrollTo().performClick()
@@ -189,11 +191,68 @@ class EntryJourneyTest {
         compose.waitForIdle()
         compose.onNodeWithText("원래 홈").assertExists()
         assertEquals(1, repo.accounts.size)
+        assertEquals(AccountNature.SAVINGS, repo.accounts.single().nature)
         assertEquals(1, repo.transactions.size)
         assertEquals(2000L, repo.transactions.single().amount)
         assertEquals("합성 점심", repo.transactions.single().memo)
         assertEquals(repo.accounts.single().id, repo.transactions.single().debitAccountId)
         assertEquals(2, repo.finished.size)
+    }
+
+    /**
+     * 목적: 작은 폭/큰 글꼴에서도 계좌 성격을 명시 선택하며 등록 확정 후에는 바꾸지 않는다.
+     * 조건: 실제 Route·VM·Nav2와 합성 Repository, Dark 320dp/200%다.
+     * 절차: 새 계좌→일반 기본값→저축→투자→이름 입력→저장→등록 확인으로 호출 화면 복귀.
+     * 기대: 선택은 단일·접근 가능, 투자 성격/미확인 기준액 저장1회, 확정 선택 잠금·자동 거래 제출0이다.
+     */
+    @Test fun narrowLargeFontAccountNatureIsExclusiveAndPersistsThroughRegistration() {
+        launch(dark = true, width = 320, font = 2f)
+        compose.onNodeWithText("새 거래").performClick()
+        compose.onNodeWithText("계좌 선택").performScrollTo().performClick()
+        compose.onNodeWithText("새 계좌 추가").performClick()
+        compose.onNodeWithText("일반").performScrollTo().assertIsSelected()
+        compose.onNodeWithText("저축").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithText("일반").assertIsNotSelected()
+        compose.onNodeWithText("투자").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithText("저축").assertIsNotSelected()
+        captureDraft("account-nature-dark-large")
+        compose.onNodeWithContentDescription("계좌 이름").performScrollTo().performTextInput("합성 투자")
+        compose.onNodeWithText("계좌 저장").performScrollTo().performClick()
+        compose.onNodeWithText("계좌 저장 완료").assertExists()
+        compose.onNodeWithText("투자").performScrollTo().assertIsSelected().assertIsNotEnabled()
+        assertEquals(AccountNature.INVESTMENT, repo.accounts.single().nature)
+        assertNull(repo.accounts.single().anchor.amount)
+        assertTrue(repo.transactions.isEmpty())
+        compose.onNodeWithText("등록 확인").performScrollTo().performClick()
+        compose.onNodeWithText("이 계좌 사용").assertExists()
+        assertEquals(1, repo.accounts.size)
+        assertTrue(repo.transactions.isEmpty())
+    }
+
+    /** 선택한 성격의 미제출 초안만 보관하며 취소 왕복이 호출 거래의 raw 입력·계좌 선택·금융 기록을 바꾸지 않는다. */
+    @Test fun retainingAccountNatureOnExitPreservesCallingTransactionWithoutFinancialSubmission() {
+        launch()
+        compose.onNodeWithText("새 거래").performClick()
+        compose.onNodeWithContentDescription("금액 (원)").performTextInput("00.원문")
+        compose.onNodeWithContentDescription("메모 (선택)").performTextInput("호출 초안")
+        compose.onNodeWithText("계좌 선택").performClick()
+        compose.onNodeWithText("새 계좌 추가").performClick()
+        compose.onNodeWithContentDescription("계좌 이름").performTextInput("합성 미제출")
+        compose.onNodeWithText("저축").performScrollTo().performClick().assertIsSelected()
+        compose.runOnIdle { back.onBackPressed() }
+        compose.onNodeWithText("계속 확인하기").performClick()
+        compose.onNodeWithText("저축").assertIsSelected()
+        compose.runOnIdle { back.onBackPressed() }
+        compose.onNodeWithText("보관하고 나가기").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("금액 (원)").assertTextContains("00.원문")
+        compose.onNodeWithContentDescription("메모 (선택)").assertTextContains("호출 초안")
+        compose.onNode(hasText("계좌 선택") and hasClickAction()).assertExists()
+        val savedAccount = runBlocking { repo.drafts.drafts(testContext) }.filterIsInstance<DraftSnapshot.Editable>().mapNotNull { it.draft.content as? DraftContent.Account }.single()
+        assertEquals(AccountNature.SAVINGS, savedAccount.nature)
+        assertEquals("합성 미제출", savedAccount.name)
+        assertTrue(repo.accounts.isEmpty())
+        assertTrue(repo.transactions.isEmpty())
     }
 
     /** 실제 시스템 Back은 확인 대화상자를 거치며 나가기를 저장 취소나 금융 쓰기로 취급하지 않는다. */

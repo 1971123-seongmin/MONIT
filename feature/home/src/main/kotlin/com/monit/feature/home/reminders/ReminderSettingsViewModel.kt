@@ -8,7 +8,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -32,6 +35,8 @@ class ReminderSettingsViewModel @Inject constructor(
         if (context != null) {
             if (context != value) {
                 invalid = true
+                generation++
+                readJob?.cancel()
                 mutable.value = state.value.copy(phase = ReminderSettingsPhase.FAILED)
             }
             return
@@ -52,25 +57,46 @@ class ReminderSettingsViewModel @Inject constructor(
     fun refresh() {
         val current = context ?: return
         if (invalid || state.value.phase == ReminderSettingsPhase.SAVING) return
-        val request = ++generation
-        readJob?.cancel()
+        generation++
         mutable.value = state.value.copy(phase = ReminderSettingsPhase.LOADING)
-        readJob = viewModelScope.launch {
-            try {
-                val result = withContext(contexts.default) {
-                    val config = repository.configuration(current)
-                    config to reminderSettingsProjection(config, access.read())
+        // 권한 응답/복귀/DB 관찰은 진행 중 조회를 취소하지 않고 최신 재조회 한 번으로 모은다.
+        if (readJob?.isCompleted == false) return
+        val task = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            while (!invalid) {
+                val request = generation
+                try {
+                    val result = withContext(contexts.default) {
+                        val config = repository.configuration(current)
+                        config to reminderSettingsProjection(config, access.read())
+                    }
+                    currentCoroutineContext().ensureActive()
+                    require(result.first.context == current)
+                    if (invalid) return@launch
+                    if (request != generation) continue
+                    configuration = result.first
+                    mutable.value = ReminderSettingsState(ReminderSettingsPhase.READY, result.second.copy(message = state.value.ui.message))
+                } catch (cancelled: CancellationException) {
+                    // 부모/VM 종료는 전파한다. 조회 자체 취소는 성공으로 추정하지 않고 실패를 표시한다.
+                    currentCoroutineContext().ensureActive()
+                    if (invalid) throw cancelled
+                    if (request != generation) continue
+                    mutable.value = state.value.copy(phase = ReminderSettingsPhase.FAILED)
+                    throw cancelled
+                } catch (_: Exception) {
+                    if (invalid) return@launch
+                    if (request != generation) continue
+                    mutable.value = state.value.copy(phase = ReminderSettingsPhase.FAILED)
                 }
-                require(result.first.context == current)
-                if (invalid || request != generation) return@launch
-                configuration = result.first
-                mutable.value = ReminderSettingsState(ReminderSettingsPhase.READY, result.second.copy(message = state.value.ui.message))
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                if (!invalid && request == generation) mutable.value = state.value.copy(phase = ReminderSettingsPhase.FAILED)
+                if (request == generation) return@launch
             }
         }
+        readJob = task
+        task.start()
+    }
+
+    override fun onCleared() {
+        invalid = true
+        generation++
     }
 
     fun setEnabled(value: Boolean) = change { config -> repository.setEnabled(config.context, config.revision, value) }
