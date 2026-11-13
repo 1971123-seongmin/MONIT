@@ -87,7 +87,7 @@ internal class BackupSchema private constructor(private val root: JSONObject) {
     }
     companion object {
         fun bundled(version: Int): BackupSchema {
-            require(version == 1 || version == 2)
+            require(version in 1..3)
             val text = checkNotNull(BackupSchema::class.java.getResourceAsStream("/backup/backup-v$version.schema.json")).use { it.reader(Charsets.UTF_8).readText() }
             return BackupSchema(JSONObject(text))
         }

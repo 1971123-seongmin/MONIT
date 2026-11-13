@@ -69,7 +69,7 @@ class AnchorMigrationTest {
             }
             var migrated = createLedgerDatabase(app, "anchor-v6.db")
             try {
-                assertEquals(8, migrated.openHelper.writableDatabase.version)
+                assertEquals(9, migrated.openHelper.writableDatabase.version)
                 assertEquals(expected, rows(migrated))
                 var upgraded = RoomLedgerRepository(migrated, clock, contexts)
                 assertEquals(receipt, upgraded.receipt(context, id(110)))

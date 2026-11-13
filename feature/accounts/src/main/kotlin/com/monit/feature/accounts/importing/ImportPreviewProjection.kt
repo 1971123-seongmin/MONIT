@@ -1,5 +1,6 @@
 package com.monit.feature.accounts.importing
 
+import com.monit.core.model.*
 import com.monit.core.model.TransactionKind
 import java.math.BigInteger
 
@@ -19,6 +20,8 @@ internal fun ImportPreviewReport.toUiState(): ImportPreviewUiState {
         sourceSummary = "제공된 범위: ${input.scope}\n추출본 표시 시각: ${input.capturedAt}",
         sourceRowCount = "${rows.size}건",
         candidateCount = "${candidateCount}건",
+        existingCount = "${existingCount}건",
+        comparison = "단순 유사 기록은 기반영으로 확정하지 않아요. 원본·매핑·로컬 변경은 보류해요.",
         heldCount = "${rows.count { it.decision == ImportDecision.HELD }}건",
         excludedCount = "${rows.count { it.decision == ImportDecision.EXCLUDED }}건",
         transactionCount = "${expectedTransactionCount}건",
@@ -50,10 +53,56 @@ internal fun ImportPreviewReport.toUiState(): ImportPreviewUiState {
                 detail = details,
                 evidence = "${row.source.sourceNamespace} · ${row.source.entityKind}\n원본 ID ${row.source.sourceId ?: "없음 · 이 추출본 내 위치로만 추적"}\n위치 ${row.source.locator}\n행 SHA256 ${row.source.rawSha256}\n추출본 SHA256 ${input.snapshotSha256}\n매핑 SHA256 ${input.mappingSha256}\n검토 지문 $fingerprint · 실제 반영 승인 토큰이 아니에요.",
                 rawExcerpt = excerpt,
+                locator = row.source.locator,
+                canConfirm = row.decision == ImportDecision.CANDIDATE || row.reasons.any { it == ImportHoldReason.REVIEW_CONFIRMATION_REQUIRED || it == ImportHoldReason.BASIS_CONFIRMATION_REQUIRED },
+                canDistinct = ImportHoldReason.POSSIBLE_DUPLICATE in row.reasons,
+                canGroup = row.rawKind == "이체" && row.decision != ImportDecision.EXISTS,
             )
         },
     )
 }
+
+internal fun ImportReview.toUiState(): ImportPreviewUiState = report.toUiState().copy(
+    comparison = if (historyCoverage == ImportHistoryCoverage.RECORDED) "저장된 출처와 현재 거래를 대조했어요. 유사 기록만으로 중복을 확정하지 않아요." else "이전 백업에 이관 정보가 미기록된 범위가 있어요. 이력이 없다고 확정하지 않으며, 유사 기록은 별도 확인이 필요해요.",
+    workflow = ImportWorkflowUiState(
+        targetConfirmed = options.targetConfirmed,
+        canApply = canApply,
+        backupVerified = verifiedBackupId != null,
+        hasFinancialChanges = report.expectedTransactionCount > 0 || options.anchors.any { it.confirmed && it.action == ImportAnchorAction.CONFIRM },
+        basisSummary = options.anchors.filter { it.confirmed }.sortedBy { it.accountId }.map { choice ->
+            val name = accounts.singleOrNull { it.id == choice.accountId }?.name ?: choice.accountId
+            "$name · 고정 기준일 ${choice.date}\n" + if (choice.action == ImportAnchorAction.KEEP) "기존 기준 ${choice.amount?.let { "${it}원" } ?: "미확인"} 유지" else "기준액 ${choice.amount}원으로 명시 확정 · 사유 ${choice.reason.ifBlank { "최초 확정" }}"
+        },
+        links = accountLinks.map { link -> ImportAccountLinkUiState(link.walletNamespace, link.sourceId, link.accountId, "${link.walletNamespace} / ${link.sourceId}") },
+        accounts = accounts.map { account ->
+            val choice = options.anchors.singleOrNull { it.accountId == account.id && it.confirmed }
+            ImportAccountUiState(
+                account.id,
+                account.name,
+                account.anchor.date.toString(),
+                account.anchor.amount?.let { "${it}원" } ?: "미확인 · 0원으로 추정하지 않음",
+                when (choice?.action) {
+                    ImportAnchorAction.KEEP -> "기존 기준 유지 확인됨"
+                    ImportAnchorAction.CONFIRM -> "${choice.amount}원으로 명시 확정 예정"
+                    null -> "기준 유지 또는 명시 확정 선택 필요"
+                },
+                account.status == AccountStatus.ACTIVE,
+            )
+        },
+        currencyTotals = sourceTotals.map { "정수로 읽은 원문 ${it.currency} ${it.amount} · ${it.count}행 (통화별 별도 합계)" } + listOfNotNull("미해석·소수 금액은 원문으로 별도 확인해 주세요. 외화를 원화에 더하지 않아요.", limitMessage),
+    ),
+)
+
+internal fun ImportResult.toUiState(): ImportPreviewUiState = ImportPreviewUiState(
+    canAcknowledge = true,
+    sourceRowCount = "${sourceRows}건",
+    candidateCount = "${appliedRows}건 반영",
+    existingCount = "${existingRows}건",
+    heldCount = "${heldRows}건",
+    excludedCount = "${excludedRows}건",
+    transactionCount = "${createdTransactions}건",
+    resultSummary = "${if (partial) "부분 지원 반영 결과" else "검토 집합 반영 결과"}\n원본 ${sourceRows} = 반영 ${appliedRows} + 기반영 ${existingRows} + 보류 ${heldRows} + 제외 ${excludedRows}\n실제 생성 거래 ${createdTransactions}건 · 기준액 확정 ${confirmedAnchors}건\n보류·제외 원문은 보관했어요. 전체 원본을 모두 이관했다는 뜻은 아니에요.\n확정 시각 $committedAt · 장부 revision $revision",
+)
 
 private fun BigInteger.display(): String = toString()
 private fun TransactionKind.label(): String = when (this) {
@@ -78,4 +127,11 @@ private fun ImportHoldReason.label(): String = when (this) {
     ImportHoldReason.ACCOUNT_UNAVAILABLE -> "현재 장부의 활성 계좌가 아님"
     ImportHoldReason.SAME_TRANSFER_ACCOUNT -> "이체 양쪽 계좌가 같음"
     ImportHoldReason.POSSIBLE_DUPLICATE -> "날짜·금액·계좌가 유사한 기록 · 기반영 확정이 아니므로 자동 합치지 않음"
+    ImportHoldReason.REVIEW_CONFIRMATION_REQUIRED -> "이 행의 반영에 대한 명시 확인 필요"
+    ImportHoldReason.BASIS_CONFIRMATION_REQUIRED -> "계좌별 기준일·기준액 유지 또는 확정 선택 필요"
+    ImportHoldReason.SOURCE_CHANGED -> "같은 출처의 원문이 변경됨 · 자동 갱신하지 않음"
+    ImportHoldReason.LOCAL_CHANGED -> "대상 거래가 수정 또는 삭제됨 · 덮어쓰거나 부활시키지 않음"
+    ImportHoldReason.MAPPING_CHANGED -> "이전에 반영한 매핑이 변경됨 · 다시 검토 필요"
+    ImportHoldReason.HISTORICAL_SOURCE -> "이전 반영 출처 이력이 있음 · 자동 신규 반영하지 않음"
+    ImportHoldReason.INVALID_GROUP -> "명시 이체 묶음의 양쪽 판정·금액·계좌·날짜 확인 필요"
 }

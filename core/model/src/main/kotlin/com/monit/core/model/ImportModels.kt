@@ -1,4 +1,4 @@
-package com.monit.feature.accounts.importing
+package com.monit.core.model
 
 import com.monit.core.model.LedgerContext
 import com.monit.core.model.TransactionKind
@@ -93,13 +93,11 @@ data class ImportPreviewReport(
     val accountEffects: Map<String, BigInteger>,
     val accountNames: Map<String, String>,
     val fingerprint: String,
+    val plannedTransactionCount: Int = rows.count { it.decision == ImportDecision.CANDIDATE },
 ) {
-    init {
-        require(rows.none { it.decision == ImportDecision.EXISTS })
-    }
-    val existingCount: Int get() = 0
+    val existingCount: Int get() = rows.count { it.decision == ImportDecision.EXISTS }
     val actualCreatedCount: Int get() = 0
-    val expectedTransactionCount: Int get() = rows.count { it.decision == ImportDecision.CANDIDATE }
+    val expectedTransactionCount: Int get() = plannedTransactionCount
     val partial: Boolean get() = input.coverage.isEmpty() || input.coverage.any { it.paginationComplete != true || !it.missingPropertiesKnown || it.missingProperties.isNotEmpty() } ||
         input.rows.any { it.entityKind == "transaction" && it.relationsComplete != true } ||
         input.rows.any { row -> input.coverage.none { it.namespace == row.sourceNamespace && it.entityKind == row.entityKind } } ||

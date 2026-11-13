@@ -1,7 +1,8 @@
-package com.monit.feature.accounts.importing
+package com.monit.core.data.importing
 
 import android.util.JsonReader
 import android.util.JsonToken
+import com.monit.core.model.*
 import com.monit.core.model.LedgerContext
 import java.io.StringReader
 import java.nio.ByteBuffer

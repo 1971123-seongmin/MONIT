@@ -170,6 +170,14 @@ fun MonitApp(
             ImportPreviewRoute(
                 context = context,
                 onBack = { navigationFailed = navigator.closeImportPreview(entry) == NavigationResult.UNAVAILABLE },
+                backupContent = { back, verified ->
+                    BackupContent(
+                        context = context,
+                        onBack = back,
+                        exportOnly = true,
+                        onExportVerified = verified,
+                    )
+                },
             )
 
             if (navigationFailed) NavigationFailureNotice { navigationFailed = false }

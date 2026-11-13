@@ -138,6 +138,7 @@ class BackupValidationTest {
         val value = validator.validate(original)
         assertEquals("NOT_RECORDED_BY_V1", value.root.getJSONObject("manifest").text("submissionCoverage"))
         assertEquals("NOT_RECORDED_BY_V1", value.root.getJSONObject("reminderPreferences").text("coverage"))
+        assertEquals("NOT_RECORDED_BY_V1", value.root.getJSONObject("imports").text("coverage"))
         val archived = value.root.list("originals").single()
         assertContentEquals(original, java.util.Base64.getDecoder().decode(archived.text("bytesBase64")))
         assertTrue(value.rows("transactions").isEmpty())

@@ -78,7 +78,7 @@ class ReminderMigrationTest {
             }
             var migrated = createLedgerDatabase(app, targetName)
             try {
-                assertEquals(8, migrated.openHelper.writableDatabase.version)
+                assertEquals(9, migrated.openHelper.writableDatabase.version)
                 for ((table, fields) in columns) assertEquals(expected.getValue(table), readColumns(migrated.openHelper.writableDatabase, table, fields), table)
                 for (table in listOf("reminder_settings", "reminder_rules", "reminder_days")) migrated.openHelper.writableDatabase.query("SELECT COUNT(*) FROM $table").use {
                     assertTrue(it.moveToFirst())

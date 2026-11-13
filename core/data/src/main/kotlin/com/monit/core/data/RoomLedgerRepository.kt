@@ -94,6 +94,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 val context =
                     LedgerContext(UUID.randomUUID().toString(), UUID.randomUUID().toString())
                 dao.insertLedger(LedgerEntity(context.ledgerId, context.storageGeneration, 1))
+                database.backupDao().status(com.monit.core.data.backup.BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = null, restoreAcknowledged = true, importCoverage = "RECORDED"))
                 currentCoroutineContext().ensureActive()
                 LedgerEntryResult.Ready(context)
             }
@@ -179,14 +180,16 @@ internal class RoomLedgerRepository @Inject constructor(
     override suspend fun initialize(context: LedgerContext) = database.withTransaction {
         database.requireDurableWriter()
         val existing = dao.ledger(context.ledgerId)
-        if (existing == null) dao.insertLedger(
-            LedgerEntity(
-                context.ledgerId,
-                context.storageGeneration,
-                1,
-            ),
-        )
-        else requireContext(context)
+        if (existing == null) {
+            dao.insertLedger(
+                LedgerEntity(
+                    context.ledgerId,
+                    context.storageGeneration,
+                    1,
+                ),
+            )
+            database.backupDao().status(com.monit.core.data.backup.BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = null, restoreAcknowledged = true, importCoverage = "RECORDED"))
+        } else requireContext(context)
         Unit
     }
 
@@ -549,6 +552,16 @@ internal class RoomLedgerRepository @Inject constructor(
         context: LedgerContext,
         value: CreateTransaction,
     ): List<EntityRef> {
+        val refs = insertTransactionRow(context, value)
+        // 단건 명령은 삽입 직후 전체 금융 상태도 검증한다.
+        snapshotInside(context, today())
+        val monthEnd = value.date.withDayOfMonth(value.date.lengthOfMonth())
+        snapshotInside(context, minOf(monthEnd, today()))
+        return refs
+    }
+
+    /** 호출자는 단일 writer 트랜잭션과 최종 집합의 잔액/집계 검증을 소유한다. */
+    internal suspend fun insertTransactionRow(context: LedgerContext, value: CreateTransaction): List<EntityRef> {
         transactionDateOf(value.date.year, value.date.monthValue, value.date.dayOfMonth, today())
         if (dao.transaction(
                 context.ledgerId,
@@ -581,10 +594,6 @@ internal class RoomLedgerRepository @Inject constructor(
                 1,
             ),
         )
-        // 현재 잔액과 입력 거래가 영향을 준 월의 전체 합계를 같은 writer 스냅샷에서 검사한다.
-        snapshotInside(context, today())
-        val monthEnd = value.date.withDayOfMonth(value.date.lengthOfMonth())
-        snapshotInside(context, minOf(monthEnd, today()))
         return listOf(EntityRef("transactions", value.id, 1))
     }
 

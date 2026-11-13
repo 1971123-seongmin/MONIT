@@ -38,6 +38,7 @@ fun BackupScreen(
     onResolve: () -> Unit,
     onNotifications: () -> Unit,
     onDone: () -> Unit,
+    exportOnly: Boolean = false,
 ) {
     val phase = state.phase
     val ui = state.ui
@@ -206,7 +207,7 @@ fun BackupScreen(
                         onClick = onExport,
                     )
 
-                    BackupAction(
+                    if (!exportOnly) BackupAction(
                         text = "복원할 파일 선택",
                         onClick = onOpen,
                     )
@@ -245,7 +246,7 @@ fun BackupScreen(
                 }
 
                 BackupPhase.EXPORTED, BackupPhase.EXPORTED_UNVERIFIED -> BackupAction(
-                    text = "백업과 복원으로",
+                    text = if (exportOnly && phase == BackupPhase.EXPORTED) "검증한 백업으로 이관 검토 계속" else "백업과 복원으로",
                     onClick = onCancel,
                 )
 

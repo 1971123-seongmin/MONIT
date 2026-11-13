@@ -1,6 +1,6 @@
 # 암호화 파일 백업과 전체 복원
 
-Issue #66. 금융 데이터는 현재 Room 인스턴스에서 논리적으로 교체한다. DB 파일을 닫고 덮어쓰거나 앱 데이터를 초기화하지 않는다. `RoomBackupRepository`는 파일·UI·Keystore를 직접 호출하지 않고, 앱 계층이 SAF와 기기 전용 복구 사본을 연결한다.
+Issue #66/#68. 금융 데이터는 현재 Room 인스턴스에서 논리적으로 교체한다. DB 파일을 닫고 덮어쓰거나 앱 데이터를 초기화하지 않는다. `RoomBackupRepository`는 파일·UI·Keystore를 직접 호출하지 않고, 앱 계층이 SAF와 기기 전용 복구 사본을 연결한다.
 
 ## 형식과 검증 순서
 
@@ -15,11 +15,19 @@ Issue #66. 금융 데이터는 현재 Room 인스턴스에서 논리적으로 �
 
 전체 평문은 8MiB, 외부 파일은 8MiB+68바이트, 원문 합계는 2MiB/32개, 업무·근거 레코드는 50,000개, JSON 중첩은 16단계, scalar token은 1,000,000개 이하이다. 제공자가 신고한 크기만 신뢰하지 않는다. KDF와 논리 검증은 주입된 Default dispatcher, 파일 작업은 IO dispatcher에서 수행한다.
 
-KDF/암호가 10초를 넘으면 지연과 취소 요청을 안내한다. 전체 파싱·논리 검증은 30초, 외부 파일 읽기/쓰기와 내부 복구 사본은 60초에 협력 중단을 요청한다. 이는 동기 JCA·provider·close가 그 시각에 반드시 종료된다는 보장이 아니다. UI는 취소 요청과 실제 종료를 구분하고 비복귀 상태에서도 대기 안내를 유지한다. `CancellationSignal.cancel`과 descriptor 정리는 IO child에서 수행하며 부모 작업은 실제 정리 종료까지 기다린다. 프로세스 범위의 백업 전용 단일 lease는 VM이 교체되거나 취소되어도 실제 Job 완료 후에만 풀린다. 늦은 단계/성공을 UI에 반영하거나 그 전에 새 KDF/파일/복원을 시작하지 않는다. 쓰기 시작 후 취소는 외부 파일 검증 미완료로, 복원 취소/응답 유실은 영속 완료 표식 조회로 이어지며 금융 교체를 자동 재실행하지 않는다.
+KDF/암호가 10초를 넘으면 지연과 취소 요청을 안내한다. 전체 파싱·논리 검증은 30초, 외부 파일 읽기/쓰기와 내부 복구 사본은 60초에 협력 중단을 요청한다. 이는 동기 JCA·provider·close가 그 시각에 반드시 종료된다는 보장이 아니다. UI는 취소 요청과 실제 종료를 구분하고 비복귀 상태에서도 대기 안내를 유지한다. `CancellationSignal.cancel`과 descriptor 정리는 IO child에서 수행하며 부모 작업은 실제 정리 종료까지 기다린다. 프로세스 범위에서 백업·이관이 공유하는 단일 lease는 VM이 교체되거나 취소되어도 실제 Job 완료 후에만 풀린다. 늦은 단계/성공을 UI에 반영하거나 그 전에 새 KDF/파일/복원을 시작하지 않는다. 쓰기 시작 후 취소는 외부 파일 검증 미완료로, 복원 취소/응답 유실은 영속 완료 표식 조회로 이어지며 금융 교체를 자동 재실행하지 않는다.
 
-## 논리 v2와 이전 v1
+## 논리 v3와 이전 v1/v2
 
-실행 schema 원본은 [v2 JSON Schema](src/main/resources/backup/backup-v2.schema.json)다. `formatVersion=2`, `contractVersion=2`를 사용하고 `manifest`에 실제 배열별 건수·원문 크기/hash·제외 항목·기록 여부를 검증한다. 금융 9개 테이블의 DTO는 검토된 Room schema7 필드에 고정한다. [생성 스크립트](../../scripts/Generate-BackupSchema.cjs)는 최신 DB를 임의 추종하지 않는다.
+새 작성의 실행 원본은 [v3 JSON Schema](src/main/resources/backup/backup-v3.schema.json)이며 `formatVersion=3`, `contractVersion=3`이다. envelope/암호 suite/KDF/용량은 그대로다. strict [v2 schema](src/main/resources/backup/backup-v2.schema.json)와 v1 reader를 유지한다. 금융 9개 테이블·기존 제출 근거의 DTO는 Room schema7의 검토된 필드를 유지하며 원래 canonical v1~v4 원문/hash를 재작성하지 않는다. [v2 생성기](../../scripts/Generate-BackupSchema.cjs)와 [v3 확장 생성기](../../scripts/Generate-ImportBackupSchema.cjs)는 각각 고정 schema7/schema9만 읽는다. Markdown은 생성하지 않는다.
+
+`imports`는 coverage와 `import_batches`, `import_rows`, `import_source_mappings`, `import_child_commands`, `import_source_fences`를 보관한다. 원본은 기존 `originals`를 재사용한다. manifest는 새 테이블·전역 출처 fence·원문 개수까지 레코드 한도에 포함한다. 모든 nullable 필드도 strict 타입을 검사한다. root 요청 `monit-import-1`의 원문/hash, 사용자 판단, 행 식별/원문 digest, 명시 이체 집합, 실제 canonical child·금융/기준액 이력·결과·mapping·fence가 연결되는지 검사한다. 해시를 함께 재계산한 금액 변경도 원문에서 다시 산출한 명령과 다르면 거부한다.
+
+v2에 없던 이관 근거는 `NOT_RECORDED_BY_V2`, v1은 `NOT_RECORDED_BY_V1`이다. 빈 배열을 과거 이력 없음으로 해석하거나 새 이관을 했다는 이유로 이전 미기록 coverage를 RECORDED로 바꾸지 않는다. 복원된 import 요청/결과는 원래 context/raw/hash를 유지한 evidence-only다. 현재 pending/retry에 넣지 않으며 재실행하지 않는다.
+
+활성 source mapping과 별도로 현재/입력 `import_source_fences` 합집합을 유지한다. 같은 identity의 provenance가 다르거나 같은 무ID snapshot/locator에 모순되는 이력이 있으면 무쓰기 거부한다. 합집합 전체의 레코드/bytes 한도를 확인하고 자동 정리하지 않는다. 이전 백업 복원 뒤 mapping이 없어도 과거 출처를 자동 신규로 반영하지 않는다. 자세한 이관 책임은 [writer 계약](../../docs/architecture/import-writer-plan.md)을 따른다.
+
+원본 2MiB와 큰 import root TEXT는 metadata를 먼저 확인한 뒤 128KiB bytes chunk로 읽는다. CursorWindow의 단일 행 크기 제한을 피하고, UTF-8은 합친 bytes에서 strict decode한다. 원문/hash·기존 schema8 BLOB 구조는 바꾸지 않는다.
 
 `submissionsEvidence`는 원래 `sourceContext`와 operationId 단위로 canonical v1/v2/v3/v4 요청·hash·영수증·성공/거절·참조 존재 여부·납입 intent 상태를 보존한다. 저장소의 새 `storageGeneration`으로 원래 문자열을 재작성하지 않는다. READY/CONSUMED/RELEASED 모두 조회·재백업 근거이며 복원 후 실행 대기열로 옮기지 않는다. UI 초안 payload는 제외하고 원래 draftId/revision/scope와 `EXCLUDED_BY_POLICY`만 보존한다.
 
@@ -27,13 +35,13 @@ KDF/암호가 10초를 넘으면 지연과 취소 요청을 안내한다. 전체
 
 [엄격한 v1 schema](src/main/resources/backup/backup-v1.schema.json)는 유지한다. 현재 모델에서 손실 없이 표현 가능한 baseline 계좌·기준액·초기 거래만 지원하며, 원래 v1 bytes 전체를 원문으로 보존한다. 현재 대응할 수 없는 분류/결제수단/이관 관계/납입/변경 이력이 있거나 초기 revision이 아닌 자료는 **전체 거부**한다. 일부를 버리고 복원하지 않는다. 원문 자체가 2MiB 제한을 넘으면 거부한다. v1에 없던 제출 근거·알림 선호는 `NOT_RECORDED_BY_V1`이며 빈 배열/false로 기록됐다고 주장하지 않는다.
 
-알림의 영구 선호는 포함하지만 기기 권한·토큰·OS 예약·당일 통지 큐·캐시는 제외한다. source mapping이 없는 현재 모델의 상태도 manifest에 명시한다. 제외된 초안을 복원하거나 실행 가능한 가짜 명령을 생성하지 않는다.
+알림의 영구 선호는 포함하지만 기기 권한·토큰·OS 예약·당일 통지 큐·캐시는 제외한다. 이관 근거의 기록 범위도 manifest에 명시한다. 제외된 초안을 복원하거나 실행 가능한 가짜 명령을 생성하지 않는다.
 
 ## 내보내기와 복원 원자성
 
 SAF CreateDocument/OpenDocument로 사용자가 위치를 선택한다. URI 접근 권한·암호·파일 내용은 SavedStateHandle/초안/로그에 남기지 않는다. 암호 입력은 비저장 메모리이며 제출 후 비운다. JVM의 불변 문자열과 GC 복제본까지 물리적으로 소거됐다고 보장하지 않는다. 입력 흐름은 FLAG_SECURE를 사용하며 기존 flag 상태를 보존한다.
 
-내보내기는 일관된 Room read snapshot → 암호화 → 외부 파일 쓰기/flush/close → 새 descriptor 재읽기 → 인증·논리 검증·정확한 파일 hash 대조 순서다. 이 전체 과정이 성공한 경우에만 마지막 검증 시각을 저장한다. 재읽기 실패 시 내보내기/검증 미완료를 표시하고 이전 성공 시각을 유지한다. 이전 백업을 자동 삭제하지 않는다.
+내보내기는 일관된 Room read snapshot → 암호화 → 외부 파일 쓰기/flush/close → 새 descriptor 재읽기 → 인증·논리 검증·정확한 파일 hash 대조 순서다. 이 전체 과정이 성공한 경우에만 검증 시각과 export ID/context/ledger revision을 저장한다. 이관 전 백업 승인은 동일한 context/revision의 영수증을 요구하며 시각만으로 통과시키지 않는다. 재읽기 실패 시 내보내기/검증 미완료를 표시하고 이전 성공 정보를 유지한다. 이전 백업을 자동 삭제하지 않는다.
 
 복원은 인증·검증 → 생성일/건수/제외 범위와 전체 대체 미리보기 → 명시 최종 확인 순서다. 파일 선택이나 미리보기만으로 교체하지 않는다. 저장소는 한 작업만 실행하며 미리보기의 현재 revision/generation을 다시 확인한다.
 

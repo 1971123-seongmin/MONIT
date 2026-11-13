@@ -60,7 +60,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
                     database.requireDurableWriter()
                     checkContext(context)
                     val prior = database.backupDao().status() ?: emptyStatus()
-                    database.backupDao().status(prior.copy(lastBackupAt = receipt.verifiedAt, lastBackupLedger = context.ledgerId, lastBackupGeneration = context.storageGeneration))
+                    database.backupDao().status(prior.copy(lastBackupAt = receipt.verifiedAt, lastBackupLedger = context.ledgerId, lastBackupGeneration = context.storageGeneration, lastBackupExportId = id, lastBackupRevision = source.revision))
                     currentCoroutineContext().ensureActive()
                 }
                 exported = null
@@ -128,8 +128,13 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
             val outcome = RestoreResult(previewId, LedgerContext(source.context.ledgerId, id()), source.createdAt.toString(), clock.instant().toString(), source.root.getJSONObject("manifest").getInt("recordTotal"), preview.legacyEvidenceMissing)
             val oldIds = current.list("submissionsEvidence").mapTo(HashSet()) { it.text("operationId") } + current.getJSONArray("operationFences").values().map { it as String }
             val incomingIds = source.root.getJSONArray("operationFences").values().map { it as String }.toSet()
-            if (source.root.getJSONObject("manifest").getLong("recordTotal") + oldIds.count { it !in incomingIds } > 50_000) BackupJson.fail(BackupProblem.LIMIT)
-            val plan = BackupRestorePlan(source, outcome, oldIds)
+            val sourceFences = BackupImportV3.unionFences(current.getJSONObject("imports").list("import_source_fences"), source.root.getJSONObject("imports").list("import_source_fences"))
+            val union = JSONObject(source.root.toString())
+            union.put("operationFences", org.json.JSONArray((oldIds + incomingIds).sorted()))
+            union.getJSONObject("imports").put("import_source_fences", org.json.JSONArray(sourceFences))
+            union.put("manifest", BackupSnapshotAdapter.manifest(union, source.root.getJSONObject("manifest").text("submissionCoverage"), source.root.getJSONObject("imports").text("coverage")))
+            if (union.getJSONObject("manifest").getLong("recordTotal") > 50_000 || BackupJson.utf8(union.toString()).size > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
+            val plan = BackupRestorePlan(source, outcome, oldIds, sourceFences)
             try {
                 onStage(BackupStage.REPLACEMENT)
                 database.withTransaction {

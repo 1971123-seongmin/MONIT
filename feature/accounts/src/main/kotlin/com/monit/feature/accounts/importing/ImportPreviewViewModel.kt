@@ -1,119 +1,291 @@
 package com.monit.feature.accounts.importing
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.monit.core.common.coroutines.CoroutineContextProvider
-import com.monit.core.model.LedgerContext
-import com.monit.core.model.LedgerRepository
+import com.monit.core.common.io.LocalDataWorkGate
+import com.monit.core.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.Clock
-import java.time.LocalDate
-import java.time.ZoneId
 import javax.inject.Inject
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-/** 미리보기는 VM 메모리에만 있다. Repository에는 snapshot 읽기 외의 호출을 하지 않는다. */
+/** 원문/URI/판정은 메모리, 프로세스 복구에는 조회용 context/batch ID만 남긴다. */
 @HiltViewModel
 class ImportPreviewViewModel @Inject constructor(
-    private val repository: LedgerRepository,
+    private val repository: ImportRepository,
     private val reader: ImportDocumentReader,
-    private val clock: Clock,
     private val contexts: CoroutineContextProvider,
+    private val workGate: LocalDataWorkGate,
+    private val saved: SavedStateHandle,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(ImportPreviewState())
     val state = mutable.asStateFlow()
     private var context: LedgerContext? = null
     private var invalidBinding = false
     private var selectedUri: Uri? = null
-    private var request = 0L
     private var job: Job? = null
+    private var version = 0L
+    private var anchorDrafts: Map<String, ImportAnchorDraftUiState> = emptyMap()
+    private val running get() = job?.isCompleted == false
 
-    fun bind(ledger: LedgerContext) {
-        if (context == null) context = ledger
-        else if (context != ledger) {
+    fun bind(value: LedgerContext) {
+        if (context == value) return
+        if (context != null || (
+                saved.get<String>("import-ledger") != null &&
+                    (saved.get<String>("import-ledger") != value.ledgerId || saved.get<String>("import-generation") != value.storageGeneration)
+                )
+        ) {
             invalidBinding = true
-            request++
+            version++
             job?.cancel()
-            mutable.value = ImportPreviewState(ImportPreviewPhase.BLOCKED, problem = "다른 장부로 바뀌었어요. 계좌 화면으로 돌아가 다시 열어 주세요.")
+            mutable.value = state.value.copy(phase = ImportPreviewPhase.BLOCKED, problem = "장부가 바뀌었어요. 계좌로 돌아가 다시 열어 주세요.")
+            return
+        }
+        context = value
+        saved["import-ledger"] = value.ledgerId
+        saved["import-generation"] = value.storageGeneration
+        start(ImportPreviewPhase.LOADING) {
+            val batch = saved.get<String>("import-batch")
+            if (batch != null) {
+                val attempt = repository.attempt(value, batch)
+                currentCoroutineContext().ensureActive()
+                showAttempt(attempt)
+            } else {
+                val pending = repository.pending(value)
+                currentCoroutineContext().ensureActive()
+                mutable.value = ImportPreviewState(if (pending.isEmpty()) ImportPreviewPhase.EMPTY else ImportPreviewPhase.RECOVERY, pending = pending)
+            }
         }
     }
 
     fun select(uri: Uri) {
-        val ledger = context ?: return
-        if (invalidBinding) return
-        val own = ++request
-        job?.cancel()
-        selectedUri = uri
-        mutable.value = ImportPreviewState(ImportPreviewPhase.LOADING)
-        job = viewModelScope.launch {
+        if (running || invalidBinding) return
+        start(ImportPreviewPhase.LOADING) {
+            clearReview()
+            selectedUri = uri
+            require(uri.scheme == "content")
+            val bytes = reader.read(uri, ImportLimits.MAX_INPUT_BYTES)
             try {
-                require(uri.scheme == "content")
-                val bytes = reader.read(uri, ImportPreviewParser.MAX_INPUT_BYTES)
-                val input = withContext(contexts.default) { ImportPreviewParser.parse(bytes) }
-                if (input.target != null && input.target != ledger) throw ImportFileException(ImportFileProblem.WRONG_LEDGER)
-                val today = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
-                val snapshot = repository.snapshot(ledger, today)
-                val report = withContext(contexts.default) { ImportPreviewEvaluator.evaluate(input, ledger, snapshot, today) }
-                val ui = withContext(contexts.default) { report.toUiState() }
-                if (own == request && !invalidBinding) mutable.value = ImportPreviewState(ImportPreviewPhase.READY, ui, report)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                if (own == request && !invalidBinding) mutable.value = ImportPreviewState(ImportPreviewPhase.FAILED, problem = problem(error))
+                currentCoroutineContext().ensureActive()
+                show(repository.review(checkNotNull(context), bytes))
+            } finally {
+                bytes.fill(0)
             }
         }
     }
-
-    /** 파일과 로컬 revision을 재확인한다. 기존 결과를 조용히 새 내용으로 바꾸지 않는다. */
-    fun checkRevision() {
-        val previous = state.value.report ?: return
-        val ledger = context ?: return
-        val uri = selectedUri ?: return
-        if (invalidBinding || state.value.checking || state.value.phase == ImportPreviewPhase.LOADING) return
-        val own = ++request
-        job?.cancel()
-        mutable.value = state.value.copy(checking = true, problem = null)
-        job = viewModelScope.launch {
-            try {
-                val bytes = reader.read(uri, ImportPreviewParser.MAX_INPUT_BYTES)
-                val digest = withContext(contexts.default) { ImportPreviewParser.digest(bytes) }
-                val snapshot = repository.snapshot(ledger, LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul"))))
-                if (own != request || invalidBinding) return@launch
-                val stale = digest != previous.input.inputSha256 || snapshot.revision != previous.ledgerRevision
-                mutable.value = state.value.copy(phase = if (stale) ImportPreviewPhase.STALE else ImportPreviewPhase.READY, checking = false)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                if (own == request && !invalidBinding) mutable.value = state.value.copy(phase = ImportPreviewPhase.STALE, checking = false, problem = problem(error))
-            }
-        }
-    }
-
     fun reviewAgain() {
         selectedUri?.let(::select)
     }
-
-    private fun problem(error: Exception): String = when {
-        error is ImportInputTooLargeException -> "검토 파일은 8 MiB까지 읽을 수 있어요. 일부만 잘라서 처리하지 않았어요."
-
-        error is ImportFileException -> when (error.problem) {
-            ImportFileProblem.TOO_LARGE -> "검토 파일은 8 MiB까지 읽을 수 있어요. 일부만 잘라서 처리하지 않았어요."
-            ImportFileProblem.INVALID_UTF8 -> "UTF-8로 읽을 수 없는 파일이에요. 원문은 변경하지 않았어요."
-            ImportFileProblem.INVALID_DIGEST -> "제공된 원문·매핑과 digest가 맞지 않아요. 파일을 다시 확인해 주세요."
-            ImportFileProblem.UNSUPPORTED_VERSION -> "지원하지 않는 검토 파일 또는 변환 버전이에요."
-            ImportFileProblem.INVALID_MAPPING -> "명시 매핑이 모호하거나 지원 형식과 맞지 않아요."
-            ImportFileProblem.TOO_MANY_ROWS -> "검토 파일은 원본 10,000행까지 지원해요. 일부만 처리하지 않았어요."
-            ImportFileProblem.WRONG_LEDGER -> "이 파일의 계좌 매핑은 다른 장부 또는 저장 세대를 대상으로 해요."
-            ImportFileProblem.INVALID_JSON -> "검토 JSON의 형식·중복 키·깊이·크기 제한을 확인해 주세요."
-            ImportFileProblem.UNAVAILABLE -> "파일 또는 장부를 읽지 못했어요. 원본과 기존 기록은 보존됩니다."
+    fun confirmTarget() = revise { it.copy(targetConfirmed = true) }
+    fun mapAccount(namespace: String, sourceId: String, accountId: String) = revise(after = { anchorDrafts = emptyMap() }) { options ->
+        val before = state.value.review?.report?.input?.accounts.orEmpty()
+        options.copy(accounts = options.accounts.ifEmpty { before }.filterNot { it.walletNamespace == namespace && it.sourceId == sourceId } + ImportAccountMapping(namespace, sourceId, accountId, true), anchors = emptyList())
+    }
+    fun keepAnchor(accountId: String) {
+        val account = state.value.review?.accounts?.singleOrNull { it.id == accountId } ?: return
+        chooseAnchor(ImportAnchorChoice(account.id, account.anchor.id, account.anchor.revision, account.anchor.date.toString(), ImportAnchorAction.KEEP, account.anchor.amount, "", true))
+    }
+    fun confirmAnchor(accountId: String, amount: String, reason: String) {
+        val account = state.value.review?.accounts?.singleOrNull { it.id == accountId } ?: return
+        val parsed = amount.takeIf { it.matches(Regex("-?[0-9]{1,12}")) }?.toLongOrNull()
+        if (parsed == null) {
+            mutable.value = state.value.copy(problem = "기준액은 지원 범위의 원화 정수로 입력해 주세요.")
+            return
         }
+        chooseAnchor(ImportAnchorChoice(account.id, account.anchor.id, account.anchor.revision, account.anchor.date.toString(), ImportAnchorAction.CONFIRM, parsed, reason, true))
+    }
+    private fun chooseAnchor(choice: ImportAnchorChoice) = revise(after = {
+        anchorDrafts = anchorDrafts + (choice.accountId to if (choice.action == ImportAnchorAction.KEEP) ImportAnchorDraftUiState() else (anchorDrafts[choice.accountId] ?: ImportAnchorDraftUiState()).copy(dirty = false))
+    }) { it.copy(anchors = it.anchors.filterNot { anchor -> anchor.accountId == choice.accountId } + choice) }
+    fun anchorAmount(accountId: String, amount: String) = anchorDraft(accountId, amount = amount)
+    fun anchorReason(accountId: String, reason: String) = anchorDraft(accountId, reason = reason)
+    private fun anchorDraft(accountId: String, amount: String? = null, reason: String? = null) {
+        if (running || state.value.phase != ImportPreviewPhase.READY) return
+        val before = anchorDrafts[accountId] ?: ImportAnchorDraftUiState()
+        if ((amount != null && amount.length > 16 * 1024) || (reason != null && reason.length > 16 * 1024)) return
+        anchorDrafts = anchorDrafts + (accountId to before.copy(amount = amount ?: before.amount, reason = reason ?: before.reason, dirty = true))
+        mutable.value = state.value.copy(ui = drafts(state.value.ui))
+    }
+    private fun drafts(ui: ImportPreviewUiState): ImportPreviewUiState = ui.copy(workflow = ui.workflow.copy(canApply = state.value.review?.canApply == true && anchorDrafts.values.none { it.dirty }, accounts = ui.workflow.accounts.map { it.copy(draft = anchorDrafts[it.id] ?: ImportAnchorDraftUiState()) }))
+    fun confirmRow(locator: String) = revise { it.copy(confirmedRows = it.confirmedRows + locator, excludedRows = it.excludedRows - locator) }
+    fun distinctRow(locator: String) = revise { it.copy(distinctRows = it.distinctRows + locator, confirmedRows = it.confirmedRows + locator, excludedRows = it.excludedRows - locator) }
+    fun excludeRow(locator: String) = revise { it.copy(excludedRows = it.excludedRows + locator, confirmedRows = it.confirmedRows - locator) }
+    fun selectGroup(locator: String) {
+        if (running || state.value.phase != ImportPreviewPhase.READY) return
+        val before = state.value.selectedGroup
+        mutable.value = state.value.copy(selectedGroup = if (locator in before) before - locator else (before + locator).takeIf { it.size <= 2 } ?: before)
+    }
+    fun confirmGroup() {
+        val selected = state.value.selectedGroup
+        if (selected.size != 2) return
+        revise { it.copy(groups = it.groups.filter { group -> group.locators.none { locator -> locator in selected } } + ImportTransferGroup(selected.sorted(), true), confirmedRows = it.confirmedRows + selected) }
+    }
+    private fun revise(after: () -> Unit = {}, change: (ImportReviewOptions) -> ImportReviewOptions) {
+        val review = state.value.review ?: return
+        if (running || state.value.phase != ImportPreviewPhase.READY) return
+        val options = change(review.options)
+        start(ImportPreviewPhase.LOADING) {
+            val revised = repository.revise(checkNotNull(context), review.token, options)
+            currentCoroutineContext().ensureActive()
+            after()
+            show(revised)
+        }
+    }
 
-        else -> "파일 또는 장부를 읽지 못했어요. 원본과 기존 기록은 보존됩니다."
+    fun checkRevision() {
+        val review = state.value.review ?: return
+        val uri = selectedUri ?: return
+        if (running || state.value.phase != ImportPreviewPhase.READY) return
+        start(ImportPreviewPhase.LOADING) {
+            val bytes = reader.read(uri, ImportLimits.MAX_INPUT_BYTES)
+            try {
+                currentCoroutineContext().ensureActive()
+                repository.checkSource(checkNotNull(context), review.token, bytes)
+                currentCoroutineContext().ensureActive()
+            } finally {
+                bytes.fill(0)
+            }
+            mutable.value = state.value.copy(phase = ImportPreviewPhase.READY, checking = false)
+        }
+    }
+    fun backupReturned(exportId: String) {
+        val review = state.value.review ?: return
+        start(ImportPreviewPhase.LOADING) { show(repository.bindBackup(checkNotNull(context), review.token, exportId)) }
+    }
+
+    /** 최종 확인 뒤에만 실행한다. 요청/금융을 자동 재실행하는 경로는 없다. */
+    fun apply() {
+        val review = state.value.review ?: return
+        val uri = selectedUri ?: return
+        if (!review.canApply || anchorDrafts.values.any { it.dirty } || review.verifiedBackupId == null || state.value.phase != ImportPreviewPhase.READY) return
+        start(ImportPreviewPhase.APPLYING) {
+            val target = checkNotNull(context)
+            val bytes = reader.read(uri, ImportLimits.MAX_INPUT_BYTES)
+            try {
+                currentCoroutineContext().ensureActive()
+                repository.checkSource(target, review.token, bytes)
+                currentCoroutineContext().ensureActive()
+            } finally {
+                bytes.fill(0)
+            }
+            saved["import-batch"] = review.batchId
+            val result = repository.apply(target, review.token)
+            currentCoroutineContext().ensureActive()
+            mutable.value = state.value.copy(phase = ImportPreviewPhase.RESULT, ui = result.toUiState(), result = result, problem = null)
+        }
+    }
+    fun resolve(batchId: String? = saved["import-batch"]) {
+        val target = context ?: return
+        start(ImportPreviewPhase.LOADING) {
+            if (batchId != null) {
+                saved["import-batch"] = batchId
+                val attempt = repository.attempt(target, batchId)
+                currentCoroutineContext().ensureActive()
+                showAttempt(attempt)
+            } else {
+                val pending = repository.pending(target)
+                currentCoroutineContext().ensureActive()
+                mutable.value = ImportPreviewState(if (pending.isEmpty()) ImportPreviewPhase.EMPTY else ImportPreviewPhase.RECOVERY, pending = pending)
+            }
+        }
+    }
+    fun acknowledge() {
+        val batch = state.value.result?.batchId ?: saved.get<String>("import-batch") ?: return
+        start(ImportPreviewPhase.LOADING) {
+            if (!state.value.missingVerified) repository.acknowledge(checkNotNull(context), batch)
+            currentCoroutineContext().ensureActive()
+            saved.remove<String>("import-batch")
+            clearReview()
+            val pending = repository.pending(checkNotNull(context))
+            currentCoroutineContext().ensureActive()
+            mutable.value = ImportPreviewState(if (pending.isEmpty()) ImportPreviewPhase.EMPTY else ImportPreviewPhase.RECOVERY, pending = pending)
+        }
+    }
+    fun requestCancel() {
+        if (!running) return
+        mutable.value = state.value.copy(phase = ImportPreviewPhase.STOPPING, problem = "취소를 요청했어요. 파일 작업과 정리가 실제로 끝날 때까지 기다려 주세요.")
+        job?.cancel()
+    }
+    fun canLeave(): Boolean {
+        if (running) {
+            requestCancel()
+            return false
+        }
+        return true
+    }
+    private suspend fun show(review: ImportReview) {
+        currentCoroutineContext().ensureActive()
+        val ui = withContext(contexts.default) { review.toUiState() }
+        currentCoroutineContext().ensureActive()
+        mutable.value = ImportPreviewState(ImportPreviewPhase.READY, ui.copy(workflow = ui.workflow.copy(canApply = review.canApply && anchorDrafts.values.none { it.dirty }, accounts = ui.workflow.accounts.map { it.copy(draft = anchorDrafts[it.id] ?: ImportAnchorDraftUiState()) })), review.report, review = review)
+    }
+    private fun showAttempt(attempt: ImportAttempt) {
+        mutable.value = when (attempt) {
+            is ImportAttempt.Committed -> ImportPreviewState(phase = ImportPreviewPhase.RESULT, ui = attempt.result.toUiState(), result = attempt.result)
+            is ImportAttempt.Requested -> ImportPreviewState(phase = ImportPreviewPhase.RECOVERY, ui = ImportPreviewUiState(canAcknowledge = true), problem = "미반영 요청이 보관되어 있어요. 자동 재실행하지 않아요. 확인을 마친 뒤 파일부터 다시 검토해 주세요.", pending = listOf(attempt))
+            is ImportAttempt.Evidence -> ImportPreviewState(phase = ImportPreviewPhase.RECOVERY, result = attempt.result, problem = "복원된 실행 근거예요. 현재 실행 대기 항목이 아니에요.")
+            ImportAttempt.Missing -> ImportPreviewState(phase = ImportPreviewPhase.RECOVERY, ui = ImportPreviewUiState(canAcknowledge = true), problem = "현재 장부에서 보관된 요청·결과를 찾지 못했어요. 성공으로 표시하지 않았어요. 이 조회 확인을 마친 뒤 새로 검토할 수 있어요.", missingVerified = true)
+        }
+    }
+    private fun start(phase: ImportPreviewPhase, action: suspend () -> Unit) {
+        if (running || invalidBinding) return
+        val lease = workGate.acquire() ?: run {
+            mutable.value = state.value.copy(phase = ImportPreviewPhase.RECOVERY, problem = "이전 파일 작업의 실제 종료를 기다리고 있어요. 종료 후 결과 조회를 다시 눌러 주세요.")
+            return
+        }
+        val own = ++version
+        var timedOut = false
+        mutable.value = state.value.copy(phase = phase, problem = null)
+        val task = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                action()
+                currentCoroutineContext().ensureActive()
+            } catch (timeout: TimeoutCancellationException) {
+                // 내부 시간초과만 처리한다. 화면/부모 취소와 실제 child 정리 완료는 기존 수명에 맡긴다.
+                currentCoroutineContext().ensureActive()
+                timedOut = true
+                throw timeout
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (own == version && !invalidBinding) mutable.value = state.value.copy(phase = if (saved.get<String>("import-batch") != null) ImportPreviewPhase.RECOVERY else if (state.value.review != null && error is IllegalArgumentException && error !is ImportFileException) ImportPreviewPhase.READY else if (state.value.review != null) ImportPreviewPhase.STALE else ImportPreviewPhase.FAILED, problem = problem(error))
+            }
+        }
+        job = task
+        task.invokeOnCompletion {
+            workGate.release(lease)
+            if (own == version && !invalidBinding) {
+                if (state.value.phase == ImportPreviewPhase.STOPPING) {
+                    mutable.value = state.value.copy(phase = if (saved.get<String>("import-batch") != null) ImportPreviewPhase.RECOVERY else ImportPreviewPhase.STALE, problem = "취소 작업이 끝났어요. 결과를 조회하거나 파일부터 다시 검토해 주세요.")
+                } else if (timedOut) {
+                    val captured = saved.get<String>("import-batch") != null
+                    mutable.value = state.value.copy(
+                        phase = if (captured) ImportPreviewPhase.RECOVERY else if (state.value.review != null) ImportPreviewPhase.STALE else ImportPreviewPhase.FAILED,
+                        problem = if (captured) "처리 제한 시간이 지났어요. 반영 여부는 저장된 결과로 확인해 주세요. 자동 재실행하지 않아요." else "처리 제한 시간이 지났고 작업 정리가 끝났어요. 파일부터 다시 검토해 주세요.",
+                    )
+                }
+            }
+        }
+        task.start()
+    }
+    private fun clearReview() {
+        state.value.review?.token?.let(repository::discard)
+        anchorDrafts = emptyMap()
+    }
+    override fun onCleared() {
+        invalidBinding = true
+        version++
+        clearReview()
+    }
+    private fun problem(error: Exception): String = when {
+        error is ImportInputTooLargeException || (error is ImportFileException && error.problem in setOf(ImportFileProblem.TOO_LARGE, ImportFileProblem.LIMIT)) -> "지원 용량을 넘었어요. 일부를 잘라서 반영하지 않았어요."
+        error is ImportFileException && error.problem == ImportFileProblem.BACKUP_REQUIRED -> "현재 장부와 같은 기준의 검증된 백업이 필요해요."
+        error is ImportFileException && error.problem == ImportFileProblem.STALE_REVIEW -> "파일·매핑·판정 또는 장부가 바뀌었어요. 다시 검토해 주세요."
+        error is ImportFileException && error.problem == ImportFileProblem.WRONG_LEDGER -> "파일의 대상 장부 또는 저장 세대가 달라요. 자동으로 대응하지 않았어요."
+        else -> "처리를 완료하지 못했어요. 확정 여부는 저장된 결과에서 확인하고, 필요한 경우 다시 검토해 주세요."
     }
 }

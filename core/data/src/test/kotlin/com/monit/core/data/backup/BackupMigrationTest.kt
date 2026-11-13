@@ -67,7 +67,7 @@ class BackupMigrationTest {
                 val migrated = createLedgerDatabase(app, "backup-v7.db")
                 try {
                     val sql = migrated.openHelper.writableDatabase
-                    assertEquals(8, sql.version)
+                    assertEquals(9, sql.version)
                     assertEquals(expected, rows(migrated))
                     for (table in listOf("restored_evidence", "operation_fences", "backup_originals", "backup_status")) sql.query("SELECT count(*) FROM $table").use {
                         assertTrue(it.moveToFirst())

@@ -1,4 +1,4 @@
-package com.monit.feature.accounts.importing
+package com.monit.core.data.importing
 
 import com.monit.core.model.*
 import java.math.BigInteger
@@ -9,11 +9,15 @@ import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 
 /** 금융 명령을 실행하지 않는다. source mapping 부재에서 EXISTS를 생성하지 않는다. */
+internal data class ImportRelations(val debit: List<String>, val credit: List<String>)
+
 object ImportPreviewEvaluator {
-    suspend fun evaluate(input: ImportPreviewInput, context: LedgerContext, snapshot: LedgerSnapshot, today: LocalDate): ImportPreviewReport {
+    suspend fun evaluate(input: ImportPreviewInput, context: LedgerContext, snapshot: LedgerSnapshot, today: LocalDate): ImportPreviewReport = evaluate(input, context, snapshot, today, emptyMap(), false)
+
+    internal suspend fun evaluate(input: ImportPreviewInput, context: LedgerContext, snapshot: LedgerSnapshot, today: LocalDate, grouped: Map<String, ImportRelations>, retainDuplicateCandidate: Boolean): ImportPreviewReport {
         if (input.target != null && input.target != context) throw ImportFileException(ImportFileProblem.WRONG_LEDGER)
         require(snapshot.revision >= 0)
-        val index = PreviewIndex(input, snapshot)
+        val index = PreviewIndex(input, snapshot, grouped, retainDuplicateCandidate)
         val duplicates = input.rows.filter { it.sourceKey != null }.groupBy { it.sourceKey }.filterValues { it.size > 1 }
         val mapped = input.rows.map { row ->
             currentCoroutineContext().ensureActive()
@@ -21,9 +25,9 @@ object ImportPreviewEvaluator {
         }
         val repeatedCandidates = mapped.filter { it.decision == ImportDecision.CANDIDATE }
             .groupBy { it.candidate?.let { candidate -> listOf(candidate.kind, candidate.date, candidate.amount, candidate.debitAccountId, candidate.creditAccountId) } }
-            .filterValues { it.size > 1 }.values.flatten().map { it.source.locator }.toSet()
+            .filterValues { group -> group.size > 1 && !(group.size == 2 && group.all { grouped[it.source.locator] != null } && group.map { grouped[it.source.locator] }.distinct().size == 1) }.values.flatten().map { it.source.locator }.toSet()
         val rows = mapped.map { row ->
-            if (row.source.locator in repeatedCandidates) row.copy(decision = ImportDecision.HELD, reasons = row.reasons + ImportHoldReason.POSSIBLE_DUPLICATE, candidate = null)
+            if (row.source.locator in repeatedCandidates) row.copy(decision = ImportDecision.HELD, reasons = row.reasons + ImportHoldReason.POSSIBLE_DUPLICATE, candidate = row.candidate.takeIf { retainDuplicateCandidate })
             else row
         }
         val candidates = rows.filter { it.decision == ImportDecision.CANDIDATE }.map { checkNotNull(it.candidate) }
@@ -117,8 +121,10 @@ object ImportPreviewEvaluator {
             if (ids.size > 1) reasons += ImportHoldReason.AMBIGUOUS_RELATION
             return ids.filterNotNull()
         }
-        val debit = relation(fields.debitRelation)
-        val credit = relation(fields.creditRelation)
+        val originalDebit = relation(fields.debitRelation)
+        val originalCredit = relation(fields.creditRelation)
+        val debit = index.grouped[row.locator]?.debit ?: originalDebit
+        val credit = index.grouped[row.locator]?.credit ?: originalCredit
         fun account(ids: List<String>?): String? {
             if (!index.targetConfirmed) return null
             if (ids == null) return null
@@ -144,10 +150,10 @@ object ImportPreviewEvaluator {
         if ((kind == TransactionKind.INCOME && !debit.isNullOrEmpty()) || (kind == TransactionKind.EXPENSE && !credit.isNullOrEmpty())) reasons += ImportHoldReason.AMBIGUOUS_RELATION
         if (kind == TransactionKind.TRANSFER && debitId != null && debitId == creditId) reasons += ImportHoldReason.SAME_TRANSFER_ACCOUNT
         if (kind != null && date != null && amount != null && LocalKey(kind, date, amount, debitId, creditId) in index.existing) reasons += ImportHoldReason.POSSIBLE_DUPLICATE
-        val candidate = if (reasons.isEmpty()) ImportTransactionCandidate(checkNotNull(kind), checkNotNull(date), checkNotNull(amount), debitId, creditId, checkNotNull(title)) else null
+        val candidate = if (reasons.isEmpty() || (index.retainDuplicateCandidate && reasons == setOf(ImportHoldReason.POSSIBLE_DUPLICATE))) ImportTransactionCandidate(checkNotNull(kind), checkNotNull(date), checkNotNull(amount), debitId, creditId, checkNotNull(title)) else null
         return ImportRowAssessment(
             row,
-            if (candidate == null) ImportDecision.HELD else ImportDecision.CANDIDATE,
+            if (reasons.isEmpty() && candidate != null) ImportDecision.CANDIDATE else ImportDecision.HELD,
             reasons.toSet(),
             title ?: "원본 행 ${row.locator}",
             amountText,
@@ -159,7 +165,7 @@ object ImportPreviewEvaluator {
 
     private data class LocalKey(val kind: TransactionKind, val date: LocalDate, val amount: Long, val debit: String?, val credit: String?)
 
-    private class PreviewIndex(input: ImportPreviewInput, snapshot: LedgerSnapshot) {
+    private class PreviewIndex(input: ImportPreviewInput, snapshot: LedgerSnapshot, val grouped: Map<String, ImportRelations>, val retainDuplicateCandidate: Boolean) {
         val targetConfirmed = input.target != null
         val choices = input.choices.associateBy { it.locator }
         val fields = input.fields.associateBy { it.namespace to it.entityKind }

@@ -1,4 +1,4 @@
-package com.monit.feature.accounts.importing
+package com.monit.core.data.importing
 
 import android.app.Application
 import com.monit.core.model.*
@@ -52,7 +52,7 @@ class ImportPreviewEvaluatorTest {
         assertEquals(BigInteger("93000"), result.accountEffects[ImportPreviewFixture.id(10)])
         assertEquals(BigInteger("2000"), result.accountEffects[ImportPreviewFixture.id(11)])
         assertEquals(result.fingerprint, report().fingerprint)
-        assertTrue(result.toUiState().reconciliation.contains("전체 금액 대사는 미확인"))
+        assertTrue(result.partial)
     }
 
     /** 식별 가능한 rawJson 중복 키/해석 오류·digest 불일치는 그 행을 보류하고 다른 행을 유지한다. */
@@ -134,7 +134,6 @@ class ImportPreviewEvaluatorTest {
         assertEquals(ImportDecision.HELD, result.rows.first().decision)
         assertTrue(ImportHoldReason.POSSIBLE_DUPLICATE in result.rows.first().reasons)
         assertEquals(0, result.existingCount)
-        assertTrue(result.toUiState().comparison.contains("확인할 수 없어요"))
     }
 
     /** pagination 미완료와 속성 확보 미상은 부분 추출이며 알려진 행만 세고 후보를 확정하지 않는다. */
@@ -147,7 +146,6 @@ class ImportPreviewEvaluatorTest {
         assertTrue(result.partial)
         assertTrue(result.rows.filter { it.source.entityKind == "transaction" }.all { ImportHoldReason.SOURCE_INCOMPLETE in it.reasons })
         assertEquals(0, result.expectedTransactionCount)
-        assertTrue(result.toUiState().completeness.contains("불완전"))
         assertTrue(result.totals.isEmpty())
     }
 

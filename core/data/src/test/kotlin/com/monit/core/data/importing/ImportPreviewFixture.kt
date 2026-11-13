@@ -1,4 +1,4 @@
-package com.monit.feature.accounts.importing
+package com.monit.core.data.importing
 
 import com.monit.core.model.*
 import java.io.File

@@ -24,12 +24,16 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityOptionsCompat
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.monit.app.query.QueryRepository
 import com.monit.app.ui.MonitAppShell
 import com.monit.core.common.coroutines.CoroutineContextProvider
+import com.monit.core.common.io.LocalDataWorkGate
+import com.monit.core.data.importing.ImportPreviewEvaluator
+import com.monit.core.data.importing.ImportPreviewParser
 import com.monit.core.designsystem.component.button.MonitButton
 import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.core.model.*
@@ -95,9 +99,9 @@ class ImportPreviewJourneyTest {
         assertEquals(Intent.ACTION_OPEN_DOCUMENT, pickerIntent?.action)
         assertEquals(listOf("application/json", "text/plain"), checkNotNull(pickerIntent).getStringArrayExtra(Intent.EXTRA_MIME_TYPES)?.toList())
         assertEquals(0, checkNotNull(pickerIntent).flags and Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        compose.onNodeWithText("원본과 앱 기록을 변경하지 않는 검토 화면이에요. 실제 반영 0건").assertExists()
+        compose.onNodeWithText("최종 확인 전에는 금융 기록을 반영하지 않아요. 원본 파일은 수정하지 않아요.").assertExists()
         scrollTo("읽은 원본 행 6건")
-        compose.onNodeWithText("반영예정 후보 3건 · 기반영 확정 0 · 검증 불가").assertExists()
+        compose.onNodeWithText("반영예정 후보 3건 · 기반영 0건").assertExists()
         compose.onNodeWithText("보류 2건 · 제외 1건").assertExists()
         compose.onNodeWithText("반영하기").assertDoesNotExist()
         capture("preview-light")
@@ -182,7 +186,11 @@ class ImportPreviewJourneyTest {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width.dp, 708.dp))) {
                     DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(font)) {
                         MonitTheme(dark) {
-                            Box(Modifier.fillMaxSize().testTag("import-root")) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .testTag("import-root"),
+                            ) {
                                 MonitAppShell(
                                     home = { Text("원래 홈") },
                                     transactions = { Text("원래 거래") },
@@ -194,13 +202,18 @@ class ImportPreviewJourneyTest {
                                         val factory = remember {
                                             viewModelFactory {
                                                 initializer {
-                                                    ImportPreviewViewModel(ledger, ImportDocumentReader { _, _ -> bytes }, clock, contexts)
+                                                    ImportPreviewViewModel(PreviewImports(ledger, clock), ImportDocumentReader { _, _ -> bytes.copyOf() }, contexts, LocalDataWorkGate(), SavedStateHandle())
                                                 }
                                             }
                                         }
                                         val vm: ImportPreviewViewModel = viewModel(factory = factory)
                                         SideEffect { model = vm }
-                                        ImportPreviewRoute(context, { navigator.closeImportPreview(entry) }, vm)
+                                        ImportPreviewRoute(
+                                            context = context,
+                                            onBack = { navigator.closeImportPreview(entry) },
+                                            backupContent = { _, _ -> Text("합성 시험의 백업 슬롯") },
+                                            viewModel = vm,
+                                        )
                                     },
                                 )
                             }
@@ -226,6 +239,29 @@ class ImportPreviewJourneyTest {
 }
 
 private fun id(number: Int) = "00000000-0000-0000-0000-${number.toString().padStart(12, '0')}"
+
+/** 화면/파일 선택 시험의 읽기 전용 Repository 대역. 실제 반영·백업 증명은 Room 통합 시험의 책임이다. */
+private class PreviewImports(private val ledger: PreviewLedger, private val clock: Clock) : ImportRepository {
+    private var bytes: ByteArray? = null
+    private var reviewed: ImportReview? = null
+    override suspend fun review(context: LedgerContext, source: ByteArray, options: ImportReviewOptions): ImportReview {
+        val input = ImportPreviewParser.parse(source)
+        val snapshot = ledger.snapshot(context, LocalDate.now(clock))
+        val report = ImportPreviewEvaluator.evaluate(input, context, snapshot, LocalDate.now(clock))
+        bytes = source.copyOf()
+        return ImportReview("host-preview", id(800), report, options, snapshot.accounts, emptyList(), false, accountLinks = input.accounts).also { reviewed = it }
+    }
+    override suspend fun revise(context: LedgerContext, token: String, options: ImportReviewOptions) = review(context, checkNotNull(bytes), options)
+    override suspend fun bindBackup(context: LedgerContext, token: String, exportId: String): ImportReview = error("이 시험은 실제 백업/반영을 실행하지 않는다")
+    override suspend fun checkSource(context: LedgerContext, token: String, readBack: ByteArray) {
+        if (!checkNotNull(bytes).contentEquals(readBack) || ledger.snapshot(context, LocalDate.now(clock)).revision != checkNotNull(reviewed).report.ledgerRevision) throw ImportFileException(ImportFileProblem.STALE_REVIEW)
+    }
+    override suspend fun apply(context: LedgerContext, token: String, onStage: (ImportStage) -> Unit): ImportResult = error("이 시험은 실제 백업/반영을 실행하지 않는다")
+    override suspend fun attempt(context: LedgerContext, batchId: String): ImportAttempt = ImportAttempt.Missing
+    override suspend fun pending(context: LedgerContext): List<ImportAttempt> = emptyList()
+    override suspend fun acknowledge(context: LedgerContext, batchId: String) = Unit
+    override fun discard(token: String) = Unit
+}
 
 private class PreviewLedger : LedgerRepository by QueryRepository() {
     var revision = 4L

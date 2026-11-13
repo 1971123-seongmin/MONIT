@@ -18,6 +18,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 internal interface LedgerRepositoryModule {
     @Binds
+    fun imports(implementation: com.monit.core.data.importing.RoomImportRepository): com.monit.core.model.ImportRepository
+
+    @Binds
     fun backup(implementation: com.monit.core.data.backup.RoomBackupRepository): com.monit.core.model.BackupRepository
 
     @Binds

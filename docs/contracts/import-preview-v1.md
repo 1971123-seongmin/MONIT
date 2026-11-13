@@ -1,6 +1,6 @@
 # 이관 검토 JSON v1
 
-원본을 쓰지 않는 #56 미리보기의 입력 형식이다. 일반 Notion CSV/REST 응답을 자동 지원하지 않는다. [합성 예시](fixtures/import-preview-v1-synthetic.json)만 Git에 포함하며 실제 금융 자료는 이 위치에 저장하지 않는다. 읽기·판정·실제 반영의 경계는 [구현 계획](../architecture/import-preview-plan.md)을 따른다.
+#56에서 정의한 입력 형식은 #68에서도 변경하지 않는다. 일반 Notion CSV/REST 응답을 자동 지원하지 않는다. [합성 예시](fixtures/import-preview-v1-synthetic.json)만 Git에 포함하며 실제 금융 자료는 이 위치에 저장하지 않는다. 선행 읽기 전용 구현은 [미리보기 계획](../architecture/import-preview-plan.md), 현재 명시 판단·출처 대조·원자 반영·백업 경계는 [이관 writer 계약](../architecture/import-writer-plan.md)을 따른다. 아래의 "실제 생성 0"은 미리보기 결과이며 저장된 `ImportResult`와 구분한다.
 
 ## 원문 계층과 digest
 
@@ -50,7 +50,7 @@ fields의 출처 키는 namespace/entityKind다. `title`, `date`, `amount`, `cat
 - category는 `수입`, `지출`, `이체`만 지원한다. 환전/카드 정산/통계/미지원 구조는 보류 또는 명시 확인한 제외다.
 - amount는 1~999,999,999,999의 정수 원화 문자열 또는 JSON 정수다. 소수·지수·음수·0·범위초과를 보정하지 않는다. rawJson은 원문 그대로 남는다.
 - debitRelation/creditRelation은 중복 없는 원본 Wallet ID 배열이다. 관계 없음은 확보된 명시 빈 배열이며 속성 누락/null과 다르다. 복수/중복은 보류다.
-- 수입은 credit 하나와 빈 debit, 지출은 debit 하나와 빈 credit, 이체는 양쪽 하나씩 서로 다른 계좌가 필요하다. 두 원본 행을 임의로 짝맞추지 않는다. 쌍 정규화 계약이 없는 한쪽 이체는 보류다.
+- 수입은 credit 하나와 빈 debit, 지출은 debit 하나와 빈 credit, 이체는 양쪽 하나씩 서로 다른 계좌가 필요하다. 두 원본 행을 임의로 짝맞추지 않는다. 한쪽 이체는 보류하며 #68 화면의 명시 두 행 선택·조건 대조가 모두 끝난 경우에만 별도 판단으로 한 거래를 만든다. 원문과 이 envelope를 재작성하지 않는다.
 - 명시 확인된 KRW와 현재 장부의 활성 계좌 대응만 변환 후보를 만든다. 계좌를 새로 생성하거나 미확인 잔액을 0원으로 만들지 않는다.
 
 accounts는 정확한 Wallet namespace/ID로 조회한다. 중복 대응·미확인 confirmed·없는/보관 계좌는 보류다. choices의 제외는 confirmed=true일 때만 인정하며 원문을 삭제하지 않는다. 같은 locator의 상충 결정, 다른 locator의 결정은 매핑 오류다.
@@ -63,8 +63,8 @@ accounts는 정확한 Wallet namespace/ID로 조회한다. 중복 대응·미확
 
 모든 JSON 층에서 객체 생성 전에 중복 키를 검사한다. 상위 JSON·UTF-8·전체 digest 오류는 파일 실패이며 전체 행 수는 확인 불가다. 개별 식별 행의 원문 오류는 해당 행 보류다. 문자열 원문에 포함된 Unicode·줄바꿈은 변경하지 않는다.
 
-`제공된 원본 행 = 반영예정 후보 + 기반영 + 보류 + 제외`를 상호 배타로 표시한다. 유사 중복·변환 불가·관계 누락은 보류 사유이며 중복 집계하지 않는다. schema3에는 source mapping이 없어 기반영 확정은 0·중복 검증은 UNAVAILABLE이다. 로컬/파일 내 유사 거래는 보류 후보이며 자동 합치지 않는다.
+`제공된 원본 행 = 반영예정 후보 + 기반영 + 보류 + 제외`를 상호 배타로 표시한다. 유사 중복·변환 불가·관계 누락은 보류 사유이며 중복 집계하지 않는다. #56의 Room schema3에는 source mapping이 없어 기반영 확정은 0·중복 검증은 UNAVAILABLE이었다. #68의 Room9 writer는 출처 원문/매핑·현재 대상의 revision/payload와 과거 fence를 대조한다. 로컬/파일 내 유사 거래는 보류 후보이며 자동 합치지 않는다.
 
 후보의 월·종류별 KRW 정수 금액과 계좌 효과는 BigInteger로 합산한다. 보류·미지원·통화 미확인·제외 원문은 이 합계에 포함하지 않고 누락 행 수를 명시한다. 외화를 0원으로 간주하거나 KRW와 더하지 않는다. 이체는 수입/지출과 분리하며 계좌 효과는 확인 잔액이 아니다. 이 부분 집계는 전체 금액 대사 성공이 아니다.
 
-예상 거래 수와 실제 생성 수를 구분하고 실제 생성은 항상 0이다. 원본/mapping digest·변환 version·대상 ledger revision·판정을 묶은 fingerprint는 변경 감지용이며 반영 승인 토큰이 아니다. 파일 bytes나 장부 revision 변경·재확인 실패는 재검토가 필요하다. 금융 반영 API/버튼·새 Migration·source mapping 저장은 이번 버전에 없다.
+미리보기의 예상 거래 수와 실제 생성 수(0)를 구분한다. #68의 명시 최종 반영 뒤 실제 생성 수는 영속 `ImportResult`에서만 조회하며 이체 두 원본 행과 생성 거래 한 건을 분리한다. 화면 fingerprint는 반영 승인 토큰이 아니다. writer의 private 불변 token은 원본·판정·생성 ID·계좌별 기준·revision·검증한 백업에 결합한다. 파일 bytes나 장부 revision 변경·재확인 실패는 재검토가 필요하다.

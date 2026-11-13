@@ -15,6 +15,9 @@ data class ImportPreviewUiState(
     val evidence: String = "",
     val totals: List<ImportPreviewTotalUiState> = emptyList(),
     val rows: List<ImportPreviewRowUiState> = emptyList(),
+    val workflow: ImportWorkflowUiState = ImportWorkflowUiState(),
+    val resultSummary: String? = null,
+    val canAcknowledge: Boolean = false,
 )
 
 data class ImportPreviewTotalUiState(val key: String, val title: String, val value: String)
@@ -26,4 +29,13 @@ data class ImportPreviewRowUiState(
     val detail: String,
     val evidence: String,
     val rawExcerpt: String,
+    val locator: String = "",
+    val canConfirm: Boolean = false,
+    val canDistinct: Boolean = false,
+    val canGroup: Boolean = false,
 )
+
+data class ImportWorkflowUiState(val targetConfirmed: Boolean = false, val canApply: Boolean = false, val backupVerified: Boolean = false, val links: List<ImportAccountLinkUiState> = emptyList(), val accounts: List<ImportAccountUiState> = emptyList(), val currencyTotals: List<String> = emptyList(), val hasFinancialChanges: Boolean = false, val basisSummary: List<String> = emptyList())
+data class ImportAccountLinkUiState(val namespace: String, val sourceId: String, val selectedAccountId: String, val label: String)
+data class ImportAccountUiState(val id: String, val name: String, val anchorDate: String, val anchorAmount: String, val choice: String, val selectable: Boolean, val draft: ImportAnchorDraftUiState = ImportAnchorDraftUiState())
+data class ImportAnchorDraftUiState(val amount: String = "", val reason: String = "", val dirty: Boolean = false)
