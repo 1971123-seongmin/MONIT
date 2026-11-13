@@ -50,7 +50,7 @@ jobs:
         run: node .github/scripts/ci-impact.mjs --check-diff
       - name: Test validation classifier
         if: matrix.scope == 'independent' && (steps.impact.outcome != 'success' || steps.impact.outputs.ci_tests != 'false')
-        run: node --test .github/scripts/ci-impact.test.mjs
+        run: node --test .github/scripts/ci-impact.test.mjs .github/scripts/backup-probe-artifacts.test.mjs
       - name: Prepare empty Gradle User Home
         if: github.event_name == 'workflow_dispatch' && inputs.cold_cache
         run: |
