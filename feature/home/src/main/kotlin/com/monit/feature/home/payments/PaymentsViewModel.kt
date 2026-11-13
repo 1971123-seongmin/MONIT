@@ -54,7 +54,7 @@ class PaymentsViewModel @Inject constructor(
     private fun id() = UUID.randomUUID().toString()
     private fun busy() = state.value.phase in listOf(PaymentsPhase.SAVING, PaymentsPhase.CHECKING, PaymentsPhase.LOADING)
 
-    fun bind(value: LedgerContext, routeId: String) {
+    fun bind(value: LedgerContext, routeId: String, initialMonth: String? = null, initialItem: String? = null) {
         if (context != null) {
             if (context != value || entryId != routeId) {
                 invalid = true
@@ -79,7 +79,15 @@ class PaymentsViewModel @Inject constructor(
                 if (operation != null || mode == PaymentsMode.REVIEW) command = paymentCommandFromDraft(requireNotNull(scope), fields)
                 require(submittedDraft == null || operation != null)
                 submittedDraft?.let { require(it.scope == scope) }
-            } else require(!saved.contains(DRAFT_ID))
+            } else {
+                require(!saved.contains(DRAFT_ID))
+                initialMonth?.let { month = it.also(::paymentMonth) }
+                initialItem?.let {
+                    require(initialMonth != null)
+                    selected = it.also(::requireLedgerId)
+                    mutable.value = state.value.copy(mode = PaymentsMode.DETAIL)
+                }
+            }
         } catch (_: Exception) {
             invalid = true
             mutable.value = state.value.copy(phase = PaymentsPhase.BLOCKED)
@@ -109,6 +117,10 @@ class PaymentsViewModel @Inject constructor(
             transactionRows = result.third.transactions
             val previous = state.value.ui
             val selectedItem = result.third.items.find { it.id == selected }
+            if (selected != null && selectedItem == null && state.value.mode == PaymentsMode.DETAIL) {
+                selected = null
+                mutable.value = state.value.copy(mode = PaymentsMode.MONTH)
+            }
             val ui = result.third.copy(selected = selectedItem, form = previous.form, review = command?.let { paymentReview(it, selectedItem, result.third.accounts, previous.form.values) } ?: previous.review)
             mutable.value = state.value.copy(ui = ui, phase = PaymentsPhase.READY)
             persist()

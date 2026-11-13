@@ -33,7 +33,7 @@ android {
 }
 
 dependencies {
-    testImplementation(project(":core:common"))
+    implementation(project(":core:common"))
     implementation(libs.androidx.hilt.viewmodel.compose)
     testImplementation(libs.kotlinx.coroutines.test)
     implementation(project(":core:navigation"))

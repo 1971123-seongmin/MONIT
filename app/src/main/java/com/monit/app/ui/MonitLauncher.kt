@@ -19,7 +19,12 @@ import com.monit.core.designsystem.theme.MonitTheme
 import com.monit.core.model.LedgerEntryProblem
 
 @Composable
-fun MonitLauncher(viewModel: LedgerEntryViewModel = hiltViewModel()) {
+fun MonitLauncher(
+    viewModel: LedgerEntryViewModel = hiltViewModel(),
+    reminderToken: String? = null,
+    onReminderConsumed: (String) -> Unit = {},
+    onReschedule: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     MonitTheme {
@@ -29,7 +34,12 @@ fun MonitLauncher(viewModel: LedgerEntryViewModel = hiltViewModel()) {
             contentColor = MonitTheme.colors.onSurface,
         ) {
             when (val entry = state) {
-                is LedgerEntryState.Ready -> MonitApp(entry.context)
+                is LedgerEntryState.Ready -> MonitApp(
+                    context = entry.context,
+                    reminderToken = reminderToken,
+                    onReminderConsumed = onReminderConsumed,
+                    onReschedule = onReschedule,
+                )
 
                 else -> Box(
                     Modifier

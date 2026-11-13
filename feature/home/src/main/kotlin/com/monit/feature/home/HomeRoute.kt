@@ -13,6 +13,7 @@ fun HomeRoute(
     viewModel: HomeViewModel = hiltViewModel(),
     onNewTransaction: (() -> Unit)? = null,
     onPayments: (() -> Unit)? = null,
+    onReminders: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -27,5 +28,6 @@ fun HomeRoute(
         onRetry = { viewModel.refresh(context) },
         onNewTransaction = onNewTransaction,
         onPayments = onPayments,
+        onReminders = onReminders,
     )
 }

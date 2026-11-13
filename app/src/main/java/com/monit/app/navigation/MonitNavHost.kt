@@ -13,6 +13,7 @@ import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.home.navigation.PaymentsDestination
 import com.monit.feature.home.navigation.homeScreen
 import com.monit.feature.home.navigation.paymentsScreen
+import com.monit.feature.home.navigation.reminderSettingsScreen
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
 import com.monit.feature.transactions.navigation.transactionEntryScreen
 import com.monit.feature.transactions.navigation.transactionsScreen
@@ -29,6 +30,7 @@ fun MonitNavHost(
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination) -> Unit)? = null,
     importPreview: (@Composable (NavBackStackEntry) -> Unit)? = null,
     payments: (@Composable (NavBackStackEntry, PaymentsDestination) -> Unit)? = null,
+    reminderSettings: (@Composable (NavBackStackEntry) -> Unit)? = null,
 ) {
     NavHost(
         controller,
@@ -48,5 +50,7 @@ fun MonitNavHost(
         importPreview?.let { importPreviewScreen(it) }
 
         payments?.let { paymentsScreen(it) }
+
+        reminderSettings?.let { reminderSettingsScreen(it) }
     }
 }

@@ -29,10 +29,12 @@ fun PaymentsRoute(
     onClose: () -> Unit,
     onEditTransaction: (String) -> Unit,
     viewModel: PaymentsViewModel = hiltViewModel(),
+    initialMonth: String? = null,
+    initialItem: String? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    SideEffect { viewModel.bind(context, entryId) }
+    SideEffect { viewModel.bind(context, entryId, initialMonth, initialItem) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.flush() }
 

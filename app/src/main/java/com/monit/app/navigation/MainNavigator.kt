@@ -15,8 +15,10 @@ import com.monit.feature.accounts.navigation.navigateToAccounts
 import com.monit.feature.accounts.navigation.navigateToImportPreview
 import com.monit.feature.home.navigation.HomeDestination
 import com.monit.feature.home.navigation.PaymentsDestination
+import com.monit.feature.home.navigation.ReminderSettingsDestination
 import com.monit.feature.home.navigation.navigateToHome
 import com.monit.feature.home.navigation.navigateToPayments
+import com.monit.feature.home.navigation.navigateToReminderSettings
 import com.monit.feature.transactions.navigation.RegisteredAccountResult
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
 import com.monit.feature.transactions.navigation.TransactionEntryOrigin
@@ -26,13 +28,25 @@ import com.monit.feature.transactions.navigation.navigateToTransactions
 
 /** 제품 탐색 정책만 소유하며 금융 성공/복구 여부는 호출 feature가 확인한다. */
 class MainNavigator(private val navigator: Navigator) {
+    fun openReminderSettings(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<HomeDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.navigateToReminderSettings(source)
+    }
+    fun closeReminderSettings(source: NavBackStackEntry): NavigationResult {
+        if (!source.destination.hasRoute<ReminderSettingsDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.back(source) { it.destination.hasRoute<HomeDestination>() }
+    }
+    fun openReminderPayments(source: NavBackStackEntry, destination: PaymentsDestination): NavigationResult {
+        if (!source.destination.hasRoute<HomeDestination>() && !source.destination.hasRoute<TransactionsDestination>() && !source.destination.hasRoute<AccountsDestination>()) return NavigationResult.UNAVAILABLE
+        return navigator.navigateToPayments(source, destination)
+    }
     fun openPayments(source: NavBackStackEntry, destination: PaymentsDestination): NavigationResult {
         if (!source.destination.hasRoute<HomeDestination>()) return NavigationResult.UNAVAILABLE
         return navigator.navigateToPayments(source, destination)
     }
     fun closePayments(source: NavBackStackEntry): NavigationResult {
         if (!source.destination.hasRoute<PaymentsDestination>()) return NavigationResult.UNAVAILABLE
-        return navigator.back(source) { it.destination.hasRoute<HomeDestination>() }
+        return navigator.back(source) { it.destination.hasRoute<HomeDestination>() || it.destination.hasRoute<TransactionsDestination>() || it.destination.hasRoute<AccountsDestination>() }
     }
 
     fun openImportPreview(source: NavBackStackEntry): NavigationResult {
