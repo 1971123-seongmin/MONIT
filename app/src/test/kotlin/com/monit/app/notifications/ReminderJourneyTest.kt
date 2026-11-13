@@ -259,12 +259,13 @@ class ReminderJourneyTest {
     /**
      * 목적: 알림 클릭이 진행 중 입력을 폐기하거나 새 완료를 자동 실행하지 않게 한다.
      * 조건: 실제 납입 Route의 불완전 금액 입력 중 새 조회 링크가 들어온다.
-     * 절차: 입력 중 링크 전달→원문 유지 확인→명시 보관·목록·홈 Back 후 새 상세 진입.
+     * 절차: 비동기 월별 목록의 준비 표시를 기다린 뒤 항목 선택→입력 중 링크 전달→원문 유지 확인→명시 보관·목록·홈 Back 후 새 상세 진입.
      * 기대: 기존 raw 초안 보존, 링크 한 번 소비, 금융 제출0이다.
      */
     @Test fun incomingNotificationDefersUntilEntryIsFinishedAndPreservesRawDraft() {
         show()
         click("월별 납입 보기")
+        awaitText("반복 납입 등록")
         compose.onNodeWithTag("payment-row:${paymentTestId(50)}").performScrollTo().performClick()
         click("새 납입 내용 입력")
         compose.waitUntil(10_000) {
