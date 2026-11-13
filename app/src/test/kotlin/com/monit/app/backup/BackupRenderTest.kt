@@ -46,6 +46,8 @@ class BackupRenderTest {
 
     @Test fun replacementPreviewNarrowLargeText() = render(BackupPhase.PREVIEW, false, 320, 2f)
 
+    @Test fun workingCancellationActionLight() = render(BackupPhase.WORKING, false)
+
     private fun render(phase: BackupPhase, dark: Boolean, width: Int = 360, scale: Float = 1f) {
         lateinit var view: View
         compose.setContent {

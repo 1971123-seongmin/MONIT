@@ -6,7 +6,9 @@ import com.monit.core.model.*
 import java.io.*
 import javax.crypto.spec.SecretKeySpec
 import kotlin.test.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.*
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,6 +20,92 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = Application::class, manifest = Config.NONE)
 class BackupPlatformTest {
+    /** 목적: CancellationSignal/descriptor close가 main에서 실행되지 않고 실제 정리 종료까지 작업을 붙잡는다.
+     * 조건: IO worker와 닫기 gate를 실제 스레드에서 제어한다. 각 blocking 대기는 10초 상한이다.
+     * 절차: read 진입→호출 코루틴 취소→close 진입 관찰→미완료 확인→close 해제/종료.
+     * 기대: cancel/close 모두 호출 스레드 밖, 닫기 종료 전 부모 미완료, 늦은 성공 전달 없음.
+     */
+    @Test fun providerCancellationAndCloseRunOffCallerAndRemainStructured() = runTest {
+        val caller = Thread.currentThread()
+        val cancelThread = java.util.concurrent.atomic.AtomicReference<Thread?>()
+        val closeThread = java.util.concurrent.atomic.AtomicReference<Thread?>()
+        val entered = CompletableDeferred<Unit>()
+        val closing = CompletableDeferred<Unit>()
+        val readRelease = java.util.concurrent.CountDownLatch(1)
+        val closeRelease = java.util.concurrent.CountDownLatch(1)
+        val contexts = object : CoroutineContextProvider {
+            override val main = Dispatchers.Main
+            override val io = Dispatchers.IO
+            override val default = Dispatchers.Default
+        }
+        val documents = BackupDocuments(RuntimeEnvironment.getApplication(), contexts)
+        var delivered = false
+        val task = launch(Dispatchers.Default) {
+            documents.access { signal, active ->
+                active.set(
+                    Closeable {
+                        closeThread.set(Thread.currentThread())
+                        closing.complete(Unit)
+                        check(closeRelease.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                    },
+                )
+                signal.setOnCancelListener {
+                    cancelThread.set(Thread.currentThread())
+                    readRelease.countDown()
+                }
+                entered.complete(Unit)
+                check(readRelease.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                "late bytes"
+            }
+            delivered = true
+        }
+        try {
+            withContext(Dispatchers.Default) { withTimeout(10_000) { entered.await() } }
+            task.cancel()
+            withContext(Dispatchers.Default) { withTimeout(10_000) { closing.await() } }
+            assertFalse(task.isCompleted)
+            assertNotSame(caller, checkNotNull(cancelThread.get()))
+            assertNotSame(caller, checkNotNull(closeThread.get()))
+        } finally {
+            readRelease.countDown()
+            closeRelease.countDown()
+            withContext(Dispatchers.Default) { withTimeout(10_000) { task.cancelAndJoin() } }
+        }
+        assertFalse(delivered)
+    }
+
+    /** 목적: 취소를 따르지 않는 read의 반환 전에는 scope가 종료되지 않으며 늦은 값은 전달하지 않는다.
+     * 조건: 같은 가상 스케줄러의 NonCancellable provider gate다.
+     * 절차: read→취소→실제 미완료 확인→provider 반환→join.
+     * 기대: 취소 요청 후에도 미완료이며 반환 뒤 취소로 종료되고 성공 callback은0이다.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun nonCooperativeProviderCannotOutliveTheAccessScopeAsASuccess() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val contexts = object : CoroutineContextProvider {
+            override val main = dispatcher
+            override val io = dispatcher
+            override val default = dispatcher
+        }
+        val release = CompletableDeferred<Unit>()
+        var delivered = false
+        val task = launch {
+            BackupDocuments(RuntimeEnvironment.getApplication(), contexts).access { _, _ ->
+                withContext(NonCancellable) { release.await() }
+                "late"
+            }
+            delivered = true
+        }
+        runCurrent()
+        task.cancel()
+        runCurrent()
+        assertFalse(task.isCompleted)
+        release.complete(Unit)
+        task.join()
+        assertTrue(task.isCancelled)
+        assertFalse(delivered)
+    }
     private val context = LedgerContext("00000000-0000-0000-0000-000000000900", "00000000-0000-0000-0000-000000000901")
 
     /** close/flush 오류를 저장 성공으로 처리하면 재읽기/완료 시각이 잘못 확정되므로 반드시 전파한다. */
@@ -96,7 +184,7 @@ class BackupPlatformTest {
             override val default = Dispatchers.Default
         }
         val payload = "synthetic private recovery bytes".toByteArray()
-        val problem = assertFailsWith<BackupException> { KeystoreRecoveryCopyStore(app, contexts).protect(context, payload) }
+        val problem = withContext(Dispatchers.Default) { assertFailsWith<BackupException> { KeystoreRecoveryCopyStore(app, contexts).protect(context, payload) } }
         assertEquals(BackupProblem.RECOVERY_COPY, problem.problem)
         val folder = File(app.filesDir, "restore-recovery")
         assertTrue(folder.listFiles().orEmpty().none { it.readBytes().contentEquals(payload) })

@@ -23,20 +23,20 @@ Issue #66. 계약과 원자성 설명의 원본은 [core/data/BACKUP.md](../../c
 
 ## Host 증거
 
-2026-11-13, main `5845a1a` 기준의 Issue #66 변경에서 검증했다. 전체 JUnit XML은 **544개, 실패/오류/건너뜀 0개**다. 신규 백업·복원 47개와 알림 유지보수 회귀 2개가 포함된다. 알림 경계 문제는 수정 전 회귀 실패와 수정 후 성공을 확인했다.
+2026-11-13, main `5845a1a` 기준의 Issue #66 변경에서 검증했다. 전체 JUnit XML은 **555개, 실패/오류/건너뜀 0개**다. 초기 구현과 후속 회귀/시간·취소 시험 60개가 포함된다. 알림 경계 문제는 수정 전 회귀 실패와 수정 후 성공을 확인했다.
 
 | 검사 | 결과 |
 |---|---|
 | `ktlintFormat` 뒤 별도 `ktlintCheck` | 통과. 문서/README 자동 포매팅 제외 |
-| `:core:model:test testDebugUnitTest` | 전체 544개 통과 |
+| `:core:model:test testDebugUnitTest` | 전체 555개 통과 |
 | `:app:assembleDebug :app:assembleQa :app:assembleBackupQa` | 세 APK 빌드 통과 |
 | `lintDebug :app:lintBackupQa` | 통과 |
 | textfield family 독립 컴파일 | theme 포함 7개 소스, 다른 프로젝트 classpath 없이 통과 |
 | Node CI 분류기 / AI 지침 문서 검사 | 31개 / 26개 문서 통과 |
 | strict v2 schema / 별도 OpenSSL vector 재생성 | 기존 파일과 byte/hash 동일 |
-| Native host 렌더 | 6조건/7장 확인. 아래 4장 저장 |
+| Native host 렌더 | 7조건/8장 확인. 아래 5장 저장. 기존 4장은 시간·취소 보완 전후 hash 동일 |
 
-전용 APK는 19,587,360바이트이며 SHA-256은 `496A2E79230E70A0AB3DFEB2F62F8C885B45B519188392CB6323FB8D71413819`다. 패키지 `com.monit.app.qa.backup`과 표시 이름 `MONIT 백업 검증`을 APK에서 확인했다. debug 인증서 SHA-256은 `eccc8070141d875ed47bc4a5dedb398c27cd111abaf3ad8880994be6557b8cee`다. strict v1/v2 schema 두 파일이 APK 안에 포함됐음을 확인했다. 설치/기기 실행 결과가 아니다.
+전용 APK는 19,863,594바이트이며 SHA-256은 `CD837AB50C194C97E218C5EBE4D09C16ADE1A5CE78BBA71B32DA1CDC9328FB2A`다. 패키지 `com.monit.app.qa.backup`과 표시 이름 `MONIT 백업 검증`을 APK에서 확인했다. debug 인증서 SHA-256은 `eccc8070141d875ed47bc4a5dedb398c27cd111abaf3ad8880994be6557b8cee`다. strict v1/v2 schema 두 파일이 APK 안에 포함됐음을 확인했다. 설치/기기 실행 결과가 아니다.
 
 실제 파일 Room의 schema7→8 비파괴 이관, 전체 교체 SQL 실패/도중 취소 rollback, 미리보기 revision/generation CAS, commit 뒤 응답 유실/재열기, 원래 요청 v1~v4와 intent 세 상태의 evidence-only 재백업, v1 baseline 원문 bytes/hash·미기록 상태, Unicode/OpenSSL golden vector·GCM 변조·parser/자원 제한을 시험한다. 앱 시험은 stream 닫기/재읽기 실패, 작업 취소·중복 방지, 최종 교체 확인·결과불명 조회·알림만 재시도와 네이티브 host 화면을 포함한다.
 
@@ -46,3 +46,9 @@ Native Canvas 이미지는 합성 자료로 만든 앱 영역이다. 실제 기�
 ![전체 교체 영향](images/backup/preview-light-360-1.png)
 ![복원 결과와 알림 재설정](images/backup/result-dark-360-1.png)
 ![큰 글꼴의 영향 안내 하단과 최종 행동](images/backup/preview-large-bottom.png)
+
+시간 경계는 가상시간으로 KDF 10초 지연 안내, 검증 30초/파일 60초의 중단 요청, 비협력 작업의 실제 종료 대기, 늦은 성공·중복·VM 교체 차단을 시험했다. cancel/close가 호출 스레드를 막지 않고 IO에서 실제 종료할 때까지 부모가 기다리는 것도 확인했다. 동기 JCA/실제 provider의 즉시 종료 증거가 아니다. 실기기 KDF 20회 p95, 상한 payload의 시간·peak heap과 교체 p95 목표는 미측정이며 기기 검증 게이트로 남긴다.
+
+![작업 취소 요청과 실제 종료 안내](images/backup/working-light-360-1.png)
+
+마지막 취소 checkpoint 보완 후 앱 전체 시험·3종 APK·앱 Lint·ktlint를 다시 통과했다. 변경되지 않은 core 시험과 textfield 독립 컴파일·Node/지침 검사 결과는 위 전체 검증에서 재사용한다. Android 기기별 PBEKeySpec Unicode 변환 일치도 실제 기기 게이트로 확인해야 한다.

@@ -16,6 +16,28 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = Application::class)
 class BackupScreenTest {
+    /** WORKING의 취소는 요청 행동이며 실제 종료 대기는 비활성으로 표시하고 재시작을 제공하지 않는다. */
+    @Test fun workingCancellationRemainsVisibleUntilActualTermination() {
+        val cancelling = androidx.compose.runtime.mutableStateOf(false)
+        var requests = 0
+        compose.setContent {
+            MonitTheme {
+                TestBackupScreen(
+                    phase = BackupPhase.WORKING,
+                    cancel = {
+                        requests++
+                        cancelling.value = true
+                    },
+                    cancelling = cancelling.value,
+                )
+            }
+        }
+        compose.onNodeWithText("취소 요청").performClick()
+        compose.onNodeWithText("실제 종료 확인 중").assertIsNotEnabled()
+        compose.onNodeWithText("백업 파일 만들기").assertDoesNotExist()
+        assertEquals(1, requests)
+    }
+
     @get:Rule val compose = createComposeRule()
 
     /** 미리보기 첫 버튼은 확인 dialog만 열고 마지막 명시 확인만 restore를 호출한다. */
@@ -68,6 +90,8 @@ internal fun TestBackupScreen(
     restore: () -> Unit = {},
     notifications: () -> Unit = {},
     resolve: () -> Unit = {},
+    cancel: () -> Unit = {},
+    cancelling: Boolean = false,
 ) {
     BackupScreen(
         state = BackupState(
@@ -78,6 +102,7 @@ internal fun TestBackupScreen(
                 counts = listOf(BackupCountUiState("계좌", "3", "3"), BackupCountUiState("거래", "14", "10")),
                 originals = "포함 원문 0개",
                 anchorSummary = "복원 기준일 · 계좌 3개 모두 2026.10.31",
+                cancelRequested = cancelling,
             ),
         ),
         password = "synthetic-password-2026",
@@ -88,7 +113,7 @@ internal fun TestBackupScreen(
         onOpen = {},
         onSubmit = {},
         onRestore = restore,
-        onCancel = {},
+        onCancel = cancel,
         onBack = {},
         onResolve = resolve,
         onNotifications = notifications,

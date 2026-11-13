@@ -20,10 +20,10 @@ interface RecoveryCopyStore {
 }
 
 interface BackupRepository {
-    suspend fun create(context: LedgerContext, password: CharArray): BackupExport
-    suspend fun verifyExport(context: LedgerContext, id: String, readBack: ByteArray, password: CharArray): BackupExportReceipt
-    suspend fun inspect(context: LedgerContext, encrypted: ByteArray, password: CharArray): RestorePreview
-    suspend fun restore(context: LedgerContext, previewId: String, recovery: RecoveryCopyStore): RestoreResult
+    suspend fun create(context: LedgerContext, password: CharArray, onStage: (BackupStage) -> Unit = {}): BackupExport
+    suspend fun verifyExport(context: LedgerContext, id: String, readBack: ByteArray, password: CharArray, onStage: (BackupStage) -> Unit = {}): BackupExportReceipt
+    suspend fun inspect(context: LedgerContext, encrypted: ByteArray, password: CharArray, onStage: (BackupStage) -> Unit = {}): RestorePreview
+    suspend fun restore(context: LedgerContext, previewId: String, recovery: RecoveryCopyStore, onStage: (BackupStage) -> Unit = {}): RestoreResult
     suspend fun status(): BackupStatus
     suspend fun result(id: String): RestoreResult?
     suspend fun acknowledgeRestore(id: String)
@@ -33,3 +33,6 @@ interface BackupRepository {
     suspend fun evidence(context: LedgerContext): List<RestoredEvidenceSummary>
     fun discardPreview(id: String)
 }
+
+/** 시간 정책을 적용할 실제 작업 경계다. UI 표시/저장 상태와 구분한다. */
+enum class BackupStage { SNAPSHOT, CRYPTO, VALIDATION, FILE_IO, RECOVERY_COPY, REPLACEMENT }

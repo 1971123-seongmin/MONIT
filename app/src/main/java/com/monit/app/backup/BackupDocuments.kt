@@ -17,9 +17,16 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /** SAF URI는 메모리에서만 사용한다. 접근 권한/이름/비밀번호를 영속화하지 않는다. */
 internal interface BackupDocumentAccess {
@@ -31,15 +38,17 @@ internal class BackupDocuments @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val contexts: CoroutineContextProvider,
 ) : BackupDocumentAccess {
-    override suspend fun read(uri: Uri): ByteArray = access { signal, active ->
-        require(uri.scheme == "content")
-        val descriptor = context.contentResolver.openFileDescriptor(uri, "r", signal) ?: error("Unavailable document")
-        active.set(descriptor)
-        signal.throwIfCanceled()
-        ParcelFileDescriptor.AutoCloseInputStream(descriptor).use(BackupDocumentStreams::read)
+    override suspend fun read(uri: Uri): ByteArray = withTimeout(60_000) {
+        access { signal, active ->
+            require(uri.scheme == "content")
+            val descriptor = context.contentResolver.openFileDescriptor(uri, "r", signal) ?: error("Unavailable document")
+            active.set(descriptor)
+            signal.throwIfCanceled()
+            ParcelFileDescriptor.AutoCloseInputStream(descriptor).use(BackupDocumentStreams::read)
+        }
     }
 
-    override suspend fun writeAndRead(uri: Uri, encrypted: ByteArray): ByteArray {
+    override suspend fun writeAndRead(uri: Uri, encrypted: ByteArray): ByteArray = withTimeout(60_000) {
         access { signal, active ->
             require(uri.scheme == "content")
             val descriptor = context.contentResolver.openFileDescriptor(uri, "wt", signal) ?: error("Unavailable document")
@@ -48,10 +57,11 @@ internal class BackupDocuments @Inject constructor(
             BackupDocumentStreams.write(encrypted, ParcelFileDescriptor.AutoCloseOutputStream(descriptor))
         }
         // close/flush까지 성공한 뒤 새 descriptor로 읽는다. provider가 재읽기를 거절하면 검증 성공이 아니다.
-        return read(uri)
+        read(uri)
     }
 
-    private suspend fun <T> access(block: (CancellationSignal, AtomicReference<Closeable?>) -> T): T = coroutineScope {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    internal suspend fun <T> access(block: suspend (CancellationSignal, AtomicReference<Closeable?>) -> T): T = coroutineScope {
         suspendCancellableCoroutine { continuation ->
             val signal = CancellationSignal()
             val active = AtomicReference<Closeable?>()
@@ -59,6 +69,7 @@ internal class BackupDocuments @Inject constructor(
                 try {
                     signal.throwIfCanceled()
                     val value = block(signal, active)
+                    currentCoroutineContext().ensureActive()
                     continuation.resume(value)
                 } catch (cancelled: CancellationException) {
                     continuation.cancel(cancelled)
@@ -69,8 +80,17 @@ internal class BackupDocuments @Inject constructor(
                 }
             }
             continuation.invokeOnCancellation {
-                signal.cancel()
-                active.getAndSet(null)?.let { runCatching { it.close() } }
+                // ATOMIC으로 취소된 부모에도 정리 child를 시작한다. scope는 실제 close/cancel 종료까지 기다린다.
+                // provider의 취소/close 자체가 막혀도 main에서 실행하거나 종료됐다고 추정하지 않는다.
+                launch(contexts.io, start = CoroutineStart.ATOMIC) {
+                    withContext(NonCancellable) {
+                        try {
+                            signal.cancel()
+                        } finally {
+                            active.getAndSet(null)?.let { runCatching { it.close() } }
+                        }
+                    }
+                }
                 job.cancel()
             }
         }

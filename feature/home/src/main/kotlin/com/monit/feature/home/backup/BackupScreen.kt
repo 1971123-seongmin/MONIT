@@ -143,7 +143,7 @@ fun BackupScreen(
                     BackupPhase.WORKING -> {
                         MonitStatusPanel(
                             title = ui.progress,
-                            description = "앱을 닫지 말고 잠시 기다려주세요. 결과를 확인한 뒤 다음 행동을 안내해요.",
+                            description = ui.progressDetail,
                         )
                     }
 
@@ -266,7 +266,11 @@ fun BackupScreen(
                     onClick = onResolve,
                 )
 
-                BackupPhase.WORKING -> Unit
+                BackupPhase.WORKING -> BackupAction(
+                    text = if (ui.cancelRequested) "실제 종료 확인 중" else "취소 요청",
+                    onClick = onCancel,
+                    enabled = !ui.cancelRequested,
+                )
             }
         }
 
@@ -319,11 +323,13 @@ private fun BackupAction(
     text: String,
     onClick: () -> Unit,
     secondary: Boolean = false,
+    enabled: Boolean = true,
 ) {
     MonitButton(
         text = text,
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         type = if (secondary) MonitButtonType.Secondary else MonitButtonType.Primary,
+        enabled = enabled,
     )
 }

@@ -26,56 +26,61 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /** 휴대 파일과 다른 기기 전용 형식. Keystore/파일 검증 실패 시 평문 fallback이나 복원 시작은 없다. */
 @Singleton
 class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext private val context: Context, private val contexts: CoroutineContextProvider) : RecoveryCopyStore {
     private val mutex = Mutex()
-    override suspend fun protect(context: LedgerContext, payload: ByteArray): RecoveryCopyProof = withContext(contexts.io) {
-        if (!mutex.tryLock()) throw BackupException(BackupProblem.RECOVERY_COPY)
-        try {
-            require(payload.size <= 8 * 1024 * 1024)
-            val folder = File(this@KeystoreRecoveryCopyStore.context.filesDir, "restore-recovery")
-            require(folder.isDirectory || folder.mkdirs())
-            val database = this@KeystoreRecoveryCopyStore.context.getDatabasePath("monit-ledger.db")
-            val databaseSize = listOf(database, File(database.path + "-wal"), File(database.path + "-shm")).sumOf { it.length() }
-            val needed = maxOf(64 * 1024 * 1024L, Math.addExact(Math.multiplyExact(databaseSize, 2), Math.addExact(Math.multiplyExact(payload.size.toLong(), 4), 4 * 1024 * 1024L)))
-            require(folder.usableSpace >= needed)
-            currentCoroutineContext().ensureActive()
-            val id = UUID.randomUUID().toString()
-            val candidate = File(folder, "$id.pending")
-            val target = File(folder, "verified.monitrec")
-            require(candidate.canonicalFile.parentFile == folder.canonicalFile && target.canonicalFile.parentFile == folder.canonicalFile)
-            val encrypted = LocalRecoveryCipher.encrypt(payload, context, key())
+    override suspend fun protect(context: LedgerContext, payload: ByteArray): RecoveryCopyProof = withTimeout(60_000) {
+        withContext(contexts.io) {
+            if (!mutex.tryLock()) throw BackupException(BackupProblem.RECOVERY_COPY)
             try {
-                require(candidate.createNewFile())
-                FileOutputStream(candidate).use { stream ->
-                    stream.write(encrypted)
-                    stream.fd.sync()
-                }
-                verify(candidate, context, payload)
+                require(payload.size <= 8 * 1024 * 1024)
+                val folder = File(this@KeystoreRecoveryCopyStore.context.filesDir, "restore-recovery")
+                require(folder.isDirectory || folder.mkdirs())
+                val database = this@KeystoreRecoveryCopyStore.context.getDatabasePath("monit-ledger.db")
+                val databaseSize = listOf(database, File(database.path + "-wal"), File(database.path + "-shm")).sumOf { it.length() }
+                val needed = maxOf(64 * 1024 * 1024L, Math.addExact(Math.multiplyExact(databaseSize, 2), Math.addExact(Math.multiplyExact(payload.size.toLong(), 4), 4 * 1024 * 1024L)))
+                require(folder.usableSpace >= needed)
                 currentCoroutineContext().ensureActive()
-                // 같은 앱 내부 디렉터리에서 이미 검증한 암호문만 원자적으로 교체한다.
-                Os.rename(candidate.absolutePath, target.absolutePath)
-                val directory = Os.open(folder.absolutePath, OsConstants.O_RDONLY, 0)
+                val id = UUID.randomUUID().toString()
+                val candidate = File(folder, "$id.pending")
+                val target = File(folder, "verified.monitrec")
+                require(candidate.canonicalFile.parentFile == folder.canonicalFile && target.canonicalFile.parentFile == folder.canonicalFile)
+                val encrypted = LocalRecoveryCipher.encrypt(payload, context, key())
                 try {
-                    Os.fsync(directory)
+                    currentCoroutineContext().ensureActive()
+                    require(candidate.createNewFile())
+                    FileOutputStream(candidate).use { stream ->
+                        stream.write(encrypted)
+                        stream.fd.sync()
+                    }
+                    currentCoroutineContext().ensureActive()
+                    verify(candidate, context, payload)
+                    currentCoroutineContext().ensureActive()
+                    // 같은 앱 내부 디렉터리에서 이미 검증한 암호문만 원자적으로 교체한다.
+                    Os.rename(candidate.absolutePath, target.absolutePath)
+                    val directory = Os.open(folder.absolutePath, OsConstants.O_RDONLY, 0)
+                    try {
+                        Os.fsync(directory)
+                    } finally {
+                        Os.close(directory)
+                    }
+                    verify(target, context, payload)
+                    currentCoroutineContext().ensureActive()
+                    RecoveryCopyProof(id, digest(payload), payload.size)
                 } finally {
-                    Os.close(directory)
+                    encrypted.fill(0)
                 }
-                verify(target, context, payload)
-                currentCoroutineContext().ensureActive()
-                RecoveryCopyProof(id, digest(payload), payload.size)
+                // 오류 상태의 암호화 사본은 진단/복구를 위해 자동 폐기하지 않는다.
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                throw BackupException(BackupProblem.RECOVERY_COPY)
             } finally {
-                encrypted.fill(0)
+                mutex.unlock()
             }
-            // 오류 상태의 암호화 사본은 진단/복구를 위해 자동 폐기하지 않는다.
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            throw BackupException(BackupProblem.RECOVERY_COPY)
-        } finally {
-            mutex.unlock()
         }
     }
 

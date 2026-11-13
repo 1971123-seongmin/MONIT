@@ -12,6 +12,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 
 /** 한 번의 암호/파일 워크플로만 처리한다. 사용자 대기/파일/암호 처리는 Room commit 밖이다. */
@@ -24,13 +25,15 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
     private var inspected: Pair<RestorePreview, ValidatedBackup>? = null
     private fun id() = UUID.randomUUID().toString()
 
-    override suspend fun create(context: LedgerContext, password: CharArray): BackupExport = try {
+    override suspend fun create(context: LedgerContext, password: CharArray, onStage: (BackupStage) -> Unit): BackupExport = try {
         work {
+            onStage(BackupStage.SNAPSHOT)
             val root = adapter.capture(context)
             val plain = BackupJson.utf8(root.toString())
             try {
-                val source = validator.validate(plain)
+                val source = validate(plain, onStage)
                 currentCoroutineContext().ensureActive()
+                onStage(BackupStage.CRYPTO)
                 val encrypted = BackupEnvelope.encrypt(plain, password)
                 currentCoroutineContext().ensureActive()
                 BackupExport(id(), context, source.revision, source.createdAt.toString(), encrypted).also { exported = it to BackupJson.digest(encrypted) }
@@ -42,12 +45,14 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         password.fill('\u0000')
     }
 
-    override suspend fun verifyExport(context: LedgerContext, id: String, readBack: ByteArray, password: CharArray): BackupExportReceipt = try {
+    override suspend fun verifyExport(context: LedgerContext, id: String, readBack: ByteArray, password: CharArray, onStage: (BackupStage) -> Unit): BackupExportReceipt = try {
         work {
             val (original, hash) = checkNotNull(exported).also { require(it.first.id == id && it.first.context == context) }
+            onStage(BackupStage.CRYPTO)
             val plain = BackupEnvelope.decrypt(readBack, password)
             try {
-                val source = validator.validate(plain)
+                currentCoroutineContext().ensureActive()
+                val source = validate(plain, onStage)
                 require(BackupJson.digest(readBack) == hash && source.context == context && source.revision == original.revision)
                 currentCoroutineContext().ensureActive()
                 val receipt = BackupExportReceipt(id, original.createdAt, clock.instant().toString(), source.revision)
@@ -68,13 +73,16 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         password.fill('\u0000')
     }
 
-    override suspend fun inspect(context: LedgerContext, encrypted: ByteArray, password: CharArray): RestorePreview = try {
+    override suspend fun inspect(context: LedgerContext, encrypted: ByteArray, password: CharArray, onStage: (BackupStage) -> Unit): RestorePreview = try {
         work {
+            onStage(BackupStage.CRYPTO)
             val plain = BackupEnvelope.decrypt(encrypted, password)
             try {
-                val source = validator.validate(plain)
+                currentCoroutineContext().ensureActive()
+                val source = validate(plain, onStage)
                 require(source.revision < Long.MAX_VALUE)
                 currentCoroutineContext().ensureActive()
+                onStage(BackupStage.SNAPSHOT)
                 val current = adapter.capture(context)
                 val currentLedger = current.getJSONObject("sourceLedger")
                 val preview = RestorePreview(id(), context, currentLedger.exactLong("revision"), source.context, source.revision, source.createdAt.toString(), counts(current), counts(source.root), source.root.getJSONObject("manifest").getInt("recordTotal"), source.root.getJSONObject("manifest").text("submissionCoverage") == "NOT_RECORDED_BY_V1", source.root.list("originals").size)
@@ -89,10 +97,11 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         password.fill('\u0000')
     }
 
-    override suspend fun restore(context: LedgerContext, previewId: String, recovery: RecoveryCopyStore): RestoreResult = work {
+    override suspend fun restore(context: LedgerContext, previewId: String, recovery: RecoveryCopyStore, onStage: (BackupStage) -> Unit): RestoreResult = work {
         result(previewId)?.let { return@work it }
         val (preview, source) = checkNotNull(inspected).also { require(it.first.id == previewId && it.first.currentContext == context) }
         database.maintenance { lease ->
+            onStage(BackupStage.SNAPSHOT)
             val current = database.withTransaction {
                 database.requireMaintenanceWriter(lease)
                 checkPreview(preview)
@@ -100,8 +109,9 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
             }
             val plain = BackupJson.utf8(current.toString())
             try {
-                validator.validate(plain)
+                validate(plain, onStage)
                 val expectedHash = BackupJson.digest(plain)
+                onStage(BackupStage.RECOVERY_COPY)
                 val proof = try {
                     recovery.protect(context, plain)
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -121,6 +131,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
             if (source.root.getJSONObject("manifest").getLong("recordTotal") + oldIds.count { it !in incomingIds } > 50_000) BackupJson.fail(BackupProblem.LIMIT)
             val plan = BackupRestorePlan(source, outcome, oldIds)
             try {
+                onStage(BackupStage.REPLACEMENT)
                 database.withTransaction {
                     database.requireMaintenanceWriter(lease)
                     checkPreview(preview)
@@ -198,6 +209,10 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         } finally {
             single.unlock()
         }
+    }
+    private suspend fun validate(bytes: ByteArray, onStage: (BackupStage) -> Unit): ValidatedBackup = withTimeout(30_000) {
+        onStage(BackupStage.VALIDATION)
+        validator.validate(bytes)
     }
     private fun counts(root: JSONObject): Map<String, Int> = root.getJSONObject("manifest").getJSONObject("recordCounts").let { value -> value.keys().asSequence().associateWith { value.getInt(it) } }
     private fun emptyStatus() = BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = null, restoreAcknowledged = true)

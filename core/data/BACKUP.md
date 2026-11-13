@@ -15,6 +15,8 @@ Issue #66. 금융 데이터는 현재 Room 인스턴스에서 논리적으로 �
 
 전체 평문은 8MiB, 외부 파일은 8MiB+68바이트, 원문 합계는 2MiB/32개, 업무·근거 레코드는 50,000개, JSON 중첩은 16단계, scalar token은 1,000,000개 이하이다. 제공자가 신고한 크기만 신뢰하지 않는다. KDF와 논리 검증은 주입된 Default dispatcher, 파일 작업은 IO dispatcher에서 수행한다.
 
+KDF/암호가 10초를 넘으면 지연과 취소 요청을 안내한다. 전체 파싱·논리 검증은 30초, 외부 파일 읽기/쓰기와 내부 복구 사본은 60초에 협력 중단을 요청한다. 이는 동기 JCA·provider·close가 그 시각에 반드시 종료된다는 보장이 아니다. UI는 취소 요청과 실제 종료를 구분하고 비복귀 상태에서도 대기 안내를 유지한다. `CancellationSignal.cancel`과 descriptor 정리는 IO child에서 수행하며 부모 작업은 실제 정리 종료까지 기다린다. 프로세스 범위의 백업 전용 단일 lease는 VM이 교체되거나 취소되어도 실제 Job 완료 후에만 풀린다. 늦은 단계/성공을 UI에 반영하거나 그 전에 새 KDF/파일/복원을 시작하지 않는다. 쓰기 시작 후 취소는 외부 파일 검증 미완료로, 복원 취소/응답 유실은 영속 완료 표식 조회로 이어지며 금융 교체를 자동 재실행하지 않는다.
+
 ## 논리 v2와 이전 v1
 
 실행 schema 원본은 [v2 JSON Schema](src/main/resources/backup/backup-v2.schema.json)다. `formatVersion=2`, `contractVersion=2`를 사용하고 `manifest`에 실제 배열별 건수·원문 크기/hash·제외 항목·기록 여부를 검증한다. 금융 9개 테이블의 DTO는 검토된 Room schema7 필드에 고정한다. [생성 스크립트](../../scripts/Generate-BackupSchema.cjs)는 최신 DB를 임의 추종하지 않는다.

@@ -49,14 +49,15 @@ internal fun BackupContent(
     val cancel = {
         password = ""
         confirmation = ""
-        viewModel.entry()
+        if (state.phase == BackupPhase.WORKING) viewModel.requestCancel() else viewModel.entry()
     }
 
     BackHandler {
         when (state.phase) {
             BackupPhase.ENTRY -> onBack()
             BackupPhase.RESULT -> viewModel.finish(onRestored)
-            BackupPhase.WORKING, BackupPhase.UNKNOWN -> Unit
+            BackupPhase.WORKING -> viewModel.requestCancel()
+            BackupPhase.UNKNOWN -> Unit
             else -> cancel()
         }
     }
