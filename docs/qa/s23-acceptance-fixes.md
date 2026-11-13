@@ -20,10 +20,10 @@ Issue [#70](https://github.com/1971123-seongmin/MONIT/issues/70), 기준 main `b
 
 ## 로컬 검증
 
-- **587 tests, failure/error/skipped 0**: common10/model28/data216/navigation16/designsystem35/accounts59/home21/transactions32/app170. `NO-SOURCE`를 시험 수로 세지 않았다.
+- **588 tests, failure/error/skipped 0**: common10/model28/data217/navigation16/designsystem35/accounts59/home21/transactions32/app170. `NO-SOURCE`를 시험 수로 세지 않았다.
 - `:core:model:test testDebugUnitTest`의 전체 시험 결과, `:app:assembleDebug :app:assembleQa :app:assembleBackupQa`, `:app:lintDebug ktlintCheck`의 성공을 대조했다. Windows/JBR21/Robolectric SDK28·파일 Room·Native host 환경이다.
 - 새 작업 공간의 로컬 SDK 경로 표기 오류로 Lint가 실패한 뒤, 로컬 경로만 수정하고 앱 Lint 분석을 다시 실행해 통과했다. 제품 소스나 Lint 기준을 완화하지 않았다.
-- 검증한 제품/시험·설정 입력 SHA-256은 `A2A0BFE50B0F217A3D3309686A89937443595617BF09DF6547035D346B17577A`다. Kotlin/KTS/XML/JSON/TOML/gradle.properties를 대상으로 하며 docs/생성물은 제외한다. 검사 후 같은 입력임을 다시 확인한다.
+- 시험 보완 뒤 전체 검증 입력 SHA-256은 `982BAAABB9C2E3F91C760BA67FC5570FA691B61DB687946526B97A49F4F26FD5`이며 검사 전후 같았다. Kotlin/KTS/XML/JSON/TOML/gradle.properties를 대상으로 하며 docs/생성물은 제외한다. APK 빌드 당시의 전체 입력 해시와 구분한다.
 - `ktlintFormat` 뒤 별도 `ktlintCheck`를 통과했다. DOCS/README/Markdown은 자동 포매팅하지 않았다. 최신 CI는 연결 PR의 정확한 head를 확인한다.
 
 | Light 360dp/100% | Dark 320dp/200% |
@@ -32,9 +32,13 @@ Issue [#70](https://github.com/1971123-seongmin/MONIT/issues/70), 기준 main `b
 
 실제 Route/VM의 Native host 이미지이며 OS 대화상자나 실기기 성능 증거가 아니다. UI Repository는 합성 대역이고 금융 영속성은 별도 실제 파일 Room 시험으로 구분한다.
 
+초기 CI의 기존 알림 DB 시험은 async a/b의 호출·await 순서를 prepare 확정 순서로 가정했다. b를 먼저 확정시키는 gate에서 기존 `current(first)=false`가 실패함을 재현했다. 일반 병렬 실행은 유지하고 역순 완료 시험을 추가했다. 두 plan 중 실제 current가 정확히 하나이고 나머지가 stale인지, 같은 일별 token/두 멤버인지 확인한 뒤 유효 plan만 applied한다. 재열기 중복0·다음날 AFTER 단언도 유지한다. 이 보완은 시험만 바꾸며 제품 구현을 변경하지 않는다.
+
 ## 고정 QA 산출물
 
 두 APK는 versionCode1/versionName0.1.0이고 `aapt2 dump badging`의 앱 ID가 metadata와 일치한다. `apksigner verify --verbose --print-certs`를 통과했으며 개발용 인증서 SHA-256은 기존 QA와 같은 `ECCC8070141D875ED47BC4A5DEDB398C27CD111ABAF3AD8880994BE6557B8CEE`다. APK 자체는 Git에 포함하지 않는다.
+
+APK 빌드 소스는 `45cbb002da51f48168660645c1dd029bc2971401`, 당시 전체 검증 입력은 `A2A0BFE50B0F217A3D3309686A89937443595617BF09DF6547035D346B17577A`다. 이후 시험/문서 보완 때문에 APK를 재빌드하지 않는다. 제품 소스/리소스/빌드 파일 294개의 작업 파일 입력 SHA-256은 `B2DEDDE81BFAFB98FE6923099C6CA30B4508E461B2414E5F413D83DE4EB89208`, 해당 Git blob 목록 SHA-256은 `226902A9C6B645C2632E75177AA58A83CD6E44D757EEB2E4078388FEB27FD1B1`이다. 새 시험 검증 head와 빌드 소스의 제품 tree 동일성·APK 파일 hash 불변을 별도로 대조한다. 소스 연결 근거이며 APK에 commit SHA를 내장했다는 의미는 아니다.
 
 | 변형 | 앱 ID | bytes | APK SHA-256 |
 |---|---|---:|---|
