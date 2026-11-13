@@ -41,7 +41,7 @@ class DraftEditor(
         try {
             if (savedId != null) {
                 when (val snapshot = repository.draft(context, savedId)) {
-                    is DraftSnapshot.Closed, is DraftSnapshot.Submitted -> {
+                    is DraftSnapshot.Closed, is DraftSnapshot.Submitted, is DraftSnapshot.Rejected -> {
                         mutable.value = DraftEditorState(DraftEditorPhase.CLOSED)
                         return
                     }

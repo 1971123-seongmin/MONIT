@@ -62,7 +62,7 @@ class LedgerRecoveryTest {
     private val orphanStatements = listOf(
         "INSERT INTO accounts VALUES ('x','a','합성','GENERAL','ACTIVE',1)",
         "INSERT INTO anchors VALUES ('x','a','b','2026-10-31',NULL,NULL,'확인 전',1)",
-        "INSERT INTO transactions VALUES ('x','a','INCOME','2026-11-01',1,NULL,'b',NULL,'GENERAL','',1,1)",
+        "INSERT INTO transactions VALUES ('x','a','INCOME','2026-11-01',1,NULL,'b',NULL,'GENERAL','',1,1,NULL)",
         "INSERT INTO operations VALUES ('x','a','g','UPDATE_ACCOUNT','{}','h','2026-11-01T00:00:00Z',1,'[]')",
         "INSERT INTO submissions VALUES ('x','a','{}','h')",
     )
@@ -346,7 +346,7 @@ class LedgerRecoveryTest {
         pending(10, raw, "bad-hash")
         pending(11, raw.replace(context.storageGeneration, id(999)))
         pending(12, "$raw ")
-        pending(13, raw.replace("\"version\":1", "\"version\":2"))
+        pending(13, raw.replace("\"version\":1", "\"version\":3"))
         pending(14, raw.replace("UPDATE_ACCOUNT", "FUTURE_KIND"))
         pending(15, "{")
         pending(16, raw.replace("2026-10-31", "bad-date"))

@@ -58,6 +58,14 @@ class EntryRenderTest {
 
     @Test fun draftSaveFailureDarkLargeText() = render("draft-failed", true, 320, 2f)
 
+    @Test fun existingDetailLight() = render("detail", false)
+
+    @Test fun existingDetailDark() = render("detail", true)
+
+    @Test fun deletedResultDark() = render("deleted", true)
+
+    @Test fun conflictResultLargeFont() = render("conflict", false, 320, 2f)
+
     private fun render(screen: String, dark: Boolean, width: Int = 360, font: Float = 1f) {
         lateinit var view: View
         val kind = when (screen) {
@@ -76,7 +84,14 @@ class EntryRenderTest {
         )
         val state = TransactionEntryState(
             ui,
-            if (screen == "saved") EntryPhase.SAVED else EntryPhase.EDITING,
+            when (screen) {
+                "saved", "deleted" -> EntryPhase.SAVED
+                "conflict" -> EntryPhase.REJECTED
+                else -> EntryPhase.EDITING
+            },
+            existing = screen in listOf("detail", "deleted", "conflict"),
+            viewing = screen == "detail",
+            deleting = screen == "deleted",
             inputError = if (screen == "error") TransactionInputError.AMOUNT else null,
             draftPersistence = if (screen.startsWith("draft-")) DraftEditorState(
                 DraftEditorPhase.EDITING,
@@ -103,6 +118,8 @@ class EntryRenderTest {
         }
         compose.waitForIdle()
         if (screen == "saved") compose.onNodeWithText("목록 보기").assertExists()
+        else if (screen == "deleted") compose.onNodeWithText("거래를 삭제했어요").assertExists()
+        else if (screen == "conflict") compose.onNodeWithText("충돌 결과 확인 마치기").performScrollTo().assertIsDisplayed()
         else if (screen == "account") compose.onNodeWithText("계좌 저장").assertExists()
         else compose.onNodeWithContentDescription("금액 (원)").assertExists()
         val bounds = compose.onNodeWithTag("entry-render").fetchSemanticsNode().boundsInRoot

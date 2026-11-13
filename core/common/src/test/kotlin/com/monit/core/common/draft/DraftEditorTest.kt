@@ -192,5 +192,7 @@ private class MemoryDrafts : DraftRepository {
         rows[reference.id] = DraftSnapshot.Closed(reference.copy(revision = reference.revision + 1), null)
     }
     override suspend fun createAccountFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateAccount): WriteReceipt = error("금융 writer는 data 시험의 책임")
+    override suspend fun updateTransactionFromDraft(context: com.monit.core.model.LedgerContext, reference: com.monit.core.model.DraftReference, scope: com.monit.core.model.DraftScope, operationId: String, value: com.monit.core.model.UpdateTransaction): com.monit.core.model.WriteReceipt = error("Unexpected update")
+
     override suspend fun createTransactionFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateTransaction): WriteReceipt = error("금융 writer는 data 시험의 책임")
 }

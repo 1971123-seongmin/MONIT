@@ -10,9 +10,11 @@ data class TransactionEntryDestination(
     val initialKind: TransactionEntryKind,
     val initialDate: String? = null,
     val origin: TransactionEntryOrigin? = null,
+    val transactionId: String? = null,
 ) {
     init {
         require(entryId.isNotBlank())
+        transactionId?.let { com.monit.core.model.requireLedgerId(it) }
         initialDate?.let {
             require(LocalDate.parse(it).toString() == it) { "Expected an ISO date" }
         }

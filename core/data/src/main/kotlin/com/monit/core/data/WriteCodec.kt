@@ -3,9 +3,11 @@ package com.monit.core.data
 import com.monit.core.model.AccountNature
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.CreateTransaction
+import com.monit.core.model.DeleteTransaction
 import com.monit.core.model.EntityRef
 import com.monit.core.model.LedgerContext
 import com.monit.core.model.TransactionKind
+import com.monit.core.model.UpdateTransaction
 import com.monit.core.model.WriteReceipt
 import java.security.MessageDigest
 import java.time.LocalDate
@@ -15,10 +17,13 @@ import org.json.JSONObject
 internal sealed interface WriteCommand {
     data class Account(val value: CreateAccount) : WriteCommand
     data class Transaction(val value: CreateTransaction) : WriteCommand
+    data class Update(val value: UpdateTransaction) : WriteCommand
+    data class Delete(val value: DeleteTransaction) : WriteCommand
 }
 
 /** 내부 생성 명령 v1의 고정 필드 순서/정수 문자열/JSON escape. 백업 DTO가 아니다. */
 internal fun captureWrite(context: LedgerContext, command: WriteCommand): String {
+    var expectedRevision: Long? = null
     val kind: String
     val id: String
     val value: String
@@ -36,9 +41,10 @@ internal fun captureWrite(context: LedgerContext, command: WriteCommand): String
             )
         }
 
-        is WriteCommand.Transaction -> {
-            val t = command.value
-            kind = "CREATE_TRANSACTION"
+        is WriteCommand.Transaction, is WriteCommand.Update -> {
+            val t = if (command is WriteCommand.Transaction) command.value else (command as WriteCommand.Update).value.value
+            if (command is WriteCommand.Update) expectedRevision = command.value.expectedRevision
+            kind = if (command is WriteCommand.Update) "UPDATE_TRANSACTION" else "CREATE_TRANSACTION"
             id = t.id
             value = jsonObject(
                 "kind" to quote(t.kind.name),
@@ -49,26 +55,38 @@ internal fun captureWrite(context: LedgerContext, command: WriteCommand): String
                 "memo" to quote(t.memo),
             )
         }
+
+        is WriteCommand.Delete -> {
+            kind = "DELETE_TRANSACTION"
+            id = command.value.id
+            expectedRevision = command.value.expectedRevision
+            value = "null"
+        }
     }
     return jsonObject(
-        "version" to "1",
+        "version" to if (expectedRevision == null) "1" else "2",
         "ledgerId" to quote(context.ledgerId),
         "expectedStorageGeneration" to quote(context.storageGeneration),
         "kind" to quote(kind),
         "targetId" to quote(id),
-        "expectedRevision" to "null",
+        "expectedRevision" to (expectedRevision?.let { quote(it.toString()) } ?: "null"),
         "value" to value,
     )
 }
 
 internal fun decodeWrite(context: LedgerContext, request: String): WriteCommand {
     val json = JSONObject(request)
-    check(json.getInt("version") == 1 && json.isNull("expectedRevision"))
+    val version = json.getInt("version")
+    check(version == 1 || version == 2)
+    val expected = if (version == 1) {
+        check(json.isNull("expectedRevision"))
+        null
+    } else json.getString("expectedRevision").toLong().also { require(it > 0 && it < Long.MAX_VALUE) }
     check(
         json.getString("ledgerId") == context.ledgerId &&
             json.getString("expectedStorageGeneration") == context.storageGeneration,
     )
-    val value = json.getJSONObject("value")
+    val value = json.optJSONObject("value") ?: JSONObject()
     val id = json.getString("targetId")
     val command = when (json.getString("kind")) {
         "UPDATE_ACCOUNT" -> WriteCommand.Account(
@@ -82,17 +100,30 @@ internal fun decodeWrite(context: LedgerContext, request: String): WriteCommand 
             ),
         )
 
-        "CREATE_TRANSACTION" -> WriteCommand.Transaction(
-            CreateTransaction(
-                id,
-                TransactionKind.valueOf(value.getString("kind")),
-                LocalDate.parse(value.getString("date")),
-                value.getString("amount").toLong(),
-                value.nullableString("debitAccountId"),
-                value.nullableString("creditAccountId"),
-                value.getString("memo"),
-            ),
-        )
+        "CREATE_TRANSACTION", "UPDATE_TRANSACTION" -> {
+            val transaction =
+                CreateTransaction(
+                    id,
+                    TransactionKind.valueOf(value.getString("kind")),
+                    LocalDate.parse(value.getString("date")),
+                    value.getString("amount").toLong(),
+                    value.nullableString("debitAccountId"),
+                    value.nullableString("creditAccountId"),
+                    value.getString("memo"),
+                )
+            if (json.getString("kind") == "UPDATE_TRANSACTION") {
+                check(version == 2)
+                WriteCommand.Update(UpdateTransaction(transaction, checkNotNull(expected)))
+            } else {
+                check(version == 1)
+                WriteCommand.Transaction(transaction)
+            }
+        }
+
+        "DELETE_TRANSACTION" -> {
+            check(version == 2 && json.isNull("value"))
+            WriteCommand.Delete(DeleteTransaction(id, checkNotNull(expected)))
+        }
 
         else -> error("Unsupported captured write")
     }

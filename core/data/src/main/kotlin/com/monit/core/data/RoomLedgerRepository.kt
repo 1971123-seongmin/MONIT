@@ -7,6 +7,7 @@ import com.monit.core.model.AccountStatus
 import com.monit.core.model.BalanceAnchor
 import com.monit.core.model.CreateAccount
 import com.monit.core.model.CreateTransaction
+import com.monit.core.model.DeleteTransaction
 import com.monit.core.model.DraftConflictException
 import com.monit.core.model.DraftProblem
 import com.monit.core.model.DraftReference
@@ -28,6 +29,9 @@ import com.monit.core.model.SubmissionRecoveryItem
 import com.monit.core.model.SubmissionRecoveryProblem
 import com.monit.core.model.SubmissionRecoverySnapshot
 import com.monit.core.model.TransactionKind
+import com.monit.core.model.TransactionRejectedException
+import com.monit.core.model.TransactionRejection
+import com.monit.core.model.UpdateTransaction
 import com.monit.core.model.WriteReceipt
 import com.monit.core.model.requireLedgerId
 import com.monit.core.model.sumSignedAmounts
@@ -87,7 +91,7 @@ internal class RoomLedgerRepository @Inject constructor(
 
     override suspend fun pendingRecovery(context: LedgerContext): PendingRecoverySnapshot = database.withTransaction {
         requireContext(context)
-        val items = dao.submissions(context.ledgerId).map {
+        val items = dao.submissions(context.ledgerId).filter { !hasVerifiedRejection(context, it.operationId) }.map {
             currentCoroutineContext().ensureActive()
             it.toRecoveryItem(context)
         }
@@ -108,7 +112,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 pending[reference.operationId],
                 dao.operation(context.ledgerId, reference.operationId),
             )
-        } + pending.values.filter { it.operationId !in activeIds }.map { submission ->
+        } + pending.values.filter { it.operationId !in activeIds && !hasVerifiedRejection(context, it.operationId) }.map { submission ->
             currentCoroutineContext().ensureActive()
             recoveryItem(
                 context,
@@ -133,7 +137,7 @@ internal class RoomLedgerRepository @Inject constructor(
         val item = recoveryItem(
             context,
             ledger.revision,
-            reference ?: operation?.let {
+            reference ?: dao.rejection(context.ledgerId, operationId)?.let { SubmissionReferenceEntity(context.ledgerId, operationId, it.storageGeneration) } ?: operation?.let {
                 SubmissionReferenceEntity(
                     context.ledgerId,
                     operationId,
@@ -144,7 +148,7 @@ internal class RoomLedgerRepository @Inject constructor(
             operation,
         )
         when (item) {
-            is SubmissionRecoveryItem.Committed -> {
+            is SubmissionRecoveryItem.Committed, is SubmissionRecoveryItem.Rejected -> {
                 val result =
                     if (reference == null) FinishSubmissionRecoveryResult.AlreadyInactive else {
                         check(dao.deleteSubmissionReference(context.ledgerId, operationId) == 1)
@@ -187,6 +191,15 @@ internal class RoomLedgerRepository @Inject constructor(
         value: CreateTransaction,
     ) = submit(context, operationId, WriteCommand.Transaction(value))
 
+    override suspend fun updateTransaction(context: LedgerContext, operationId: String, value: UpdateTransaction) = submit(context, operationId, WriteCommand.Update(value))
+    override suspend fun deleteTransaction(context: LedgerContext, operationId: String, value: DeleteTransaction) = submit(context, operationId, WriteCommand.Delete(value))
+
+    override suspend fun rejection(context: LedgerContext, operationId: String): TransactionRejection? = database.withTransaction {
+        requireLedgerId(operationId)
+        requireContext(context)
+        dao.rejection(context.ledgerId, operationId)?.let { verifiedRejection(context, it) }
+    }
+
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? = database.withTransaction {
         requireLedgerId(operationId)
         val ledger = requireContext(context)
@@ -196,7 +209,7 @@ internal class RoomLedgerRepository @Inject constructor(
 
     override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> = database.withTransaction {
         requireContext(context)
-        dao.submissions(context.ledgerId).map { PendingWrite(it.operationId, it.requestJson) }
+        dao.submissions(context.ledgerId).filter { !hasVerifiedRejection(context, it.operationId) }.map { PendingWrite(it.operationId, it.requestJson) }
     }
 
     override suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt = withContext(coroutineContexts.default) {
@@ -205,6 +218,7 @@ internal class RoomLedgerRepository @Inject constructor(
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)
                 ?.let { return@withTransaction verifiedReceipt(context, ledger, it) to null }
+            dao.rejection(context.ledgerId, operationId)?.let { throw TransactionRejectedException(verifiedRejection(context, it)) }
             val submission = checkNotNull(
                 dao.submission(
                     context.ledgerId,
@@ -241,6 +255,10 @@ internal class RoomLedgerRepository @Inject constructor(
                 completedDraft(context, operationId, draft)
                 return@withTransaction verifiedReceipt(context, ledger, it)
             }
+            dao.rejection(context.ledgerId, operationId)?.let {
+                requireSameRequest(it.requestJson, it.requestSha256, payload, hash)
+                throw TransactionRejectedException(verifiedRejection(context, it))
+            }
             lockDraft(context, operationId, command, draft)
             val reference = dao.submissionReference(context.ledgerId, operationId)
             if (reference != null && reference.storageGeneration != context.storageGeneration) {
@@ -264,7 +282,7 @@ internal class RoomLedgerRepository @Inject constructor(
             null
         }
         if (prior != null) return@withContext prior
-        database.withTransaction {
+        val outcome = database.withTransaction {
             database.requireDurableWriter()
             val ledger = requireContext(context)
             dao.operation(context.ledgerId, operationId)?.let {
@@ -276,10 +294,34 @@ internal class RoomLedgerRepository @Inject constructor(
             if (reference.storageGeneration != context.storageGeneration) conflict(LedgerConflict.STALE_GENERATION)
             val pending = checkNotNull(dao.submission(context.ledgerId, operationId))
             requireSameRequest(pending.requestJson, pending.requestSha256, payload, hash)
+            dao.rejection(context.ledgerId, operationId)?.let {
+                requireSameRequest(it.requestJson, it.requestSha256, payload, hash)
+                return@withTransaction verifiedRejection(context, it)
+            }
             val linked = linkedDraft(context, operationId, command)
+            val target = when (command) {
+                is WriteCommand.Update -> command.value.value.id to command.value.expectedRevision
+                is WriteCommand.Delete -> command.value.id to command.value.expectedRevision
+                else -> null
+            }
+            if (target != null) {
+                val row = dao.transaction(context.ledgerId, target.first) ?: conflict(LedgerConflict.MISSING_REFERENCE)
+                if (row.revision != target.second || row.deletedAt != null) {
+                    val rejected = SubmissionRejectionEntity(context.ledgerId, operationId, context.storageGeneration, payload, hash, target.first, target.second, row.revision, row.deletedAt, clock.instant().toString())
+                    dao.insertRejection(rejected)
+                    if (linked != null) {
+                        Math.addExact(linked.revision, 1)
+                        check(database.formDraftDao().reject(context.ledgerId, operationId) == 1)
+                    }
+                    currentCoroutineContext().ensureActive()
+                    return@withTransaction verifiedRejection(context, rejected)
+                }
+            }
             val refs = when (command) {
                 is WriteCommand.Account -> insertAccount(context, command.value)
                 is WriteCommand.Transaction -> insertTransaction(context, command.value)
+                is WriteCommand.Update -> changeTransaction(context, operationId, command.value.value.id, command.value.expectedRevision, command.value.value)
+                is WriteCommand.Delete -> changeTransaction(context, operationId, command.value.id, command.value.expectedRevision, null)
             }
             if (dao.advanceRevision(
                     context.ledgerId,
@@ -287,8 +329,12 @@ internal class RoomLedgerRepository @Inject constructor(
                 ) != 1
             ) conflict(LedgerConflict.STALE_REVISION)
             val result = WriteReceipt(operationId, Math.addExact(ledger.revision, 1), refs)
-            val kind =
-                if (command is WriteCommand.Account) "UPDATE_ACCOUNT" else "CREATE_TRANSACTION"
+            val kind = when (command) {
+                is WriteCommand.Account -> "UPDATE_ACCOUNT"
+                is WriteCommand.Transaction -> "CREATE_TRANSACTION"
+                is WriteCommand.Update -> "UPDATE_TRANSACTION"
+                is WriteCommand.Delete -> "DELETE_TRANSACTION"
+            }
             dao.insertOperation(
                 OperationEntity(
                     context.ledgerId,
@@ -310,6 +356,44 @@ internal class RoomLedgerRepository @Inject constructor(
             currentCoroutineContext().ensureActive()
             result
         }
+        when (outcome) {
+            is WriteReceipt -> outcome
+            is TransactionRejection -> throw TransactionRejectedException(outcome)
+            else -> error("Unknown transaction outcome")
+        }
+    }
+
+    private suspend fun hasVerifiedRejection(context: LedgerContext, operationId: String): Boolean {
+        val row = dao.rejection(context.ledgerId, operationId) ?: return false
+        verifiedRejection(context, row)
+        return true
+    }
+
+    private suspend fun verifiedRejection(context: LedgerContext, row: SubmissionRejectionEntity): TransactionRejection {
+        val pending = dao.submission(context.ledgerId, row.operationId)
+        val operation = dao.operation(context.ledgerId, row.operationId)
+        val targetPresent = dao.transaction(context.ledgerId, row.transactionId) != null
+        return decodeRejection(context, row, pending, operation, targetPresent)
+    }
+
+    private fun decodeRejection(context: LedgerContext, row: SubmissionRejectionEntity, pendingRow: SubmissionEntity?, operation: OperationEntity?, targetPresent: Boolean): TransactionRejection {
+        check(row.ledgerId == context.ledgerId && row.storageGeneration == context.storageGeneration)
+        requireLedgerId(row.operationId)
+        check(operation == null)
+        check(requestHash(row.requestJson) == row.requestSha256)
+        val pending = checkNotNull(pendingRow)
+        check(pending.requestJson == row.requestJson && pending.requestSha256 == row.requestSha256)
+        val target = when (val command = decodeWrite(context, row.requestJson)) {
+            is WriteCommand.Update -> command.value.value.id to command.value.expectedRevision
+            is WriteCommand.Delete -> command.value.id to command.value.expectedRevision
+            else -> error("Not a transaction change")
+        }
+        check(target == (row.transactionId to row.expectedRevision))
+        check(row.actualRevision > 0 && (row.actualRevision != row.expectedRevision || row.actualDeletedAt != null))
+        java.time.Instant.parse(row.rejectedAt)
+        row.actualDeletedAt?.let(java.time.Instant::parse)
+        check(targetPresent)
+        return TransactionRejection(context, row.operationId, row.transactionId, row.expectedRevision, row.actualRevision, row.actualDeletedAt, row.rejectedAt)
     }
 
     private suspend fun lockDraft(context: LedgerContext, operation: String, command: WriteCommand, attempt: DraftAttempt?) {
@@ -436,6 +520,46 @@ internal class RoomLedgerRepository @Inject constructor(
         return listOf(EntityRef("transactions", value.id, 1))
     }
 
+    /** CAS는 성공 영수증 확인 후 동일 writer 트랜잭션에서만 수행한다. */
+    private suspend fun changeTransaction(context: LedgerContext, operationId: String, id: String, expected: Long, value: CreateTransaction?): List<EntityRef> {
+        val before = dao.transaction(context.ledgerId, id) ?: conflict(LedgerConflict.MISSING_REFERENCE)
+        if (before.revision != expected || before.deletedAt != null) conflict(LedgerConflict.STALE_REVISION)
+        val changedAt = clock.instant().toString()
+        val after = if (value == null) before.copy(
+            revision = Math.addExact(before.revision, 1),
+            financialRevision = Math.addExact(before.financialRevision, 1),
+            deletedAt = changedAt,
+        ) else {
+            transactionDateOf(value.date.year, value.date.monthValue, value.date.dayOfMonth, today())
+            val financialChange = before.kind != value.kind.name || before.date != value.date.toString() ||
+                before.amount != value.amount || before.debitAccountId != value.debitAccountId || before.creditAccountId != value.creditAccountId
+            suspend fun account(id: String?): AccountEntity? {
+                if (id == null) return null
+                val account = dao.account(context.ledgerId, id) ?: conflict(LedgerConflict.MISSING_REFERENCE)
+                if (financialChange && account.status != "ACTIVE") conflict(LedgerConflict.ARCHIVED_ACCOUNT)
+                return account
+            }
+            val debit = account(value.debitAccountId)
+            val credit = account(value.creditAccountId)
+            before.copy(
+                kind = value.kind.name, date = value.date.toString(), amount = value.amount,
+                debitAccountId = debit?.id, creditAccountId = credit?.id,
+                debitNature = if (financialChange) debit?.nature else before.debitNature,
+                creditNature = if (financialChange) credit?.nature else before.creditNature,
+                memo = value.memo, revision = Math.addExact(before.revision, 1),
+                financialRevision = if (financialChange) Math.addExact(before.financialRevision, 1) else before.financialRevision,
+            )
+        }
+        dao.insertTransactionHistory(TransactionHistoryEntity(before, operationId, changedAt, if (value == null) "DELETE" else "UPDATE"))
+        check(dao.updateTransaction(after) == 1)
+        snapshotInside(context, today())
+        for (date in listOf(before.date, after.date).distinct()) {
+            val month = LocalDate.parse(date)
+            snapshotInside(context, minOf(month.withDayOfMonth(month.lengthOfMonth()), today()))
+        }
+        return listOf(EntityRef("transactions", id, after.revision))
+    }
+
     override suspend fun snapshot(context: LedgerContext, asOf: LocalDate): LedgerSnapshot = database.withTransaction {
         require(asOf >= LocalDate.of(1900, 1, 1) && asOf <= today())
         snapshotInside(context, asOf)
@@ -461,7 +585,7 @@ internal class RoomLedgerRepository @Inject constructor(
                 ),
             )
         }
-        val transactions = dao.transactions(context.ledgerId).map { t ->
+        val transactions = dao.transactions(context.ledgerId).filter { it.deletedAt == null }.map { t ->
             val value = CreateTransaction(
                 t.id,
                 TransactionKind.valueOf(t.kind),
@@ -553,6 +677,26 @@ internal class RoomLedgerRepository @Inject constructor(
         pending: SubmissionEntity?,
         operation: OperationEntity?,
     ): SubmissionRecoveryItem {
+        val rejected = reference?.let { dao.rejection(context.ledgerId, it.operationId) }
+        if (rejected != null) {
+            val rejectedPending = dao.submission(context.ledgerId, rejected.operationId)
+            val rejectedOperation = dao.operation(context.ledgerId, rejected.operationId)
+            val targetPresent = dao.transaction(context.ledgerId, rejected.transactionId) != null
+            return try {
+                check(reference.storageGeneration == context.storageGeneration)
+                SubmissionRecoveryItem.Rejected(com.monit.core.model.SubmissionReference(context, reference.operationId), decodeRejection(context, rejected, rejectedPending, rejectedOperation, targetPresent))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: IllegalArgumentException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            } catch (error: IllegalStateException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            } catch (error: org.json.JSONException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            } catch (error: java.time.DateTimeException) {
+                SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)
+            }
+        }
         val item = submissionRecoveryItem(context, ledgerRevision, reference, pending, operation)
         if (item !is SubmissionRecoveryItem.Committed) return item
         for (entity in item.receipt.entities) {

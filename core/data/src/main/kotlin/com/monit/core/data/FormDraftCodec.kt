@@ -8,7 +8,15 @@ private fun obj(vararg fields: Pair<String, String>) = fields.joinToString(",", 
 private fun text(value: String?) = value?.let(JSONObject::quote) ?: "null"
 private fun JSONObject.optional(key: String): String? = if (isNull(key)) null else getString(key)
 
-internal fun captureDraftScope(scope: DraftScope): String = obj(
+internal fun captureDraftScope(scope: DraftScope): String = if (scope.transactionId != null) obj(
+    "kind" to text(scope.kind.name),
+    "origin" to text(scope.origin.name),
+    "parent" to text(scope.parentDraftId),
+    "request" to text(scope.selectionRequestId),
+    "slot" to text(scope.slot?.name),
+    "transaction" to text(scope.transactionId),
+    "transactionRevision" to text(scope.transactionRevision.toString()),
+) else obj(
     "kind" to text(scope.kind.name),
     "origin" to text(scope.origin.name),
     "parent" to text(scope.parentDraftId),
@@ -24,6 +32,8 @@ internal fun decodeDraftScope(json: String): DraftScope {
         value.optional("parent"),
         value.optional("request"),
         value.optional("slot")?.let(DraftSlot::valueOf),
+        value.optional("transaction"),
+        value.optional("transactionRevision")?.toLong(),
     )
     check(captureDraftScope(scope) == json)
     return scope
@@ -62,7 +72,7 @@ internal fun captureDraft(context: LedgerContext, id: String, scope: DraftScope,
 
 internal fun FormDraftEntity.editable(context: LedgerContext): FormDraft {
     if (storageGeneration != context.storageGeneration || ledgerId != context.ledgerId) throw DraftConflictException(DraftProblem.WRONG_CONTEXT)
-    check(status == "EDITING" || status == "SUBMITTING")
+    check(status == "EDITING" || status == "SUBMITTING" || status == "REJECTED")
     val raw = checkNotNull(payloadJson)
     check(requestHash(raw) == payloadSha256)
     val json = JSONObject(raw)
@@ -85,6 +95,11 @@ internal fun FormDraftEntity.editable(context: LedgerContext): FormDraft {
 }
 
 internal fun FormDraft.matches(command: WriteCommand): Boolean {
+    if (command is WriteCommand.Update) {
+        if (scope.transactionId != command.value.value.id || scope.transactionRevision != command.value.expectedRevision) return false
+        return copy(scope = scope.copy(transactionId = null, transactionRevision = null)).matches(WriteCommand.Transaction(command.value.value))
+    }
+    if (command is WriteCommand.Transaction && scope.transactionId != null) return false
     val raw = content
     return when {
         raw is DraftContent.Account && command is WriteCommand.Account -> {

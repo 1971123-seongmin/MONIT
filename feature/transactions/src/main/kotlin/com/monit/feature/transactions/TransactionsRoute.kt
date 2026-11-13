@@ -13,6 +13,7 @@ fun TransactionsRoute(
     context: LedgerContext,
     viewModel: TransactionsViewModel = hiltViewModel(),
     onNewTransaction: ((LocalDate) -> Unit)? = null,
+    onTransactionSelected: ((String) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -31,6 +32,7 @@ fun TransactionsRoute(
         onCalendarSelected = viewModel::selectCalendar,
         onKindSelected = viewModel::selectKind,
         onAccountSelected = viewModel::selectAccount,
+        onTransactionSelected = onTransactionSelected,
         onNewTransaction = onNewTransaction?.let { callback -> { callback(state.ui.selectedDate) } },
     )
 }

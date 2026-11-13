@@ -37,12 +37,16 @@ internal class QueryRepository : LedgerRepository {
         value: CreateAccount,
     ): WriteReceipt = error("조회는 계좌를 저장하지 않는다")
 
+    override suspend fun updateTransaction(context: com.monit.core.model.LedgerContext, operationId: String, value: com.monit.core.model.UpdateTransaction): com.monit.core.model.WriteReceipt = error("Unexpected update")
+    override suspend fun deleteTransaction(context: com.monit.core.model.LedgerContext, operationId: String, value: com.monit.core.model.DeleteTransaction): com.monit.core.model.WriteReceipt = error("Unexpected delete")
+
     override suspend fun createTransaction(
         context: LedgerContext,
         operationId: String,
         value: CreateTransaction,
     ): WriteReceipt = error("조회는 거래를 저장하지 않는다")
 
+    override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = null
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? = error("제출 복구는 별도 범위다")
 
     override suspend fun pendingWrites(context: LedgerContext): List<PendingWrite> = error("제출 복구는 별도 범위다")

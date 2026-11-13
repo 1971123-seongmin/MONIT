@@ -69,13 +69,13 @@ private fun validateCommitted(
         val json = JSONObject(operation.requestJson)
         val version = json.get("version")
         if (version !is Int && version !is Long) return blocked(SubmissionRecoveryProblem.CORRUPTED)
-        if ((version as Number).toLong() != 1L) return blocked(SubmissionRecoveryProblem.UNSUPPORTED)
+        if ((version as Number).toLong() !in 1L..2L) return blocked(SubmissionRecoveryProblem.UNSUPPORTED)
         if (json.get("ledgerId") != reference.context.ledgerId ||
             json.get("expectedStorageGeneration") != reference.context.storageGeneration
         ) return blocked(SubmissionRecoveryProblem.GENERATION_MISMATCH)
         val kind = json.get("kind")
         if (kind !is String) return blocked(SubmissionRecoveryProblem.CORRUPTED)
-        if (kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION") {
+        if (kind != "UPDATE_ACCOUNT" && kind != "CREATE_TRANSACTION" && kind != "UPDATE_TRANSACTION" && kind != "DELETE_TRANSACTION") {
             return blocked(SubmissionRecoveryProblem.UNSUPPORTED)
         }
         if (operation.kind != kind) return blocked(SubmissionRecoveryProblem.CORRUPTED)
@@ -93,6 +93,10 @@ private fun validateCommitted(
                         1,
                     ),
                 )
+
+                is WriteCommand.Update -> listOf(EntityRef("transactions", command.value.value.id, Math.addExact(command.value.expectedRevision, 1)))
+
+                is WriteCommand.Delete -> listOf(EntityRef("transactions", command.value.id, Math.addExact(command.value.expectedRevision, 1)))
             }
         Instant.parse(operation.committedAt)
         val receipt = operation.receipt()

@@ -43,9 +43,11 @@ fun TransactionEntryScreen(
     onDone: () -> Unit,
     onBack: () -> Unit,
     onFlush: () -> Unit = {},
+    onBeginEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
 ) {
     val ui = state.ui
-    val editable = state.phase == EntryPhase.EDITING && (state.draftPersistence == null || state.draftPersistence.phase == DraftEditorPhase.EDITING) && state.draftPersistence?.frozen != true
+    val editable = !state.viewing && state.phase == EntryPhase.EDITING && (state.draftPersistence == null || state.draftPersistence.phase == DraftEditorPhase.EDITING) && state.draftPersistence?.frozen != true
     val kinds = listOf(
         TransactionKind.EXPENSE,
         TransactionKind.INCOME,
@@ -80,7 +82,7 @@ fun TransactionEntryScreen(
         verticalArrangement = Arrangement.spacedBy(MonitTheme.spacing.content),
     ) {
         MonitTopBar(
-            if (state.phase == EntryPhase.SAVED) "기록 완료" else "거래 기록",
+            if (state.phase == EntryPhase.SAVED) "처리 완료" else if (state.existing) "거래 상세·수정" else "거래 기록",
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -202,12 +204,27 @@ fun TransactionEntryScreen(
         }
 
         when (state.phase) {
-            EntryPhase.EDITING -> MonitButton(
-                "저장",
-                Modifier.fillMaxWidth(),
-                enabled = editable,
-                onClick = onSubmit,
-            )
+            EntryPhase.EDITING -> {
+                if (state.viewing) {
+                    MonitButton(
+                        "수정하기",
+                        Modifier.fillMaxWidth(),
+                        onClick = onBeginEdit,
+                    )
+
+                    MonitButton(
+                        "거래 삭제",
+                        Modifier.fillMaxWidth(),
+                        type = MonitButtonType.Secondary,
+                        onClick = onDelete,
+                    )
+                } else MonitButton(
+                    "저장",
+                    Modifier.fillMaxWidth(),
+                    enabled = editable,
+                    onClick = onSubmit,
+                )
+            }
 
             EntryPhase.LOADING -> MonitStatusPanel(
                 "불러오는 중",
@@ -244,10 +261,23 @@ fun TransactionEntryScreen(
                 )
             }
 
+            EntryPhase.REJECTED -> MonitStatusPanel(
+                "이 요청은 반영되지 않았어요",
+                "다른 변경이 있어 수정·삭제하지 않았습니다. 입력 초안과 원본은 보존됩니다. 확인 후 목록에서 최신 거래를 다시 선택해 주세요.",
+                error = true,
+                action = {
+                    MonitButton(
+                        "충돌 결과 확인 마치기",
+                        loading = state.finishing,
+                        onClick = onDone,
+                    )
+                },
+            )
+
             EntryPhase.SAVED -> {
                 MonitStatusPanel(
-                    "기록을 저장했어요",
-                    "확인된 거래를 목록에 반영했어요.",
+                    if (state.deleting) "거래를 삭제했어요" else "기록을 저장했어요",
+                    if (state.deleting) "목록·합계에서 제외했으며 원본과 변경 이력은 보존했어요." else "확인된 거래를 목록에 반영했어요.",
                     Modifier.fillMaxWidth(),
                     action = {
                         MonitButton(

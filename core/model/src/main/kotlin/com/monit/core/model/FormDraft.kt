@@ -11,8 +11,15 @@ data class DraftScope(
     val parentDraftId: String? = null,
     val selectionRequestId: String? = null,
     val slot: DraftSlot? = null,
+    val transactionId: String? = null,
+    val transactionRevision: Long? = null,
 ) {
     init {
+        if (transactionId != null) {
+            require(kind == DraftKind.TRANSACTION)
+            requireLedgerId(transactionId)
+            require(transactionRevision != null && transactionRevision > 0 && transactionRevision < Long.MAX_VALUE)
+        } else require(transactionRevision == null)
         if (kind == DraftKind.TRANSACTION) require(origin == DraftOrigin.HOME || origin == DraftOrigin.TRANSACTIONS)
         else require(origin == DraftOrigin.ACCOUNTS || origin == DraftOrigin.TRANSACTION_ENTRY)
         if (origin == DraftOrigin.TRANSACTION_ENTRY) {
@@ -64,6 +71,7 @@ data class DraftSubmission(val reference: DraftReference, val scope: DraftScope)
 
 sealed interface DraftSnapshot {
     data class Editable(val draft: FormDraft) : DraftSnapshot
+    data class Rejected(val draft: FormDraft, val operationId: String) : DraftSnapshot
     data class Submitted(val reference: DraftReference, val operationId: String) : DraftSnapshot
     data class Closed(val reference: DraftReference, val operationId: String?) : DraftSnapshot
     data class Blocked(val id: String?, val reason: DraftProblem) : DraftSnapshot
@@ -80,5 +88,6 @@ interface DraftRepository {
     suspend fun saveDraft(context: LedgerContext, id: String, expectedRevision: Long, scope: DraftScope, content: DraftContent): FormDraft
     suspend fun discardDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope)
     suspend fun createAccountFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateAccount): WriteReceipt
+    suspend fun updateTransactionFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: UpdateTransaction): WriteReceipt
     suspend fun createTransactionFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateTransaction): WriteReceipt
 }

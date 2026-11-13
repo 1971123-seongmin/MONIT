@@ -46,6 +46,8 @@ internal class TestDraftRepository(private val ledger: LedgerRepository) : Draft
         lock(context, reference, scope, operationId)
         return ledger.createAccount(context, operationId, value).also { rows[reference.id] = DraftSnapshot.Closed(reference.copy(revision = reference.revision + 1), operationId) }
     }
+    override suspend fun updateTransactionFromDraft(context: com.monit.core.model.LedgerContext, reference: com.monit.core.model.DraftReference, scope: com.monit.core.model.DraftScope, operationId: String, value: com.monit.core.model.UpdateTransaction): com.monit.core.model.WriteReceipt = error("Unexpected update")
+
     override suspend fun createTransactionFromDraft(context: LedgerContext, reference: DraftReference, scope: DraftScope, operationId: String, value: CreateTransaction): WriteReceipt {
         lock(context, reference, scope, operationId)
         return ledger.createTransaction(context, operationId, value).also { rows[reference.id] = DraftSnapshot.Closed(reference.copy(revision = reference.revision + 1), operationId) }

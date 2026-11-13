@@ -62,13 +62,15 @@ class EntryRecoveryViewModel @Inject constructor(private val repository: LedgerR
         if (state.value.loading || index !in state.value.items.indices) return
         val item = state.value.items[index]
         val reference = item.reference(context ?: return) ?: return
-        mutable.value = state.value.copy(selected = index, loading = true, receipt = null, resultAbsent = false, failed = false)
+        mutable.value = state.value.copy(selected = index, loading = true, receipt = null, rejection = null, resultAbsent = false, failed = false)
         viewModelScope.launch {
             try {
                 val receipt = repository.receipt(reference.context, reference.operationId)
                 if (invalidContext) return@launch
                 require(receipt == null || receipt.operationId == reference.operationId)
-                mutable.value = state.value.copy(loading = false, receipt = receipt, resultAbsent = receipt == null)
+                val rejected = if (receipt == null) repository.rejection(reference.context, reference.operationId) else null
+                require(rejected == null || (rejected.context == reference.context && rejected.operationId == reference.operationId))
+                mutable.value = state.value.copy(loading = false, receipt = receipt, rejection = rejected, resultAbsent = receipt == null && rejected == null)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -95,6 +97,9 @@ class EntryRecoveryViewModel @Inject constructor(private val repository: LedgerR
                 if (invalidContext) return@launch
                 require(receipt.operationId == reference.operationId)
                 mutable.value = state.value.copy(loading = false, receipt = receipt)
+            } catch (rejected: TransactionRejectedException) {
+                if (!invalidContext && rejected.rejection.context == reference.context && rejected.rejection.operationId == reference.operationId) mutable.value = state.value.copy(loading = false, rejection = rejected.rejection)
+                else mutable.value = state.value.copy(loading = false, failed = true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -108,7 +113,7 @@ class EntryRecoveryViewModel @Inject constructor(private val repository: LedgerR
         val current = state.value
         val item = current.items.getOrNull(current.selected ?: return) ?: return
         val reference = item.reference(ledger) ?: return
-        if (current.loading || current.receipt?.operationId != reference.operationId) return
+        if (current.loading || (current.receipt?.operationId != reference.operationId && current.rejection?.operationId != reference.operationId)) return
         mutable.value = current.copy(loading = true, failed = false)
         viewModelScope.launch {
             try {
@@ -140,7 +145,13 @@ class EntryRecoveryViewModel @Inject constructor(private val repository: LedgerR
         return when {
             submission is PendingRecoveryItem.AccountRegistration -> RecoveryRowUiState("이전 계좌 등록", "${submission.value.name} · ${submission.value.anchorDate}")
 
+            submission is PendingRecoveryItem.TransactionUpdate -> RecoveryRowUiState("이전 거래 수정", "${submission.value.value.date} · ${submission.value.value.amount}원 · 수정 대상 revision ${submission.value.expectedRevision}")
+
+            submission is PendingRecoveryItem.TransactionDeletion -> RecoveryRowUiState("이전 거래 삭제", "삭제 대상 revision ${submission.value.expectedRevision} · 명시 재시도 시 합계에서 제외됩니다")
+
             submission is PendingRecoveryItem.TransactionCreation -> RecoveryRowUiState("이전 거래 저장", "${submission.value.date} · ${submission.value.amount}원 · ${submission.value.memo}")
+
+            item is SubmissionRecoveryItem.Rejected -> RecoveryRowUiState("반영되지 않은 수정·삭제", "다른 변경이 있어 이 요청은 반영되지 않았습니다. 결과를 확인해 주세요.")
 
             item is SubmissionRecoveryItem.Committed -> {
                 val account = records?.accounts?.find { account -> item.receipt.entities.any { it.collection == "accounts" && it.id == account.id } }
@@ -161,6 +172,7 @@ class EntryRecoveryViewModel @Inject constructor(private val repository: LedgerR
 
     private fun SubmissionRecoveryItem.reference(ledger: LedgerContext): SubmissionReference? = when (this) {
         is SubmissionRecoveryItem.Committed -> reference
+        is SubmissionRecoveryItem.Rejected -> reference
         is SubmissionRecoveryItem.Pending -> reference
         is SubmissionRecoveryItem.LegacyPending -> SubmissionReference(ledger, submission.operationId)
         is SubmissionRecoveryItem.Blocked -> null

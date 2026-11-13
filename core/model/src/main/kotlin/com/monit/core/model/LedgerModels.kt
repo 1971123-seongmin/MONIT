@@ -155,7 +155,7 @@ enum class LedgerConflict {
 
 class LedgerConflictException(val conflict: LedgerConflict) : IllegalStateException("Ledger conflict: $conflict")
 
-/** 계좌/거래 신규 저장 경계. 편집·삭제·납입·복원은 별도 구현 전 공개하지 않는다. */
+/** 계좌 생성·거래 생성/수정/논리 삭제 경계. 납입·복원은 포함하지 않는다. */
 interface LedgerRepository {
     /** 단일 장부를 찾거나, 업무 기록까지 비어 있는 최초 저장소에서만 원자적으로 생성한다. */
     suspend fun openLedger(): LedgerEntryResult
@@ -185,6 +185,10 @@ interface LedgerRepository {
         value: CreateTransaction,
     ): WriteReceipt
 
+    suspend fun updateTransaction(context: LedgerContext, operationId: String, value: UpdateTransaction): WriteReceipt
+    suspend fun deleteTransaction(context: LedgerContext, operationId: String, value: DeleteTransaction): WriteReceipt
+
+    suspend fun rejection(context: LedgerContext, operationId: String): TransactionRejection?
     suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt?
     suspend fun pendingWrites(context: LedgerContext): List<PendingWrite>
     suspend fun retryPending(context: LedgerContext, operationId: String): WriteReceipt

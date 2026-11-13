@@ -393,6 +393,210 @@ class TransactionEntryViewModelTest {
         }
     }
 
+    /** 확정 거절은 성공으로 표시하지 않고 확인 후 종료하며 재생성에서도 같은 결과만 조회한다. */
+    @Test fun terminalRejectionIsExplicitAndRecreationNeverReplays() = runTest(dispatcher) {
+        val repo = existingRepo().apply { rejectChanges = true }
+        val saved = SavedStateHandle()
+        val model = vm(repo, saved)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        model.beginEdit()
+        advanceUntilIdle()
+        model.edit { copy(memo = "충돌 입력") }
+        model.submit()
+        advanceUntilIdle()
+        assertEquals(EntryPhase.REJECTED, model.state.value.phase)
+        assertEquals("기존 메모", repo.current!!.memo)
+        store.clear()
+        val restored = vm(repo, saved)
+        restored.bind(context, existingRoute())
+        advanceUntilIdle()
+        assertEquals(EntryPhase.REJECTED, restored.state.value.phase)
+        restored.check(allowWrite = true)
+        advanceUntilIdle()
+        assertEquals(1, repo.changes.size)
+        var left = false
+        restored.finish { left = true }
+        advanceUntilIdle()
+        assertTrue(left)
+    }
+
+    /** 조회 실패 후 명시 재조회는 기존 값을 다시 읽으며 빈 신규 폼으로 바꾸지 않는다. */
+    @Test fun failedExistingLoadCanExplicitlyRetry() = runTest(dispatcher) {
+        val repo = existingRepo().apply { failSnapshot = true }
+        val model = vm(repo)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        assertEquals(EntryPhase.BLOCKED, model.state.value.phase)
+        repo.failSnapshot = false
+        model.reload()
+        advanceUntilIdle()
+        assertEquals(EntryPhase.EDITING, model.state.value.phase)
+        assertTrue(model.state.value.viewing)
+        assertEquals("100", model.state.value.ui.amount)
+        assertTrue(repo.changes.isEmpty())
+    }
+
+    private fun existingRepo() = EntryRepository().apply {
+        current = LedgerTransaction(id(30), TransactionKind.TRANSFER, LocalDate.of(2026, 11, 3), 100, id(10), id(11), AccountNature.GENERAL, AccountNature.GENERAL, "기존 메모", 4, 2)
+    }
+    private fun existingRoute(entry: String = "existing") = route.copy(entryId = entry, transactionId = id(30))
+
+    /** 상세 조회와 뒤로 이동은 새 초안·금융 명령을 만들지 않는다. */
+    @Test fun existingDetailLoadsWithoutDraftOrFinancialWrites() = runTest(dispatcher) {
+        val repo = existingRepo()
+        val model = vm(repo)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        assertTrue(model.state.value.viewing)
+        assertEquals("100", model.state.value.ui.amount)
+        assertEquals("기존 메모", model.state.value.ui.memo)
+        assertNull(model.state.value.draftPersistence)
+        model.edit { copy(amount = "999") }
+        model.submit()
+        var left = false
+        model.leave { left = true }
+        assertTrue(left)
+        assertEquals("100", model.state.value.ui.amount)
+        assertEquals(0, repo.drafts.saves)
+        assertTrue(repo.changes.isEmpty())
+    }
+
+    /** 명시 수정 후 기존 ID/revision으로 저장하고 새 거래 생성은 호출하지 않는다. */
+    @Test fun explicitEditUsesExistingIdRevisionAndConsumesDraft() = runTest(dispatcher) {
+        val repo = existingRepo()
+        val model = vm(repo)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        model.beginEdit()
+        advanceUntilIdle()
+        model.edit { copy(amount = "250", memo = "수정 메모") }
+        model.submit()
+        model.submit()
+        advanceUntilIdle()
+        assertEquals(EntryPhase.SAVED, model.state.value.phase)
+        val change = repo.changes.single().second
+        assertEquals(id(30), change.value.id)
+        assertEquals(4, change.expectedRevision)
+        assertEquals(250, change.value.amount)
+        assertTrue(repo.writes.isEmpty())
+        assertTrue(repo.drafts.drafts(context).isEmpty())
+    }
+
+    /** 수정 중 불완전 원문은 거래·revision에 묶인 초안으로 명시 복구한다. */
+    @Test fun existingEditRawDraftNeedsMatchingTargetAndExplicitRestore() = runTest(dispatcher) {
+        val repo = existingRepo()
+        val model = vm(repo)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        model.beginEdit()
+        advanceUntilIdle()
+        model.edit { copy(amount = " 미완성 ", date = "2026-02-30", memo = " 원문\n") }
+        advanceUntilIdle()
+        store.clear()
+        val nextModel = vm(repo)
+        nextModel.bind(context, existingRoute("again"))
+        advanceUntilIdle()
+        nextModel.beginEdit()
+        advanceUntilIdle()
+        val choice = nextModel.state.value.draftPersistence!!.choices.single()
+        assertEquals(id(30), choice.scope.transactionId)
+        assertEquals(4, choice.scope.transactionRevision)
+        assertEquals(com.monit.core.common.draft.DraftEditorPhase.CHOOSING, nextModel.state.value.draftPersistence!!.phase)
+        nextModel.restoreDraft(choice)
+        advanceUntilIdle()
+        assertEquals(" 미완성 ", nextModel.state.value.ui.amount)
+        assertEquals("2026-02-30", nextModel.state.value.ui.date)
+        assertTrue(repo.changes.isEmpty())
+    }
+
+    /** 저장 응답 유실 뒤 SavedState를 복원해 기존 영수증만 확인한다. */
+    @Test fun editLostReplyAndRecreationDoNotSubmitAgain() = runTest(dispatcher) {
+        val repo = existingRepo().apply { loseReply = true }
+        val saved = SavedStateHandle()
+        val model = vm(repo, saved)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        model.beginEdit()
+        advanceUntilIdle()
+        model.edit { copy(memo = "저장") }
+        model.submit()
+        advanceUntilIdle()
+        assertEquals(EntryPhase.SAVED, model.state.value.phase)
+        store.clear()
+        val restored = vm(repo, saved)
+        restored.bind(context, existingRoute())
+        advanceUntilIdle()
+        assertEquals(EntryPhase.SAVED, restored.state.value.phase)
+        assertEquals(1, repo.changes.size)
+        var returned = false
+        restored.finish { returned = true }
+        advanceUntilIdle()
+        assertTrue(returned)
+        assertEquals(listOf(repo.changes.single().first), repo.finished)
+    }
+
+    /**
+     * 목적: 삭제 연타·응답 유실에서 중복 제출과 거짓 실패를 방지한다.
+     * 조건: 첫 저장을 suspend gate에서 멈추고 commit 뒤 응답만 실패시키는 대역이다.
+     * 절차: delete 두 번 후 runCurrent로 저장 중 상태를 확인하고 gate를 연다.
+     * 기대: 삭제 한 건·원래 revision을 제출하며 영수증 조회로 SAVED에 도달하고 초안은 생성하지 않는다.
+     */
+    @Test fun deleteDoubleTapAndLostReplyProduceSingleDeletion() = runTest(dispatcher) {
+        val repo = existingRepo().apply { loseReply = true }
+        val gate = CompletableDeferred<Unit>()
+        repo.beforeWrite = { gate.await() }
+        val model = vm(repo)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        model.delete()
+        model.delete()
+        runCurrent()
+        assertEquals(EntryPhase.SAVING, model.state.value.phase)
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(EntryPhase.SAVED, model.state.value.phase)
+        assertTrue(model.state.value.deleting)
+        assertEquals(DeleteTransaction(id(30), 4), repo.deletions.single().second)
+        assertNull(repo.current)
+        assertEquals(0, repo.drafts.saves)
+    }
+
+    /** 삭제된/없는 거래의 상세 진입은 새 입력으로 대체하지 않는다. */
+    @Test fun missingExistingTransactionBlocksWithoutCreatingNewForm() = runTest(dispatcher) {
+        val repo = EntryRepository()
+        val model = vm(repo)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        assertEquals(EntryPhase.BLOCKED, model.state.value.phase)
+        model.beginEdit()
+        model.delete()
+        model.submit()
+        advanceUntilIdle()
+        assertTrue(repo.changes.isEmpty())
+        assertTrue(repo.deletions.isEmpty())
+        assertEquals(0, repo.drafts.saves)
+    }
+
+    /** 다른 대상 route에 저장된 입력을 재사용하지 않는다. */
+    @Test fun existingSavedStateCannotBindDifferentTarget() = runTest(dispatcher) {
+        val repo = existingRepo()
+        val saved = SavedStateHandle()
+        val model = vm(repo, saved)
+        model.bind(context, existingRoute())
+        advanceUntilIdle()
+        store.clear()
+        val wrong = vm(repo, saved)
+        wrong.bind(context, existingRoute().copy(transactionId = id(31)))
+        advanceUntilIdle()
+        assertEquals(EntryPhase.BLOCKED, wrong.state.value.phase)
+        wrong.delete()
+        wrong.submit()
+        advanceUntilIdle()
+        assertTrue(repo.changes.isEmpty())
+        assertTrue(repo.deletions.isEmpty())
+    }
+
     private suspend fun ready(repo: EntryRepository, saved: SavedStateHandle = SavedStateHandle()): TransactionEntryViewModel {
         val model = vm(repo, saved)
         model.bind(context, route)
@@ -408,6 +612,11 @@ private class EntryRepository : LedgerRepository {
     val drafts = TestDraftRepository(this)
     val writes = mutableListOf<Pair<String, CreateTransaction>>()
     val finished = mutableListOf<String>()
+    var rejectChanges = false
+    private val rejections = mutableMapOf<String, TransactionRejection>()
+    var current: LedgerTransaction? = null
+    val changes = mutableListOf<Pair<String, UpdateTransaction>>()
+    val deletions = mutableListOf<Pair<String, DeleteTransaction>>()
     var beforeWrite: suspend () -> Unit = {}
     var beforeSnapshot: suspend () -> Unit = {}
     var failBeforeCommit = false
@@ -417,6 +626,35 @@ private class EntryRepository : LedgerRepository {
     var active = true
     var reads = 0
     private val receipts = mutableMapOf<String, WriteReceipt>()
+    override suspend fun updateTransaction(context: LedgerContext, operationId: String, value: UpdateTransaction): WriteReceipt {
+        changes += operationId to value
+        beforeWrite()
+        if (failBeforeCommit) throw IOException()
+        if (rejectChanges) {
+            val result = TransactionRejection(context, operationId, value.value.id, value.expectedRevision, value.expectedRevision + 1, null, "2026-11-12T00:00:00Z")
+            rejections[operationId] = result
+            throw TransactionRejectedException(result)
+        }
+        val row = requireNotNull(current)
+        require(row.revision == value.expectedRevision)
+        current = row.copy(amount = value.value.amount, memo = value.value.memo, revision = row.revision + 1)
+        val receipt = WriteReceipt(operationId, 10, listOf(EntityRef("transactions", value.value.id, value.expectedRevision + 1)))
+        receipts[operationId] = receipt
+        if (loseReply) throw IOException()
+        return receipt
+    }
+    override suspend fun deleteTransaction(context: LedgerContext, operationId: String, value: DeleteTransaction): WriteReceipt {
+        deletions += operationId to value
+        beforeWrite()
+        if (failBeforeCommit) throw IOException()
+        require(current?.revision == value.expectedRevision)
+        current = null
+        val receipt = WriteReceipt(operationId, 10, listOf(EntityRef("transactions", value.id, value.expectedRevision + 1)))
+        receipts[operationId] = receipt
+        if (loseReply) throw IOException()
+        return receipt
+    }
+
     override suspend fun createTransaction(context: LedgerContext, operationId: String, value: CreateTransaction): WriteReceipt {
         writes += operationId to value
         beforeWrite()
@@ -425,6 +663,7 @@ private class EntryRepository : LedgerRepository {
         if (loseReply) throw IOException()
         return receipt
     }
+    override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = rejections[operationId]
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? {
         reads++
         return receipts[operationId]
@@ -442,7 +681,7 @@ private class EntryRepository : LedgerRepository {
                 BalanceAnchor(id(it + 10), LocalDate.of(2026, 1, 1), null, null, "미확인"),
             )
         }
-        return LedgerSnapshot(1, accounts, emptyList(), emptyMap(), 0, 0)
+        return LedgerSnapshot(1, accounts, listOfNotNull(current), emptyMap(), 0, 0)
     }
     override suspend fun finishSubmissionRecovery(context: LedgerContext, operationId: String): FinishSubmissionRecoveryResult {
         finished += operationId

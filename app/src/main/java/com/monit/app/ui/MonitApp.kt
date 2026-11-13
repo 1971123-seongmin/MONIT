@@ -58,6 +58,7 @@ fun MonitApp(context: LedgerContext) {
             TransactionsRoute(
                 context,
                 onNewTransaction = actions.newTransaction,
+                onTransactionSelected = actions.editTransaction,
             )
         },
         accounts = { actions ->
@@ -287,11 +288,15 @@ internal data class EntryActions(
     val newTransaction: (LocalDate?) -> Unit,
     val registerAccount: () -> Unit,
     val previewImport: (() -> Unit)?,
+    val editTransaction: (String) -> Unit = {},
 )
 
 private fun entryActions(entry: NavBackStackEntry, navigator: MainNavigator, importEnabled: Boolean) = EntryActions(
     newTransaction = { date ->
         navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, date?.toString()))
+    },
+    editTransaction = { id ->
+        navigator.openTransactionEntry(entry, TransactionEntryDestination(UUID.randomUUID().toString(), TransactionEntryKind.EXPENSE, transactionId = id))
     },
     registerAccount = {
         navigator.openAccountRegistration(entry, AccountRegistrationDestination(UUID.randomUUID().toString(), AccountRegistrationOrigin.ACCOUNTS))

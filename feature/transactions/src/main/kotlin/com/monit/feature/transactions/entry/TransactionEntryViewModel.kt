@@ -32,6 +32,9 @@ class TransactionEntryViewModel @Inject constructor(
     private var boundOrigin: com.monit.feature.transactions.navigation.TransactionEntryOrigin? = null
     private var request: CreateTransaction? = null
     private var operationId: String? = null
+    private var targetId: String? = null
+    private var expectedRevision: Long? = null
+    private var deleting = false
     private var invalidBinding = false
     private var editor: DraftEditor? = null
     private var draftSubmission: DraftSubmission? = null
@@ -41,7 +44,7 @@ class TransactionEntryViewModel @Inject constructor(
 
     fun bind(ledger: LedgerContext, route: TransactionEntryDestination) {
         if (context != null) {
-            if (context != ledger || entryId != route.entryId || boundOrigin != route.origin) {
+            if (context != ledger || entryId != route.entryId || boundOrigin != route.origin || targetId != route.transactionId) {
                 invalidBinding = true
                 block()
             }
@@ -50,6 +53,8 @@ class TransactionEntryViewModel @Inject constructor(
         context = ledger
         entryId = route.entryId
         boundOrigin = route.origin
+        targetId = route.transactionId
+        mutable.value = state.value.copy(existing = targetId != null, viewing = targetId != null)
         try {
             val bundle = saved.get<Bundle>(KEY)
             if (bundle == null) {
@@ -68,6 +73,10 @@ class TransactionEntryViewModel @Inject constructor(
                         bundle.getString("entry") == route.entryId,
                 )
                 if (bundle.containsKey("origin")) require(bundle.getString("origin") == route.origin?.name)
+                require(bundle.getString("target") == targetId)
+                expectedRevision = if (bundle.containsKey("expected")) bundle.getLong("expected").also { require(it > 0 && it < Long.MAX_VALUE) } else null
+                require(targetId == null || expectedRevision != null || bundle.getBoolean("viewing"))
+                deleting = bundle.getBoolean("deleting")
                 val ui = TransactionEntryUiState(
                     kind = TransactionKind.valueOf(requireNotNull(bundle.getString("kind"))),
                     amount = requireNotNull(bundle.getString("amount")),
@@ -78,6 +87,8 @@ class TransactionEntryViewModel @Inject constructor(
                 )
                 mutable.value = state.value.copy(
                     ui = ui,
+                    viewing = bundle.getBoolean("viewing"),
+                    deleting = deleting,
                     slot = bundle.getString("slot")?.let(AccountSlot::valueOf),
                     selectionRequestId = bundle.getString("selection"),
                 )
@@ -85,7 +96,7 @@ class TransactionEntryViewModel @Inject constructor(
                 request = operationId?.let { ui.toRequest(requireNotNull(bundle.getString("transaction"))) }
                 draftSubmission = bundle.getBundle("draftSubmission")?.let(DraftSavedState::submission)
                 require(draftSubmission == null || request != null)
-                draftSubmission?.let { require(it.scope == DraftScope(DraftKind.TRANSACTION, DraftOrigin.valueOf(requireNotNull(route.origin).name))) }
+                draftSubmission?.let { require(it.scope == draftScope()) }
             }
         } catch (_: Exception) {
             invalidBinding = true
@@ -94,45 +105,106 @@ class TransactionEntryViewModel @Inject constructor(
         }
         viewModelScope.launch {
             if (request != null) checkResult(false) else {
-                val origin = route.origin
-                if (origin == null) {
-                    block()
-                    return@launch
-                }
-                val scope = DraftScope(DraftKind.TRANSACTION, DraftOrigin.valueOf(origin.name))
-                val initial = draftContent()
-                val coordinator = DraftEditor(
-                    drafts,
-                    ledger,
-                    scope,
-                    viewModelScope,
-                    initial,
-                    onId = { saved[DRAFT_ID] = it },
-                    onRestore = { content ->
-                        val restored = content as DraftContent.Transaction
-                        mutable.value = state.value.copy(
-                            ui = state.value.ui.copy(
-                                kind = restored.kind,
-                                amount = restored.amount,
-                                date = restored.date,
-                                debitAccountId = restored.debitAccountId,
-                                creditAccountId = restored.creditAccountId,
-                                memo = restored.memo,
-                                candidateAccountId = restored.candidateAccountId,
-                                error = null,
-                            ),
-                            slot = restored.selectionSlot?.let { AccountSlot.valueOf(it.name) },
-                            selectionRequestId = restored.selectionRequestId,
-                        )
-                        persist()
-                        viewModelScope.launch { loadAccounts() }
-                    },
-                )
-                editor = coordinator
-                viewModelScope.launch { coordinator.state.collect { mutable.value = state.value.copy(draftPersistence = it) } }
-                coordinator.start(saved[DRAFT_ID])
+                if (!loadExisting()) return@launch
+                if (state.value.viewing) loadAccounts() else startEditor()
             }
         }
+    }
+
+    private suspend fun loadExisting(): Boolean {
+        if (targetId == null || expectedRevision != null) return true
+        return try {
+            val value = repository.snapshot(requireNotNull(context), today()).transactions.singleOrNull { it.id == targetId }
+                ?: error("Transaction no longer active")
+            if (invalidBinding) return false
+            expectedRevision = value.revision
+            mutable.value = state.value.copy(
+                ui = TransactionEntryUiState(
+                    kind = value.kind,
+                    amount = value.amount.toString(),
+                    date = value.date.toString(),
+                    debitAccountId = value.debitAccountId,
+                    creditAccountId = value.creditAccountId,
+                    memo = value.memo,
+                ),
+            )
+            persist()
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            block(canReload = true)
+            false
+        }
+    }
+
+    private fun draftScope() = DraftScope(
+        DraftKind.TRANSACTION,
+        DraftOrigin.valueOf(requireNotNull(boundOrigin).name),
+        transactionId = targetId,
+        transactionRevision = expectedRevision,
+    )
+
+    private fun startEditor() {
+        if (editor != null) return
+        val ledger = context ?: return
+        val scope = try {
+            draftScope()
+        } catch (_: Exception) {
+            block()
+            return
+        }
+        val initial = draftContent()
+        val coordinator = DraftEditor(
+            drafts,
+            ledger,
+            scope,
+            viewModelScope,
+            initial,
+            onId = { saved[DRAFT_ID] = it },
+            onRestore = { content ->
+                val restored = content as DraftContent.Transaction
+                mutable.value = state.value.copy(
+                    ui = state.value.ui.copy(
+                        kind = restored.kind,
+                        amount = restored.amount,
+                        date = restored.date,
+                        debitAccountId = restored.debitAccountId,
+                        creditAccountId = restored.creditAccountId,
+                        memo = restored.memo,
+                        candidateAccountId = restored.candidateAccountId,
+                        error = null,
+                    ),
+                    slot = restored.selectionSlot?.let { AccountSlot.valueOf(it.name) },
+                    selectionRequestId = restored.selectionRequestId,
+                )
+                persist()
+                viewModelScope.launch { loadAccounts() }
+            },
+        )
+        editor = coordinator
+        viewModelScope.launch { coordinator.state.collect { mutable.value = state.value.copy(draftPersistence = it) } }
+        coordinator.start(saved[DRAFT_ID])
+    }
+
+    fun beginEdit() {
+        if (invalidBinding || !state.value.viewing || state.value.phase != EntryPhase.EDITING) return
+        mutable.value = state.value.copy(viewing = false)
+        persist()
+        startEditor()
+    }
+
+    /** 삭제 확인 후에만 호출한다. 상세 조회는 초안을 만들거나 금융 명령을 캡처하지 않는다. */
+    fun delete() {
+        if (invalidBinding || !state.value.viewing || state.value.phase != EntryPhase.EDITING) return
+        val id = targetId ?: return
+        if (expectedRevision == null) return
+        request = state.value.ui.toRequest(id)
+        operationId = UUID.randomUUID().toString()
+        deleting = true
+        mutable.value = state.value.copy(phase = EntryPhase.SAVING, deleting = true)
+        persist()
+        viewModelScope.launch { write() }
     }
 
     fun newDraft() {
@@ -183,7 +255,7 @@ class TransactionEntryViewModel @Inject constructor(
         }
     }
 
-    private fun canEdit() = !invalidBinding && !transitioning && state.value.phase == EntryPhase.EDITING && editor?.state?.value?.phase == DraftEditorPhase.EDITING && editor?.state?.value?.frozen == false
+    private fun canEdit() = !state.value.viewing && !invalidBinding && !transitioning && state.value.phase == EntryPhase.EDITING && editor?.state?.value?.phase == DraftEditorPhase.EDITING && editor?.state?.value?.frozen == false
 
     fun edit(change: TransactionEntryUiState.() -> TransactionEntryUiState) {
         if (!canEdit()) return
@@ -291,7 +363,7 @@ class TransactionEntryViewModel @Inject constructor(
             return
         }
         val value = try {
-            state.value.ui.toRequest(UUID.randomUUID().toString())
+            state.value.ui.toRequest(targetId ?: UUID.randomUUID().toString())
         } catch (_: Exception) {
             message("금액(1~999,999,999,999원), 날짜(YYYY-MM-DD), 서로 다른 활성 계좌를 확인해 주세요.")
             return
@@ -326,14 +398,14 @@ class TransactionEntryViewModel @Inject constructor(
     fun reload() {
         if (!invalidBinding && request == null && context != null && state.value.canReload && state.value.phase == EntryPhase.BLOCKED) {
             mutable.value = state.value.copy(phase = EntryPhase.LOADING)
-            viewModelScope.launch { loadAccounts() }
+            viewModelScope.launch { if (loadExisting()) loadAccounts() }
         }
     }
 
     fun finish(onFinished: () -> Unit) {
         val ledger = context ?: return
         val operation = operationId ?: return
-        if (state.value.phase != EntryPhase.SAVED || state.value.finishing) return
+        if ((state.value.phase != EntryPhase.SAVED && state.value.phase != EntryPhase.REJECTED) || state.value.finishing) return
         mutable.value = state.value.copy(finishing = true)
         viewModelScope.launch {
             try {
@@ -374,9 +446,16 @@ class TransactionEntryViewModel @Inject constructor(
         if (invalidBinding) return
         try {
             val draft = draftSubmission
-            val receipt = if (draft == null) repository.createTransaction(requireNotNull(context), requireNotNull(operationId), requireNotNull(request))
+            val receipt = if (deleting) repository.deleteTransaction(requireNotNull(context), requireNotNull(operationId), DeleteTransaction(requireNotNull(targetId), requireNotNull(expectedRevision)))
+            else if (targetId != null) {
+                val value = UpdateTransaction(requireNotNull(request), requireNotNull(expectedRevision))
+                if (draft == null) repository.updateTransaction(requireNotNull(context), requireNotNull(operationId), value)
+                else drafts.updateTransactionFromDraft(requireNotNull(context), draft.reference, draft.scope, requireNotNull(operationId), value)
+            } else if (draft == null) repository.createTransaction(requireNotNull(context), requireNotNull(operationId), requireNotNull(request))
             else drafts.createTransactionFromDraft(requireNotNull(context), draft.reference, draft.scope, requireNotNull(operationId), requireNotNull(request))
             accept(receipt)
+        } catch (rejected: TransactionRejectedException) {
+            acceptRejection(rejected.rejection)
         } catch (cancelled: CancellationException) {
             if (!invalidBinding) mutable.value = state.value.copy(phase = EntryPhase.UNCONFIRMED)
             throw cancelled
@@ -391,8 +470,11 @@ class TransactionEntryViewModel @Inject constructor(
         try {
             val receipt = repository.receipt(requireNotNull(context), requireNotNull(operationId))
             if (invalidBinding) return
+            val rejected = if (receipt == null) repository.rejection(requireNotNull(context), requireNotNull(operationId)) else null
             when {
                 receipt != null -> accept(receipt)
+
+                rejected != null -> acceptRejection(rejected)
 
                 allowWrite -> {
                     mutable.value = state.value.copy(phase = EntryPhase.SAVING)
@@ -409,11 +491,17 @@ class TransactionEntryViewModel @Inject constructor(
         }
     }
 
+    private fun acceptRejection(value: TransactionRejection) {
+        if (invalidBinding) return
+        if (value.context != context || value.operationId != operationId || value.transactionId != targetId || value.expectedRevision != expectedRevision) block()
+        else mutable.value = state.value.copy(phase = EntryPhase.REJECTED, ui = state.value.ui.copy(error = null))
+    }
+
     private fun accept(receipt: WriteReceipt) {
         if (invalidBinding) return
         val entity = receipt.entities.singleOrNull()
         if (receipt.operationId != operationId || receipt.ledgerRevision <= 0 ||
-            entity?.collection != "transactions" || entity.id != request?.id || entity.revision <= 0
+            entity?.collection != "transactions" || entity.id != request?.id || entity.revision != (expectedRevision?.let { Math.addExact(it, 1) } ?: 1L)
         ) {
             block()
         } else {
@@ -444,6 +532,10 @@ class TransactionEntryViewModel @Inject constructor(
             putString("generation", ledger.storageGeneration)
             putString("entry", entryId)
             putString("origin", boundOrigin?.name)
+            putString("target", targetId)
+            expectedRevision?.let { putLong("expected", it) }
+            putBoolean("viewing", current.viewing)
+            putBoolean("deleting", deleting)
             putString("kind", current.ui.kind.name)
             putString("amount", current.ui.amount)
             putString("date", current.ui.date)
