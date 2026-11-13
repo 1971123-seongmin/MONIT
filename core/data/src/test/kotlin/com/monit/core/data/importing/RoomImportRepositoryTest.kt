@@ -289,9 +289,11 @@ class RoomImportRepositoryTest {
         assertTrue(ledger.snapshot(context, day).transactions.isEmpty())
     }
 
-    /** strict v2는 읽되 과거 이관 근거를 NONE으로 만들지 않고 미기록으로 승격한다. */
+    /** strict v2의 원래 건수/원문 manifest를 먼저 대조하며 미기록을 NONE으로 바꾸지 않는다. */
     @Test fun legacyVersionTwoIsExplicitlyNotRecorded() = runTest {
         ready()
+        val original = "합성 v2 원본".toByteArray()
+        db.backupDao().original(BackupOriginalEntity(context.ledgerId, id(990), "synthetic", "source.txt", original.size.toLong(), BackupJson.digest(original), original))
         val root = BackupSnapshotAdapter(db, clock).capture(context)
         root.remove("imports")
         root.put("formatVersion", 2).put("contractVersion", 2)
@@ -300,6 +302,13 @@ class RoomImportRepositoryTest {
         assertEquals(3, validated.root.getInt("formatVersion"))
         assertEquals("NOT_RECORDED_BY_V2", validated.root.getJSONObject("imports").text("coverage"))
         assertTrue(validated.root.getJSONObject("imports").list("import_source_mappings").isEmpty())
+        assertEquals(root.list("originals").single().text("bytesBase64"), validated.root.list("originals").single().text("bytesBase64"))
+        val wrongCount = JSONObject(root.toString())
+        wrongCount.getJSONObject("manifest").put("recordTotal", root.getJSONObject("manifest").getInt("recordTotal") + 1)
+        assertEquals(BackupProblem.INVALID_RELATION, assertFailsWith<BackupException> { BackupValidator(clock).validate(wrongCount.toString().toByteArray()) }.problem)
+        val wrongOriginal = JSONObject(root.toString())
+        wrongOriginal.getJSONObject("manifest").list("originals").single().put("sha256", "f".repeat(64))
+        assertEquals(BackupProblem.INVALID_RELATION, assertFailsWith<BackupException> { BackupValidator(clock).validate(wrongOriginal.toString().toByteArray()) }.problem)
     }
 
     /** 해시들을 일관되게 재계산해도 원문 금액과 다른 생성 명령·거래를 만든 파일은 거부한다. */

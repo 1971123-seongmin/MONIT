@@ -55,7 +55,7 @@ internal object BackupV1Reader {
         val converted = JSONObject().put("formatVersion", 2).put("contractVersion", 2).put("createdAt", root.text("createdAt"))
             .put("sourceLedger", JSONObject().put("id", id).put("storageGeneration", ledger.text("storageGeneration")).put("revision", ledger.text("revision")).put("timeZone", ledger.text("timeZone")).put("currency", ledger.text("currency")))
             .put("collections", collections).put("submissionsEvidence", JSONArray()).put("operationFences", fences).put("reminderPreferences", preferences).put("originals", originals)
-        converted.put("manifest", BackupSnapshotAdapter.manifest(converted, "NOT_RECORDED_BY_V1"))
+        converted.put("manifest", BackupSnapshotAdapter.manifest(converted, "NOT_RECORDED_BY_V1", "NOT_RECORDED_BY_V1"))
         return BackupJson.utf8(converted.toString())
     }
     private fun nature(value: String): String = if (value == "SAVING") "SAVINGS" else value

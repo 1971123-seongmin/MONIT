@@ -24,7 +24,13 @@ internal class BackupValidator(private val clock: Clock) {
             if (version != 1 && version != 2 && version != 3) BackupJson.fail(BackupProblem.UNSUPPORTED)
             BackupSchema.bundled(version as Int).validate(root)
             if (version == 1) return validate(BackupV1Reader.convert(root, bytes))
-            if (version == 2) root = BackupImportV3.upgradeV2(root)
+            if (version == 2) {
+                // 정규화로 manifest를 다시 만들기 전에 원래 선언과 실제 배열/원문을 대조한다.
+                val legacySource = root.getJSONObject("sourceLedger")
+                val legacyContext = LedgerContext(legacySource.text("id"), legacySource.text("storageGeneration"))
+                validateManifest(ValidatedBackup(root, legacyContext, legacySource.exactLong("revision").also { require(it > 0) }, root.instant("createdAt")))
+                root = BackupImportV3.upgradeV2(root)
+            }
             val source = root.getJSONObject("sourceLedger")
             val context = LedgerContext(source.text("id"), source.text("storageGeneration"))
             val data = ValidatedBackup(root, context, source.exactLong("revision").also { require(it > 0) }, root.instant("createdAt"))
