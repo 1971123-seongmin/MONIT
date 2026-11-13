@@ -15,11 +15,19 @@ internal data class ValidatedBackup(val root: JSONObject, val context: LedgerCon
 }
 
 /** 인증 후만 실행하는 무쓰기 검증. SQL/파일/Keystore와 분리해 실패가 활성 자료를 바꾸지 못한다. */
-internal class BackupValidator(private val clock: Clock) {
+internal class BackupValidator(private val clock: Clock, private val probe: BackupWorkProbe = BackupWorkProbe()) {
     private val today get() = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
     suspend fun validate(bytes: ByteArray): ValidatedBackup {
+        var logicalStarted = false
         try {
-            var root = BackupJson.parse(bytes)
+            probe.start(BackupProbeEvent.PARSE)
+            var root = try {
+                BackupJson.parse(bytes)
+            } finally {
+                probe.end(BackupProbeEvent.PARSE)
+            }
+            probe.start(BackupProbeEvent.LOGICAL_VALIDATION)
+            logicalStarted = true
             val version = root.get("formatVersion")
             if (version != 1 && version != 2 && version != 3) BackupJson.fail(BackupProblem.UNSUPPORTED)
             BackupSchema.bundled(version as Int).validate(root)
@@ -60,6 +68,8 @@ internal class BackupValidator(private val clock: Clock) {
             BackupJson.fail(BackupProblem.INVALID_RELATION)
         } catch (_: ArithmeticException) {
             BackupJson.fail(BackupProblem.INVALID_RELATION)
+        } finally {
+            if (logicalStarted) probe.end(BackupProbeEvent.LOGICAL_VALIDATION)
         }
     }
 

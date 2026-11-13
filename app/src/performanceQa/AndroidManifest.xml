@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="com.monit.app.qa.performance.test" />
+    </queries>
+    <application>
+        <provider
+            android:name="com.monit.app.backup.probe.ProbeDocumentsProvider"
+            android:authorities="com.monit.app.qa.performance.backup.probe"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS" />
+    </application>
+</manifest>

@@ -20,7 +20,7 @@ internal class BackupRestorePlan(private val source: ValidatedBackup, private va
     private val rules = preferences.list("rules").map { ReminderRuleEntity(result.context.ledgerId, result.context.storageGeneration, it.text("ruleId"), it.getBoolean("enabled"), it.exactLong("revision")) }
     private val status = BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = encodeRestoreResult(result), restoreAcknowledged = false, submissionCoverage = source.root.getJSONObject("manifest").text("submissionCoverage"), reminderCoverage = preferences.text("coverage"), sourceMappingsCoverage = source.root.getJSONObject("manifest").text("sourceMappings"), importCoverage = source.root.getJSONObject("imports").text("coverage"))
 
-    suspend fun apply(database: LedgerDatabase) {
+    suspend fun apply(database: LedgerDatabase, probe: BackupWorkProbe = BackupWorkProbe()) {
         val sql = database.openHelper.writableDatabase
         // operation_fences는 전체대체에서도 삭제하지 않는다. 이전 화면 밖의 UUID도 재사용할 수 없다.
         for (fence in fences) database.backupDao().fence(fence)
@@ -29,9 +29,12 @@ internal class BackupRestorePlan(private val source: ValidatedBackup, private va
             sql.execSQL("DELETE FROM $table")
         }
         database.ledgerDao().insertLedger(LedgerEntity(result.context.ledgerId, result.context.storageGeneration, Math.addExact(source.revision, 1)))
-        for (table in BackupLayout.finance) for (row in financial.getValue(table)) {
-            currentCoroutineContext().ensureActive()
-            sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, row)
+        for (table in BackupLayout.finance) {
+            for (row in financial.getValue(table)) {
+                currentCoroutineContext().ensureActive()
+                sql.insert(table, android.database.sqlite.SQLiteDatabase.CONFLICT_ABORT, row)
+            }
+            if (table == "accounts") probe.checkpoint(BackupCheckpoint.AFTER_PARTIAL_REPLACE)
         }
         for (value in evidence) database.backupDao().evidence(value)
         for (value in originals) database.backupDao().original(value)

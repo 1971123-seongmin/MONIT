@@ -24,20 +24,20 @@ internal object BackupEnvelope {
     const val MAX_FILE = MAX_PAYLOAD + HEADER_SIZE + 16
     private val magic = "MONITBK1".toByteArray(Charsets.US_ASCII)
 
-    fun encrypt(payload: ByteArray, password: CharArray): ByteArray {
+    fun encrypt(payload: ByteArray, password: CharArray, probe: BackupWorkProbe = BackupWorkProbe()): ByteArray {
         val random = SecureRandom()
-        return seal(payload, password, ByteArray(16).also(random::nextBytes), ByteArray(12).also(random::nextBytes))
+        return seal(payload, password, ByteArray(16).also(random::nextBytes), ByteArray(12).also(random::nextBytes), probe)
     }
 
-    internal fun seal(payload: ByteArray, password: CharArray, salt: ByteArray, nonce: ByteArray): ByteArray {
+    internal fun seal(payload: ByteArray, password: CharArray, salt: ByteArray, nonce: ByteArray, probe: BackupWorkProbe = BackupWorkProbe()): ByteArray {
         if (payload.size > MAX_PAYLOAD) fail(BackupProblem.LIMIT)
         require(salt.size == 16 && nonce.size == 12)
         val header = ByteBuffer.allocate(HEADER_SIZE).order(ByteOrder.BIG_ENDIAN)
             .put(magic).putShort(1).putShort(1).putInt(600_000).put(salt).put(nonce).putLong(payload.size.toLong() + 16).array()
-        return header + crypt(Cipher.ENCRYPT_MODE, payload, password, salt, nonce, header)
+        return header + crypt(Cipher.ENCRYPT_MODE, payload, password, salt, nonce, header, probe)
     }
 
-    fun decrypt(bytes: ByteArray, password: CharArray): ByteArray {
+    fun decrypt(bytes: ByteArray, password: CharArray, probe: BackupWorkProbe = BackupWorkProbe()): ByteArray {
         // 공격자가 정한 KDF 비용과 길이는 비밀번호 처리·큰 할당 전에 거부한다.
         if (bytes.size < HEADER_SIZE + 16 || bytes.size > MAX_FILE) fail(BackupProblem.LIMIT)
         val header = bytes.copyOfRange(0, HEADER_SIZE)
@@ -51,19 +51,36 @@ internal object BackupEnvelope {
         val length = buffer.long
         if (length !in 16L..(MAX_PAYLOAD + 16L) || length != bytes.size.toLong() - HEADER_SIZE) fail(BackupProblem.HEADER)
         // doFinal 하나로 인증을 완료한다. update 결과를 파서/DB에 전달하지 않는다.
-        return crypt(Cipher.DECRYPT_MODE, bytes.copyOfRange(HEADER_SIZE, bytes.size), password, salt, nonce, header)
+        return crypt(Cipher.DECRYPT_MODE, bytes.copyOfRange(HEADER_SIZE, bytes.size), password, salt, nonce, header, probe)
     }
 
-    private fun crypt(mode: Int, bytes: ByteArray, password: CharArray, salt: ByteArray, nonce: ByteArray, aad: ByteArray): ByteArray {
+    private fun crypt(mode: Int, bytes: ByteArray, password: CharArray, salt: ByteArray, nonce: ByteArray, aad: ByteArray, probe: BackupWorkProbe): ByteArray {
         validatePassword(password)
         val spec = PBEKeySpec(password, salt, 600_000, 256)
         var key: ByteArray? = null
         try {
-            key = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
-            return Cipher.getInstance("AES/GCM/NoPadding").run {
-                init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
-                updateAAD(aad)
-                doFinal(bytes)
+            val kdfEvent = if (mode == Cipher.ENCRYPT_MODE) BackupProbeEvent.KDF_ENCRYPT else BackupProbeEvent.KDF_DECRYPT
+            probe.start(kdfEvent)
+            try {
+                probe.checkpoint(BackupCheckpoint.BEFORE_KDF)
+                val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                key = factory.generateSecret(spec).encoded
+                // provider 선조회는 JCA failover를 고정하므로 실제 선택이 끝난 뒤 관찰한다.
+                probe.provider(kdfEvent, factory.provider.name)
+            } finally {
+                probe.end(kdfEvent)
+            }
+            val gcmEvent = if (mode == Cipher.ENCRYPT_MODE) BackupProbeEvent.GCM_ENCRYPT else BackupProbeEvent.GCM_DECRYPT
+            probe.start(gcmEvent)
+            try {
+                return Cipher.getInstance("AES/GCM/NoPadding").run {
+                    init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
+                    updateAAD(aad)
+                    probe.provider(gcmEvent, provider.name)
+                    doFinal(bytes)
+                }
+            } finally {
+                probe.end(gcmEvent)
             }
         } catch (_: BadPaddingException) {
             fail(BackupProblem.AUTHENTICATION)

@@ -32,6 +32,7 @@ import kotlinx.coroutines.withTimeout
 @Singleton
 class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext private val context: Context, private val contexts: CoroutineContextProvider) : RecoveryCopyStore {
     private val mutex = Mutex()
+    internal val workProbe = RecoveryCopyProbe()
     override suspend fun protect(context: LedgerContext, payload: ByteArray): RecoveryCopyProof = withTimeout(60_000) {
         withContext(contexts.io) {
             if (!mutex.tryLock()) throw BackupException(BackupProblem.RECOVERY_COPY)
@@ -42,6 +43,7 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
                 val database = this@KeystoreRecoveryCopyStore.context.getDatabasePath("monit-ledger.db")
                 val databaseSize = listOf(database, File(database.path + "-wal"), File(database.path + "-shm")).sumOf { it.length() }
                 val needed = maxOf(64 * 1024 * 1024L, Math.addExact(Math.multiplyExact(databaseSize, 2), Math.addExact(Math.multiplyExact(payload.size.toLong(), 4), 4 * 1024 * 1024L)))
+                workProbe.checkpoint(RecoveryCopyCheckpoint.BEFORE_SPACE_CHECK)
                 require(folder.usableSpace >= needed)
                 currentCoroutineContext().ensureActive()
                 val id = UUID.randomUUID().toString()
@@ -56,6 +58,7 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
                         stream.write(encrypted)
                         stream.fd.sync()
                     }
+                    workProbe.checkpoint(RecoveryCopyCheckpoint.AFTER_CANDIDATE_SYNC)
                     currentCoroutineContext().ensureActive()
                     verify(candidate, context, payload)
                     currentCoroutineContext().ensureActive()
@@ -110,6 +113,7 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
         }
     }
     private fun key(): SecretKey {
+        workProbe.checkpoint(RecoveryCopyCheckpoint.BEFORE_KEY_ACCESS)
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         if (store.containsAlias(ALIAS)) return checkNotNull(store.getKey(ALIAS, null) as? SecretKey)
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {

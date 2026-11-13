@@ -19,8 +19,9 @@ import org.json.JSONObject
 @Singleton
 internal class RoomBackupRepository @Inject constructor(private val database: LedgerDatabase, private val clock: Clock, private val contexts: CoroutineContextProvider) : BackupRepository {
     private val single = Mutex()
+    internal val workProbe = BackupWorkProbe()
     private val adapter get() = BackupSnapshotAdapter(database, clock)
-    private val validator get() = BackupValidator(clock)
+    private val validator get() = BackupValidator(clock, workProbe)
     private var exported: Pair<BackupExport, String>? = null
     private var inspected: Pair<RestorePreview, ValidatedBackup>? = null
     private fun id() = UUID.randomUUID().toString()
@@ -34,7 +35,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
                 val source = validate(plain, onStage)
                 currentCoroutineContext().ensureActive()
                 onStage(BackupStage.CRYPTO)
-                val encrypted = BackupEnvelope.encrypt(plain, password)
+                val encrypted = BackupEnvelope.encrypt(plain, password, workProbe)
                 currentCoroutineContext().ensureActive()
                 BackupExport(id(), context, source.revision, source.createdAt.toString(), encrypted).also { exported = it to BackupJson.digest(encrypted) }
             } finally {
@@ -49,7 +50,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         work {
             val (original, hash) = checkNotNull(exported).also { require(it.first.id == id && it.first.context == context) }
             onStage(BackupStage.CRYPTO)
-            val plain = BackupEnvelope.decrypt(readBack, password)
+            val plain = BackupEnvelope.decrypt(readBack, password, workProbe)
             try {
                 currentCoroutineContext().ensureActive()
                 val source = validate(plain, onStage)
@@ -76,7 +77,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
     override suspend fun inspect(context: LedgerContext, encrypted: ByteArray, password: CharArray, onStage: (BackupStage) -> Unit): RestorePreview = try {
         work {
             onStage(BackupStage.CRYPTO)
-            val plain = BackupEnvelope.decrypt(encrypted, password)
+            val plain = BackupEnvelope.decrypt(encrypted, password, workProbe)
             try {
                 currentCoroutineContext().ensureActive()
                 val source = validate(plain, onStage)
@@ -112,12 +113,15 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
                 validate(plain, onStage)
                 val expectedHash = BackupJson.digest(plain)
                 onStage(BackupStage.RECOVERY_COPY)
+                workProbe.start(BackupProbeEvent.RECOVERY_COPY)
                 val proof = try {
                     recovery.protect(context, plain)
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
                     BackupJson.fail(BackupProblem.RECOVERY_COPY)
+                } finally {
+                    workProbe.end(BackupProbeEvent.RECOVERY_COPY)
                 }
                 currentCoroutineContext().ensureActive()
                 requireLedgerId(proof.id)
@@ -137,16 +141,28 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
             val plan = BackupRestorePlan(source, outcome, oldIds, sourceFences)
             try {
                 onStage(BackupStage.REPLACEMENT)
-                database.withTransaction {
-                    database.requireMaintenanceWriter(lease)
-                    checkPreview(preview)
-                    plan.apply(database)
+                workProbe.start(BackupProbeEvent.REPLACEMENT)
+                try {
+                    database.withTransaction {
+                        workProbe.start(BackupProbeEvent.REPLACEMENT_BODY)
+                        try {
+                            database.requireMaintenanceWriter(lease)
+                            checkPreview(preview)
+                            plan.apply(database, workProbe)
+                            workProbe.checkpoint(BackupCheckpoint.BEFORE_COMMIT)
+                        } finally {
+                            workProbe.end(BackupProbeEvent.REPLACEMENT_BODY)
+                        }
+                    }
+                } finally {
+                    workProbe.end(BackupProbeEvent.REPLACEMENT)
                 }
             } finally {
                 plan.clear()
             }
             inspected = null
             exported = null
+            workProbe.checkpoint(BackupCheckpoint.AFTER_COMMIT)
             outcome
         }
     }
