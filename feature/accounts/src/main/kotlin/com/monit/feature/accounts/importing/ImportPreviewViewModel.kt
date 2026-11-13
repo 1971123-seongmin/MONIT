@@ -238,11 +238,17 @@ class ImportPreviewViewModel @Inject constructor(
             return
         }
         val own = ++version
+        var timedOut = false
         mutable.value = state.value.copy(phase = phase, problem = null)
         val task = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try {
                 action()
                 currentCoroutineContext().ensureActive()
+            } catch (timeout: TimeoutCancellationException) {
+                // 내부 시간초과만 처리한다. 화면/부모 취소와 실제 child 정리 완료는 기존 수명에 맡긴다.
+                currentCoroutineContext().ensureActive()
+                timedOut = true
+                throw timeout
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -252,7 +258,17 @@ class ImportPreviewViewModel @Inject constructor(
         job = task
         task.invokeOnCompletion {
             workGate.release(lease)
-            if (own == version && !invalidBinding && state.value.phase == ImportPreviewPhase.STOPPING) mutable.value = state.value.copy(phase = if (saved.get<String>("import-batch") != null) ImportPreviewPhase.RECOVERY else ImportPreviewPhase.STALE, problem = "취소 작업이 끝났어요. 결과를 조회하거나 파일부터 다시 검토해 주세요.")
+            if (own == version && !invalidBinding) {
+                if (state.value.phase == ImportPreviewPhase.STOPPING) {
+                    mutable.value = state.value.copy(phase = if (saved.get<String>("import-batch") != null) ImportPreviewPhase.RECOVERY else ImportPreviewPhase.STALE, problem = "취소 작업이 끝났어요. 결과를 조회하거나 파일부터 다시 검토해 주세요.")
+                } else if (timedOut) {
+                    val captured = saved.get<String>("import-batch") != null
+                    mutable.value = state.value.copy(
+                        phase = if (captured) ImportPreviewPhase.RECOVERY else if (state.value.review != null) ImportPreviewPhase.STALE else ImportPreviewPhase.FAILED,
+                        problem = if (captured) "처리 제한 시간이 지났어요. 반영 여부는 저장된 결과로 확인해 주세요. 자동 재실행하지 않아요." else "처리 제한 시간이 지났고 작업 정리가 끝났어요. 파일부터 다시 검토해 주세요.",
+                    )
+                }
+            }
         }
         task.start()
     }
@@ -261,6 +277,8 @@ class ImportPreviewViewModel @Inject constructor(
         anchorDrafts = emptyMap()
     }
     override fun onCleared() {
+        invalidBinding = true
+        version++
         clearReview()
     }
     private fun problem(error: Exception): String = when {

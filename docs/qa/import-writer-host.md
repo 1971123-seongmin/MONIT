@@ -6,9 +6,9 @@ Issue [#68](https://github.com/1971123-seongmin/MONIT/issues/68). 구현 계약�
 
 - 기준 main: `02f767e`. 원격 main을 다시 확인했으며 같은 기준이라 추가 rebase/merge는 없었다.
 - Windows/JBR21, 파일 Room·Robolectric SDK28·Native host Compose 환경에서 확인했다.
-- 최종 명령: `./gradlew :core:model:test testDebugUnitTest :app:assembleDebug :app:lintDebug ktlintCheck`.
-- 결과: **576 tests, failure 0 / error 0 / skipped 0**, 앱 debug 빌드·Android Lint·ktlint 통과. `NO-SOURCE` 작업을 시험 수로 세지 않았다.
-- 검증 전후 제품/시험/리소스 입력 SHA256: `066DB85BA9DA8DDB172556D03FEEA61E01FCDF9BC8B91858A0AB44F14FC0FBB7`로 같았다. 검사 후에는 문서와 Git 메타데이터만 정리했다. 검증 로그의 시간은 캐시를 포함한 실행 시간이며 성능 측정값이 아니다.
+- 최종 명령: `./gradlew :core:model:test testDebugUnitTest :app:assembleDebug :app:assembleQa :app:assembleBackupQa :app:lintDebug ktlintCheck --parallel --max-workers=2`.
+- 결과: **580 tests, failure 0 / error 0 / skipped 0**, 앱 debug/qa/backupQa 빌드·Android Lint·ktlint 통과. `NO-SOURCE` 작업을 시험 수로 세지 않았다.
+- 검증 전후 제품/시험/리소스 입력 SHA256: `26381CCA1F1D123E3ACD60F3575ADF787D93511CC606C1AF5873F3078842531B`로 같았다. 검사 후에는 문서와 Git 메타데이터만 정리했다. 검증 로그의 시간은 캐시를 포함한 실행 시간이며 성능 측정값이 아니다.
 - `ktlintFormat` 후 별도 검사를 실행했다. Markdown·DOCS·README를 자동 정렬하지 않았다.
 - `node scripts/Generate-ImportBackupSchema.cjs` 재생성 전후 v3 schema hash가 같았다. 문서 검사도 통과했다. 원격 CI 판정은 연결 PR의 최신 head를 확인한다.
 - CI에서 드러난 기존 알림 시험의 두 완료 조건을 보완했다. 월별 항목은 목록 준비 뒤 선택하고, 설정은 `READY` 단독 대신 기대한 global/rule/권한 projection→idle→필요한 Lazy 항목 재탐색→실제 변경 문구를 확인한다. 저장 뒤 재조회 전에 이전 projection의 `READY`가 잠시 나타날 수 있고, `LOADING` 동안 비워진 목록은 스크롤 위치가 달라질 수 있기 때문이다.
@@ -22,7 +22,7 @@ Issue [#68](https://github.com/1971123-seongmin/MONIT/issues/68). 구현 계약�
 | core:data | 215 |
 | core:navigation | 16 |
 | core:designsystem | 35 |
-| feature:accounts | 55 |
+| feature:accounts | 59 |
 | feature:home | 21 |
 | feature:transactions | 32 |
 | app | 164 |
@@ -44,11 +44,24 @@ Issue [#68](https://github.com/1971123-seongmin/MONIT/issues/68). 구현 계약�
 
 ViewModel 시험은 비복귀 reader와 VM 제거/재생성에서도 실제 작업 완료 전 lease를 유지하고 늦은 결과를 폐기함을 확인한다. 입력 중인 기준액은 비저장 메모리에 유지하고 명시 확인/유지 전에는 반영을 막는다. SavedState에는 조회용 장부 context/batch ID만 남긴다.
 
+시간초과의 수정 전 시험은 첫 읽기 `FAILED` 대신 `LOADING`, 반영 전 재읽기 `STALE` 대신 `APPLYING`, batch 보관 뒤 `RECOVERY` 대신 `APPLYING`으로 실패했다. 내부 timeout을 부모/VM 취소와 구분해 실제 완료 callback에서만 다음 상태를 확정하도록 수정했다. 가상 60초와 실제 `CancellableDocumentAccess`의 비협력 child 정리 gate로 종료 전 lease/중복 차단과 종료 후 명시 재시도를 확인한다. batch 보관 뒤 timeout은 명시 영속 조회만 수행하며 apply는 1회다. 정리 중 장부 변경과 VM 교체는 이전 상태/새 VM을 덮지 않는다. 외부 provider의 즉시 종료·실제 기기 60초 소요를 시험했다는 뜻은 아니다.
+
 아래는 Native host 이미지다. 최종 확인창은 별도 Dialog window의 **320dp·fontScale 2.0** 리소스를 직접 검사했으며 생성 예정 수와 반영 버튼의 표시도 단언했다. 원본 행 수와 생성 거래 수를 분리한다.
 
 | 검토 · Light 320dp/100% | 최종 확인 · Dark 320dp/200% | 결과 · Dark 320dp/200% |
 |---|---|---|
 | ![검토](images/import-writer/review-light.png) | ![최종 확인](images/import-writer/confirm-dark-large.png) | ![부분 지원 결과](images/import-writer/result-dark-large.png) |
+
+## QA APK 산출물
+
+현재 작업 공간에서 생성한 로컬 산출물이며 Git에는 포함하지 않는다. 두 APK 모두 versionCode 1/versionName 0.1.0이며 `aapt2 dump badging`의 앱 ID와 metadata가 일치하고 `apksigner verify --verbose --print-certs`를 통과했다. 설치·기기 전송은 하지 않았다.
+
+| 변형 | 앱 ID | APK SHA-256 |
+|---|---|---|
+| qa · `app-qa.apk` | `com.monit.app.qa` | `492E77BFF1CC831FF8518FBCB8F0383D0B9B32B0D6F92382B40295EE141180C6` |
+| backupQa · `app-backupQa.apk` | `com.monit.app.qa.backup` | `6B9DF34A5D2E7D4E7B2819F7E14AAB6577B5CBA2DD50D2A157372E143EDC0040` |
+
+두 산출물의 개발용 서명 인증서 SHA-256은 `ECCC8070141D875ED47BC4A5DEDB398C27CD111ABAF3AD8880994BE6557B8CEE`다. 기존 동결 APK를 교체한 결과가 아니며 실제 기기 동작 검증과 구분한다.
 
 ## 남은 검증과 승인 경계
 

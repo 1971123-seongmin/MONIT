@@ -59,6 +59,8 @@ Room9의 `backup_status`에 검증한 export ID·context·ledger revision을 보
 
 진행·취소 요청/실제 종료 대기·재검토·부분 지원·확정 결과 불명을 별도 State로 둔다. UiState에는 표시 데이터만 두며 enum/명령·판정 로직을 넣지 않는다. parser/계산/파일 작업은 주입 dispatcher에서, UI는 lifecycle 수집·안정 key를 사용한다. 검증 30초/파일 60초 협력 중단과 실제 종료 전 중복 차단을 재사용한다.
 
+내부 시간초과는 부모/VM 취소와 구분한다. 실제 child/정리 종료 뒤 첫 읽기는 FAILED, 검토가 있는 재읽기는 STALE로 전환해 명시 재검토를 허용한다. batch 조회 ID가 보관된 실행은 RECOVERY에서 영속 결과만 조회하고 자동 재실행하지 않는다. 장부 변경/제거된 VM/이전 요청의 완료는 version과 invalidBinding으로 폐기한다. 제한 시간은 무응답 provider의 즉시 중단 보장이 아니며 실제 종료 전 lease를 해제하지 않는다.
+
 ## 확정한 백업 호환성
 
 이전 strict v2는 이관 묶음/행/대응/fence를 정의하지 않는다. 필드를 조용히 추가하거나 복원 때 버리지 않는다.
