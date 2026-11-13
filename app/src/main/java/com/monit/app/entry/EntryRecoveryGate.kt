@@ -77,6 +77,11 @@ fun EntryRecoveryGate(
                         },
                     )
 
+                    state.paymentRejection != null -> {
+                        Text("검토한 납입 내용이 변경되어 이 요청은 반영되지 않았습니다. 원문과 초안은 보존됩니다. 확인 후 최신 내용으로 다시 시작해 주세요.")
+                        MonitButton("납입 충돌 결과 확인 마치기", onClick = viewModel::finish)
+                    }
+
                     state.rejection != null -> {
                         Text("다른 변경이 있어 이 요청은 반영되지 않았습니다. 원본·입력 초안·충돌 결과는 보존됩니다. 확인 후 최신 거래를 다시 선택해 주세요.")
                         MonitButton("충돌 결과 확인 마치기", onClick = viewModel::finish)

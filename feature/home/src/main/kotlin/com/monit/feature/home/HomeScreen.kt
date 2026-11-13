@@ -4,11 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.monit.core.designsystem.component.MonitCard
+import com.monit.core.designsystem.component.MonitListItem
 import com.monit.core.designsystem.component.MonitStatusPanel
 import com.monit.core.designsystem.component.MonitTopBar
 import com.monit.core.designsystem.component.button.MonitButton
@@ -20,6 +22,7 @@ fun HomeScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     onNewTransaction: (() -> Unit)? = null,
+    onPayments: (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier.padding(horizontal = MonitTheme.spacing.content),
@@ -87,12 +90,50 @@ fun HomeScreen(
             }
         }
 
-        item("payments-unavailable") {
-            MonitStatusPanel(
-                "확인할 납입",
-                "납입 일정 조회는 아직 제공하지 않아요.",
-                Modifier.fillMaxWidth(),
-            )
+        if (state is HomeState.Ready) {
+            item(
+                "payments",
+                "header",
+            ) {
+                Text(
+                    "확인할 납입",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+
+                Text(state.ui.paymentSummary)
+
+                Text("은행 거래를 자동 확인하지 않아요. 실제 납입을 직접 검토해 주세요.")
+
+                if (onPayments != null) MonitButton(
+                    "월별 납입 보기",
+                    Modifier.fillMaxWidth(),
+                    onClick = onPayments,
+                )
+            }
+            items(
+                state.ui.payments,
+                key = { "payment:" + it.id },
+                contentType = { "payment" },
+            ) { payment ->
+                MonitListItem(
+                    headline = {
+                        Text(payment.name)
+                    },
+                    supportingContent = {
+                        Text(payment.schedule)
+                    },
+                    detailContent = {
+                        Text(payment.status)
+                    },
+                    onClick = onPayments,
+                )
+            }
+            if (state.ui.payments.isEmpty()) item(
+                "payments-empty",
+                "status",
+            ) {
+                Text("이번 달 예정된 납입이 없어요.")
+            }
         }
     }
 }

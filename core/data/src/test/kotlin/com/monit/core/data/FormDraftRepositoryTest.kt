@@ -185,7 +185,7 @@ class FormDraftRepositoryTest {
         val observed = AtomicBoolean()
         db = Room.databaseBuilder(app, LedgerDatabase::class.java, "drafts.db")
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4)
+            .addMigrations(LedgerMigration1To2, LedgerMigration2To3, LedgerMigration3To4, LedgerMigration4To5)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     db.execSQL("PRAGMA synchronous=FULL")
@@ -385,7 +385,7 @@ class FormDraftRepositoryTest {
         assertTrue(drafts.drafts(context).isEmpty())
         sql.query("PRAGMA user_version").use {
             assertTrue(it.moveToFirst())
-            assertEquals(4, it.getInt(0))
+            assertEquals(5, it.getInt(0))
         }
         db.close()
         reopen()

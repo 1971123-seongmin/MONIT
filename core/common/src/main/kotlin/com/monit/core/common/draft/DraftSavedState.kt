@@ -11,6 +11,11 @@ object DraftSavedState {
         putString("parent", value.parentDraftId)
         putString("request", value.selectionRequestId)
         putString("slot", value.slot?.name)
+        putString("paymentId", value.paymentId)
+        value.paymentRevision?.let { putLong("paymentRevision", it) }
+        putString("paymentRuleId", value.paymentRuleId)
+        value.paymentRuleRevision?.let { putLong("paymentRuleRevision", it) }
+        putString("paymentMonth", value.paymentMonth)
         putString("transaction", value.transactionId)
         value.transactionRevision?.let { putLong("transactionRevision", it) }
     }
@@ -23,6 +28,8 @@ object DraftSavedState {
         value.getString("slot")?.let(DraftSlot::valueOf),
         value.getString("transaction"),
         if (value.containsKey("transactionRevision")) value.getLong("transactionRevision") else null,
+        value.getString("paymentId"), if (value.containsKey("paymentRevision")) value.getLong("paymentRevision") else null,
+        value.getString("paymentRuleId"), if (value.containsKey("paymentRuleRevision")) value.getLong("paymentRuleRevision") else null, value.getString("paymentMonth"),
     )
 
     fun submission(value: DraftSubmission): Bundle = scope(value.scope).apply {

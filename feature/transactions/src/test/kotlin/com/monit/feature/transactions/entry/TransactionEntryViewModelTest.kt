@@ -663,6 +663,7 @@ private class EntryRepository : LedgerRepository {
         if (loseReply) throw IOException()
         return receipt
     }
+    override suspend fun paymentRejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.PaymentRejection? = null
     override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = rejections[operationId]
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? {
         reads++

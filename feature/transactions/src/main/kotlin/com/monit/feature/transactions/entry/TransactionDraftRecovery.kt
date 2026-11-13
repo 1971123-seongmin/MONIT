@@ -72,6 +72,7 @@ internal fun TransactionDraftRecovery(
                 ) { draft ->
                     MonitCard(Modifier.fillMaxWidth()) {
                         val summary = when (val content = draft.content) {
+                            is DraftContent.Payment -> "월별 납입 초안"
                             is DraftContent.Account -> content.name.ifBlank { "이름 미입력" } + " · " + content.anchorDate
                             is DraftContent.Transaction -> content.date + " · " + content.amount.ifBlank { "금액 미입력" }
                         }

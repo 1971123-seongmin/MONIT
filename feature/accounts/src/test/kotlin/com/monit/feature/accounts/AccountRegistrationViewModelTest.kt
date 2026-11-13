@@ -845,6 +845,7 @@ private class FakeRepository : LedgerRepository {
         return if (mismatchReceipt) receipt.copy(operationId = "other") else receipt
     }
 
+    override suspend fun paymentRejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.PaymentRejection? = null
     override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = null
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? {
         receiptReads++

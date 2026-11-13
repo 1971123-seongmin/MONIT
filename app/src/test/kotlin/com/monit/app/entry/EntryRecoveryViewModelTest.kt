@@ -140,6 +140,37 @@ class EntryRecoveryViewModelTest {
         assertTrue(repo.finished.isEmpty())
     }
 
+    /**
+     * 목적: 납입 확정 거절을 성공/미확정 재시도와 구분하고 선택한 결과 하나만 종료한다.
+     * 조건: 기존 두 제출과 별도의 납입 거절 한 건이 발견된다.
+     * 절차: 발견→명시 선택→retry 호출→명시 finish 순서로 가상 스케줄러를 진행한다.
+     * 기대: 금융 재시도 0, paymentRejection만 표시, 선택한 ID만 종료하고 다른 두 참조를 보존한다.
+     */
+    @Test fun paymentRejectionNeedsExplicitAcknowledgementWithoutFinancialRetry() = runTest(dispatcher) {
+        val repo = RecoveryRepository()
+        val outcome = PaymentRejection(testContext, queryId(13), "payment_items", queryId(33), 1, 2, "2026-11-13T03:00:00Z")
+        repo.paymentRejections[outcome.operationId] = outcome
+        repo.items = listOf(SubmissionRecoveryItem.PaymentRejected(SubmissionReference(testContext, outcome.operationId), outcome)) + repo.items
+        val model = vm(repo)
+        model.bind(testContext)
+        advanceUntilIdle()
+        model.finish()
+        assertTrue(repo.finished.isEmpty())
+        model.select(0)
+        advanceUntilIdle()
+        assertEquals(outcome, model.state.value.paymentRejection)
+        assertNull(model.state.value.receipt)
+        assertNull(model.state.value.rejection)
+        assertFalse(model.state.value.resultAbsent)
+        model.retry()
+        advanceUntilIdle()
+        assertTrue(repo.retried.isEmpty())
+        model.finish()
+        advanceUntilIdle()
+        assertEquals(listOf(outcome.operationId), repo.finished)
+        assertEquals(2, model.state.value.items.size)
+    }
+
     /** 손상/세대 불일치 항목은 선택으로 실행 가능한 참조로 바꾸지 않는다. */
     @Test fun blockedItemCannotExecuteOrFinish() = runTest(dispatcher) {
         val repo = RecoveryRepository().apply { items = listOf(SubmissionRecoveryItem.Blocked(null, SubmissionRecoveryProblem.CORRUPTED)) }
@@ -197,6 +228,8 @@ private class RecoveryRepository : LedgerRepository by QueryRepository() {
         )
     }
     val rejections = mutableMapOf<String, TransactionRejection>()
+    val paymentRejections = mutableMapOf<String, PaymentRejection>()
+    override suspend fun paymentRejection(context: LedgerContext, operationId: String): PaymentRejection? = paymentRejections[operationId]
     override suspend fun rejection(context: LedgerContext, operationId: String): TransactionRejection? = rejections[operationId]
     val receipts = mutableMapOf<String, WriteReceipt>()
     val retried = mutableListOf<String>()
@@ -221,7 +254,7 @@ private class RecoveryRepository : LedgerRepository by QueryRepository() {
     }
     override suspend fun finishSubmissionRecovery(context: LedgerContext, operationId: String): FinishSubmissionRecoveryResult {
         finished += operationId
-        items = items.filterNot { (it is SubmissionRecoveryItem.Pending && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.Rejected && it.reference.operationId == operationId) }
+        items = items.filterNot { (it is SubmissionRecoveryItem.Pending && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.Rejected && it.reference.operationId == operationId) || (it is SubmissionRecoveryItem.PaymentRejected && it.reference.operationId == operationId) }
         return FinishSubmissionRecoveryResult.Finished
     }
 }

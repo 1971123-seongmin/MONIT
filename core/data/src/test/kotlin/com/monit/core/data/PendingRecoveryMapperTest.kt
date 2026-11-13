@@ -22,7 +22,7 @@ class PendingRecoveryMapperTest {
     /** 외부 행의 장부가 다르면 알 수 없는 버전도 귀속 불일치다. ID·hash 오류의 우선순위는 유지한다. */
     @Test
     fun foreignOuterLedgerIsRejectedBeforeUnsupportedVersion() {
-        val row = row("""{"version":3}""", ledgerId = id(902))
+        val row = row("""{"version":99}""", ledgerId = id(902))
 
         assertEquals(
             PendingRecoveryItem.Corrupted(operationId, CorruptedSubmission.CONTEXT_MISMATCH),
@@ -42,8 +42,8 @@ class PendingRecoveryMapperTest {
     @Test
     fun unsupportedVersionDoesNotReadVersionOneFields() {
         val payloads = listOf(
-            """{"version":3}""",
-            """{"version":3,"ledgerId":"foreign","expectedStorageGeneration":"foreign"}""",
+            """{"version":99}""",
+            """{"version":99,"ledgerId":"foreign","expectedStorageGeneration":"foreign"}""",
         )
 
         for (payload in payloads) {

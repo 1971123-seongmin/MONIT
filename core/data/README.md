@@ -1,5 +1,7 @@
 # 로컬 저장 기반
 
+현재 거래 수정·논리 삭제는 [거래 상태](../../feature/transactions/STATE.md), 신규 schema 5의 월별 납입·단일 outer writer·원래 intent/명시 해제 경계는 [납입 상태](../../feature/home/STATE.md)를 따른다. 아래 생성 v1/초안의 두 단계 설명은 기존 경로이며 납입 전용 writer와 구분한다. v4→v5는 기존 열·행·원문/hash를 보존하고 납입 테이블 6개만 추가한다.
+
 `LedgerRepository`의 로컬 구현이다. `app → core:data → core:model` 의존 방향을 유지하며 Room Entity와 DAO는 모듈 내부에 둔다. `di`의 `LedgerDatabaseModule`·`LedgerClockModule`은 파일 DB와 서울 Clock을 Singleton으로 제공하고, `LedgerRepositoryModule`은 생성자 주입 가능한 Room 구현을 Repository 계약에 Singleton으로 바인딩한다. 홈·거래·계좌 조회와 [입력·계좌 등록](../../feature/transactions/ENTRY.md)을 연결한다.
 
 공통 실행 의존성은 [core:common](../common/README.md)에서 제공한다. Repository는 `CoroutineContextProvider`를 생성자로 주입받고 `default`로 요청 직렬화·해시·복원 준비를 실행한다. Room 트랜잭션 경계와 호출자 취소는 유지한다. Android Context는 DB 제공부에서 Hilt의 `@ApplicationContext`로 주입하며 Repository나 전역 객체에 보관하지 않는다.
@@ -54,4 +56,4 @@ Robolectric 테스트는 실제 Room 생성 DAO와 파일 SQLite로 중복·참�
 
 제품 폼/UI는 이 모듈의 변경 범위가 아니다. [거래 typed 복구 #43](https://github.com/1971123-seongmin/MONIT/issues/43)의 구현 PR에서 위 실제 파일 시험·기존 계좌/제출 복구 회귀·최신 CI와 필요한 리뷰 대응을 확인하고 병합하면 [입력·등록 연결 #40](https://github.com/1971123-seongmin/MONIT/issues/40)을 재개한다. 이후 feature에서 원래 context·ID의 결과 확인·명시 재시도·선택한 제출 참조의 명시 종료를 화면에 연결한다.
 
-기준액 확인/변경, 편집·삭제·이력, 납입 연결, 입력 폼 초안, 이관·백업·복원, 서버 동기화와 Flow 기반 UI 조회는 후속 범위다. 소비자는 `LedgerRepository`를 사용하고 DAO나 DB 파일을 직접 조작하지 않는다. 현재 전체 가계부를 읽는 계산은 초기 구현이며 데이터 규모에 따른 성능 검증은 별도로 필요하다.
+기준액 확인/변경, 이관·백업·복원, 서버 동기화와 Flow 기반 UI 조회는 후속 범위다. 소비자는 Repository 계약을 사용하고 DAO나 DB 파일을 직접 조작하지 않는다. 현재 전체 가계부를 읽는 계산은 초기 구현이며 데이터 규모에 따른 성능 검증은 별도로 필요하다.

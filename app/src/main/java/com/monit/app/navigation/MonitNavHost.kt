@@ -10,7 +10,9 @@ import com.monit.feature.accounts.navigation.accountRegistrationScreen
 import com.monit.feature.accounts.navigation.accountsScreen
 import com.monit.feature.accounts.navigation.importPreviewScreen
 import com.monit.feature.home.navigation.HomeDestination
+import com.monit.feature.home.navigation.PaymentsDestination
 import com.monit.feature.home.navigation.homeScreen
+import com.monit.feature.home.navigation.paymentsScreen
 import com.monit.feature.transactions.navigation.TransactionEntryDestination
 import com.monit.feature.transactions.navigation.transactionEntryScreen
 import com.monit.feature.transactions.navigation.transactionsScreen
@@ -26,6 +28,7 @@ fun MonitNavHost(
     transactionEntry: (@Composable (NavBackStackEntry, TransactionEntryDestination) -> Unit)? = null,
     accountRegistration: (@Composable (NavBackStackEntry, AccountRegistrationDestination) -> Unit)? = null,
     importPreview: (@Composable (NavBackStackEntry) -> Unit)? = null,
+    payments: (@Composable (NavBackStackEntry, PaymentsDestination) -> Unit)? = null,
 ) {
     NavHost(
         controller,
@@ -43,5 +46,7 @@ fun MonitNavHost(
         accountRegistration?.let { accountRegistrationScreen(it) }
 
         importPreview?.let { importPreviewScreen(it) }
+
+        payments?.let { paymentsScreen(it) }
     }
 }

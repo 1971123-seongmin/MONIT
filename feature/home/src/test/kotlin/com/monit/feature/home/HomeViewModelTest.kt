@@ -44,7 +44,7 @@ class HomeViewModelTest {
     private val clock = Clock.fixed(Instant.parse("2026-11-10T16:00:00Z"), ZoneOffset.UTC)
     private val context = LedgerContext(id(1), id(2))
     private val store = ViewModelStore()
-    private fun viewModel(repo: HomeRepository) = HomeViewModel(repo, clock, contexts).also { store.put("home", it) }
+    private fun viewModel(repo: HomeRepository) = HomeViewModel(repo, clock, contexts, HomePayments(repo)).also { store.put("home", it) }
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -149,10 +149,13 @@ private class HomeRepository : LedgerRepository {
     ): com.monit.core.model.FinishSubmissionRecoveryResult = error("이 테스트는 제출 종료를 호출하지 않는다")
 
     val dates = mutableListOf<LocalDate>()
+    var lastRevision = 1L
+    var paymentItems: List<MonthlyPayment> = emptyList()
+    var failPayments = false
     var onSnapshot: suspend () -> LedgerSnapshot = { snapshot(0) }
     override suspend fun snapshot(context: LedgerContext, asOf: LocalDate): LedgerSnapshot {
         dates += asOf
-        return onSnapshot()
+        return onSnapshot().also { lastRevision = it.revision }
     }
 
     override suspend fun openLedger(): LedgerEntryResult = error("장부 진입은 app의 책임이다")
@@ -172,6 +175,7 @@ private class HomeRepository : LedgerRepository {
         value: CreateTransaction,
     ): WriteReceipt = error("읽기 전용")
 
+    override suspend fun paymentRejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.PaymentRejection? = null
     override suspend fun rejection(context: com.monit.core.model.LedgerContext, operationId: String): com.monit.core.model.TransactionRejection? = null
     override suspend fun receipt(context: LedgerContext, operationId: String): WriteReceipt? = error("후속 복구 범위")
 
@@ -209,4 +213,17 @@ private fun snapshot(income: Long): LedgerSnapshot {
         ),
     )
     return LedgerSnapshot(1, listOf(account), rows, mapOf(account.id to null), income, 0)
+}
+
+private class HomePayments(private val ledger: HomeRepository) : PaymentRepository {
+    override suspend fun month(context: LedgerContext, month: String): PaymentMonthSnapshot {
+        if (ledger.failPayments) throw IOException("Synthetic payment read failure")
+        return PaymentMonthSnapshot(context, ledger.lastRevision, month, emptyList(), ledger.paymentItems)
+    }
+    override suspend fun submit(context: LedgerContext, operationId: String, command: PaymentCommand, draft: DraftSubmission?): WriteReceipt = error("Home never writes payments")
+    override suspend fun rejection(context: LedgerContext, operationId: String): PaymentRejection? = error("Home never reads submission outcomes")
+    override suspend fun prepared(context: LedgerContext): List<PreparedPayment> = error("Home never discovers prepared requests")
+    override suspend fun attempt(context: LedgerContext, operationId: String): PaymentAttempt = error("Home never reads submission outcomes")
+    override suspend fun retry(context: LedgerContext, operationId: String): WriteReceipt = error("Home never retries")
+    override suspend fun release(context: LedgerContext, operationId: String, command: PaymentCommand?): PaymentAttempt = error("Home never releases")
 }

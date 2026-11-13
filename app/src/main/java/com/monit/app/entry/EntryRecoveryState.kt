@@ -10,6 +10,7 @@ data class EntryRecoveryState(
     val selected: Int? = null,
     val receipt: WriteReceipt? = null,
     val rejection: com.monit.core.model.TransactionRejection? = null,
+    val paymentRejection: com.monit.core.model.PaymentRejection? = null,
     val resultAbsent: Boolean = false,
     val ready: Boolean = false,
     val ui: EntryRecoveryUiState = EntryRecoveryUiState(),

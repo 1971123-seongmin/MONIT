@@ -346,7 +346,7 @@ class LedgerRecoveryTest {
         pending(10, raw, "bad-hash")
         pending(11, raw.replace(context.storageGeneration, id(999)))
         pending(12, "$raw ")
-        pending(13, raw.replace("\"version\":1", "\"version\":3"))
+        pending(13, raw.replace("\"version\":1", "\"version\":99"))
         pending(14, raw.replace("UPDATE_ACCOUNT", "FUTURE_KIND"))
         pending(15, "{")
         pending(16, raw.replace("2026-10-31", "bad-date"))
