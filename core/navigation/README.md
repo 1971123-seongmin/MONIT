@@ -18,4 +18,4 @@ UI 결과 저장과 이동은 영속 트랜잭션이 아니다. 금융 저장·�
 
 Navigation은 기존 SDK 36을 유지하는 **2.9.8**, 타입 경로는 Kotlin 2.2.10 serialization plugin과 runtime **1.9.0**을 사용한다. [Navigation 릴리스](https://developer.android.com/jetpack/androidx/releases/navigation)와 [serialization 1.9.0 요구사항](https://github.com/Kotlin/kotlinx.serialization/releases/tag/v1.9.0)을 기준으로 선택했다. 최신 Navigation 계열로의 SDK 상향은 이번 기반 구현에서 분리한다.
 
-실제 NavController를 사용하는 Robolectric 시험은 source 수명·연타·caller 불일치·pop 거부/예외 복원·stack 저장/복원을 검증한다. Compose 시험은 재구성 시 동일 인스턴스와 host 제거/교체 시 이전 연결 종료를 확인한다. 실제 release 기기의 프레임 성능과 제품 화면 복구 검증은 후속 단계다. [전체 설계](../../docs/architecture/navigation2-navigation-plan.md)를 따른다.
+실제 NavController를 사용하는 Robolectric 시험은 source 수명·연타·caller 불일치·pop 거부/예외 복원·stack 저장/복원을 검증한다. Compose 시험은 재구성 시 동일 인스턴스와 host 제거/교체 시 이전 연결 종료를 확인한다. 실제 release 기기의 프레임 성능은 후속 검증이다. 제품 복구의 지정 수용시험과 남은 검증은 [현재 상태](../../docs/README.md#검증과-남은-일)에서 구분한다. [전체 설계](../../docs/architecture/navigation2-navigation-plan.md)를 따른다.

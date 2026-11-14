@@ -61,4 +61,4 @@ SAF CreateDocument/OpenDocument로 사용자가 위치를 선택한다. URI 접�
 
 host 시험은 고정 JCA/OpenSSL vector, 변조/한도/strict 형식, 실제 파일 Room의 원자성·CAS·세대·마이그레이션, stream 실패, ViewModel의 명시 확인/결과 유실/알림 실패, Compose 화면을 검증한다. 일반 SecretKeySpec 기반 내부 사본 시험은 AndroidKeyStore 성공 증거가 아니다.
 
-실제 OEM SAF의 close/재읽기·권한 회수, 실제 Keystore 생성/잠금/디스크 오류, 프로세스 강제 종료/재시작, 키보드·스크린샷 차단·큰 글씨·실제 알림 동작은 기기 검증 항목이다. 사용자 요청에 따라 기기 조회·설치·테스트는 저녁까지 보류한다. 실제 개인 금융 자료는 시험·로그에 사용하지 않는다. [SAF 문서](https://developer.android.com/training/data-storage/shared/documents-files)와 실제 provider 동작을 함께 확인해야 한다.
+실제 OEM SAF의 close/재읽기·권한 회수, 실제 Keystore 생성/잠금/디스크 오류, 프로세스 강제 종료/재시작, 키보드·스크린샷 차단·큰 글씨·실제 알림 동작은 기기 검증 항목이다. 현재는 사용자의 최근 앱 카드 육안 확인 중 기기 제어를 보류한다. 확인 응답·인계 후 이미 승인된 QA를 재개한다. 지정 S23 수용시험 PASS와 KDF 20회 p95·상한 payload heap·복원 성능/장애·알림의 남은 검증은 [현재 상태](../../docs/README.md#검증과-남은-일)에서 구분한다. 미병합 #73의 CI 성공은 기기 측정 결과가 아니다. 실제 개인 금융 자료는 시험·로그에 사용하지 않는다. [SAF 문서](https://developer.android.com/training/data-storage/shared/documents-files)와 실제 provider 동작을 함께 확인해야 한다.

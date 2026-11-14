@@ -8,7 +8,7 @@
 `core:data`는 Room 기반 계좌·거래 저장과 수정·논리 삭제, 월별 수동 납입, 알림 선호, 기준액 확인·변경 및 같은 요청의 재시도 복구를 구현하고 Hilt로 연결합니다. [저장 범위와 사용 계약](core/data/README.md)을 참고합니다.
 Navigation 2의 앱 셸에서 홈·거래·계좌 조회와 입력·등록, 영속 초안 및 이전 제출 복구, 월별 납입·알림 설정을 연결합니다. 계좌 상세에서는 저장된 기준일 마감액의 영향 검토→최종 확인과 변경 이력, 확인된 장부 잔액 소계·선택 월 저축·투자 납입/인출/순납입을 제공합니다. 미확인과 0원을 구분하며 은행 잔액·시장 평가·수익률로 표현하지 않습니다. [계좌·자산 계약](feature/accounts/ASSETS.md), [탐색 사용 계약](core/navigation/README.md), [전체 탐색 설계](docs/architecture/navigation2-navigation-plan.md)를 참고합니다. 호스트 검증과 실기기 검증은 구분합니다.
 
-현재는 서버 연결 없이 단일 기기에 저장하는 로컬 MVP의 기반을 구현하는 단계입니다. Figma 설계 완료와 앱 기능 구현 완료는 구분합니다.
+현재는 서버 연결 없이 단일 기기에 저장하는 로컬 MVP입니다. 암호화 백업·전체 복원과 지원 JSON 이관의 명시 반영까지 main에 구현되어 있습니다. 실제 자료 반영과 배포는 보류이며 출시 준비는 미완료입니다. **[현재 구현·검증 상태와 문서 안내](docs/README.md)**에서 기준 커밋, S23 지정 수용시험, 미병합 #73과 남은 성능·장애 검증을 구분합니다.
 
 ## 개발 범위
 
@@ -17,7 +17,7 @@ Navigation 2의 앱 셸에서 홈·거래·계좌 조회와 입력·등록, 영�
 - 반복 납입 일정·알림과 사용자가 확인하는 월별 완료 이력
 - 기존 기록의 지원 유형 이관, 파일 백업·복원
 
-위 목록은 목표 범위이며 모두 구현된 상태가 아닙니다. 예산·Supabase 인증·다중 기기 동기화는 현재 로컬 MVP 범위에 포함하지 않습니다.
+위 기능의 로컬 경로는 구현되어 있으며 전체 출시 검증은 남아 있습니다. 이관은 합성 자료로 검증했고 실제 Notion 자료 반영은 보류합니다. 예산·Supabase 인증·다중 기기 동기화는 현재 로컬 MVP 범위에 포함하지 않습니다.
 
 은행 연결, 자동 송금, 거래 자동 수집, 카드 실적·혜택 관리는 제외합니다.
 
@@ -29,7 +29,7 @@ Navigation 2의 앱 셸에서 홈·거래·계좌 조회와 입력·등록, 영�
 |---|---|
 | Figma | 디자인 시스템과 기능별 화면 설계 개편 완료. 시각 설계 원본이며 앱 구현·실기기 검증 완료를 뜻하지 않음 |
 | Compose 디자인 시스템 | 개편 19개 family의 공통 API와 상태별 Preview, 선택적 클릭 Modifier 구현. 호스트 시험과 실제 Prevue·실기기 검증 범위는 디자인 시스템 README에서 구분 |
-| 제품 화면 | 홈·거래·계좌 조회/입력, 초안·제출 복구, 월별 납입·알림, 기준액 확인·자산 집계를 연결. 실기기 검증은 별도 |
+| 제품 화면 | 조회/입력·거래 변경·초안/제출 복구·납입/알림·기준액/자산·백업/복원·이관을 연결. S23 지정 수용시험 PASS와 남은 출시 검증은 문서 안내에서 구분 |
 
 Material 3와 SEED의 의미·상태 원칙을 적용하며, 기존 파란색과 기기 설정에 따른 Light/Dark를 유지합니다. 동적 색상은 사용하지 않습니다. 최신 페이지별 링크, 구현된 컴포넌트의 사용 경계와 검증 방법은 [디자인 시스템 README](core/designsystem/README.md)에서 확인합니다.
 
@@ -38,12 +38,12 @@ Material 3와 SEED의 의미·상태 원칙을 적용하며, 기존 파란색과
 - `app`: 앱 진입점과 의존성 조립
 - `core:common`: [CoroutineContextProvider·CoroutineScopeProvider의 Hilt 제공](core/common/README.md)
 - `core:model`: Android 비의존 Kotlin 값·금액·날짜 계산과 Repository 계약
-- `core:data`: Room Entity·DAO·Repository 구현과 Hilt 바인딩, schema 7 및 비파괴 Migration
+- `core:data`: Room Entity·DAO·Repository 구현과 Hilt 바인딩, schema 9 및 비파괴 1→9 Migration, 백업·복원·이관
 - `core:designsystem`: Material 3 기반 MONIT 테마·공통 컴포넌트·상태 Preview
 - `core:navigation`: UI 수명의 탐색·Back·결과 반환 실행기
-- `feature:home`: 홈 월 전체 요약과 조회 상태
-- `feature:transactions`: 거래 조회 ViewModel·달력/목록·필터와 입력 타입 경로
-- `feature:accounts`: 계좌 조회·등록·상세·기준액 검토/확정·자산 집계와 타입 경로
+- `feature:home`: 홈 월 전체 요약, 월별 납입·수동 확인·알림 설정
+- `feature:transactions`: 거래 조회·달력/목록·필터·입력·초안·수정/논리 삭제
+- `feature:accounts`: 계좌 조회·등록·상세·기준액 검토/확정·자산 집계·이관 검토/반영
 
 기능 모듈은 실제 구현에 맞춰 추가합니다. 공통 개발 규칙은 [AGENTS.md](AGENTS.md)를 따릅니다.
 
@@ -82,7 +82,7 @@ ollama create monit-local -f tools/ollama/Modelfile
 ## 외부 연결
 
 - GitHub Actions: `.github/workflows/android-ci.yml`
-- CodeRabbit 한국어 리뷰: `.coderabbit.yaml`; GitHub 앱 설치가 별도로 필요합니다.
+- CodeRabbit: 사용자 재활성화 요청 전까지 지속 OFF입니다. 설정 파일의 존재는 리뷰 활성화를 뜻하지 않습니다. [운영 기준](docs/ai/automation.md#coderabbit-선택적-리뷰)을 따릅니다.
 - Figma MCP 공식 주소: `https://mcp.figma.com/mcp`
 - Notion MCP 공식 주소: `https://mcp.notion.com/mcp`
 
@@ -95,5 +95,5 @@ Supabase 클라이언트 설정 키 이름은 `.env.example`을 참고합니다.
 ## 보안과 비용
 
 실제 금융 데이터, 비밀키, 인증 토큰, 서명키, 로컬 SDK 경로를 커밋하지 않습니다.
-Supabase 서버 비밀키를 Android에 넣지 않으며 사용자 데이터에는 RLS를 적용합니다.
+Supabase 서버 비밀키를 Android에 넣지 않습니다. 향후 서버 연동 시 사용자 데이터에 RLS를 적용해야 하며, 현재 RLS 배포 완료를 뜻하지 않습니다.
 기존 이용 권한과 무료 플랜을 우선하고 추가 구독·크레딧·별도 과금 API는 사용자 승인 없이 활성화하지 않습니다.

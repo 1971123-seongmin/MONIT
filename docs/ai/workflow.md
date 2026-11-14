@@ -18,6 +18,10 @@
 
 문서 수정처럼 단순한 작업은 필요한 역할만 참여한다. 실재 Issue·PR이 없으면 번호를 만들지 않으며 로컬 작업 식별자를 GitHub 번호처럼 표시하지 않는다.
 
+## 현재 진행 공유
+
+사용자 운영 지시에 따라 진행 중 작업은 2시간마다 KST 기준으로 상태를 공유한다. 변경·검증·차단과 다음 작업을 간결하게 알리며, 이 문구만으로 예약 자동화나 다른 채팅에 대한 전송 권한을 생성하지 않는다. 작업 종료 시에는 최종 인계를 남긴다. 현재 구현·검증 상태와 문서 원본의 연결은 [문서 안내](../README.md)를 사용한다.
+
 ## 전달 형식
 
 ```text
@@ -50,7 +54,7 @@ From → To: 요청 역할 → 담당 역할
 
 모든 Notion 작업은 **MONIT 팀스페이스**(`4072e2ce-2fe6-817b-906c-004252dfff15`)를 사용한다. 현재 상위 페이지는 [팀스페이스 홈](https://app.notion.com/p/f8d2e2ce2fe68288b2b5815be31ba2bb)이고 대시보드와 하위 기획·협업 로그를 그 아래에 둔다. 검색은 이 팀스페이스로 제한하고 생성·이동 전 parent가 이 범위에 속하는지 확인한다. 위치·접근 권한이 미확인일 때 개인 영역으로 대체하지 않는다.
 
-현재 생성된 진입점은 [Project Dashboard](https://app.notion.com/p/4072e2ce2fe6817c9fbad344f4a902be), [Product Planning](https://app.notion.com/p/4072e2ce2fe68180a5d6c946be50c243), [AI Collaboration Log](https://app.notion.com/p/f928dd96f5144c3387034a23db0b2ec9), [Figma 초안](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=3-16)이다. 링크 접근은 서비스 권한을 따르며 저장소에 링크를 기록한 것이 외부 문서를 공개하는 것은 아니다.
+현재 생성된 진입점은 [Project Dashboard](https://app.notion.com/p/4072e2ce2fe6817c9fbad344f4a902be), [Product Planning](https://app.notion.com/p/4072e2ce2fe68180a5d6c946be50c243), [AI Collaboration Log](https://app.notion.com/p/f928dd96f5144c3387034a23db0b2ec9), [Figma 파일](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=123-2)이다. 링크 접근은 서비스 권한을 따르며 저장소에 링크를 기록한 것이 외부 문서를 공개하는 것은 아니다.
 
 | 자료 | 원본 | 다른 도구에서 관리할 내용 |
 |---|---|---|

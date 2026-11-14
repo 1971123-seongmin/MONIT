@@ -33,7 +33,7 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 
 요청 크기 P2의 Backend 계약 보완은 완료됐다. 입력별 UTF-8 16 KiB와 직렬화 원문은 서로 다른 검증 경계다. 현재 `captureWrite → submit`은 캡처 JSON에 입력용 16 KiB 검사를 재사용하지 않는다. 이름·사유가 각각 정확히 16 KiB이고 캡처 JSON은 이를 초과하는 실제 Room 시험에서 실패 롤백·재열기·같은 제출 재시도와 원문/hash 보존을 확인했다. 큰 이스케이프 입력이 이 경로에서 크기 때문에 거부된다는 기존 설명은 근거가 없어 정정한다.
 
-전체 백업 JSON의 UTF-8 8 MiB 제한은 백업 writer/reader의 책임이며 개별 Room 요청의 새 상한이 아니다. 백업 round-trip은 아직 구현·검증하지 않았다. Backend 작업본 `docs/architecture/local-ledger-contract.md` 8.1절과 `docs/contracts/README.md` P2는 조회했으나 현재 main에는 등록되지 않아 상대 링크를 완료된 원본처럼 연결하지 않는다. 후속 준비와 검증 경계는 [개발 계획](../../docs/architecture/monit-modules-di-ui-plan.md#11-열린-결정반대-의견중단-조건)을 따른다.
+전체 백업 JSON의 UTF-8 8 MiB 제한은 백업 writer/reader의 책임이며 개별 Room 요청의 새 상한이 아니다. 백업 round-trip과 evidence-only 보존은 [현재 백업 계약](../../core/data/BACKUP.md) 및 해당 Room 시험에서 다룬다. 등록 VM 시험만으로 백업을 검증했다고 보지 않는다. Backend 작업본 `docs/architecture/local-ledger-contract.md` 8.1절과 `docs/contracts/README.md` P2는 조회했으나 현재 main에는 등록되지 않아 상대 링크를 완료된 원본처럼 연결하지 않는다. 현재 공개 계약과 미게시 작업본의 구분은 [문서 안내](../../docs/README.md#문서-찾기와-이력의-읽는-법)를 따른다.
 
 ## 검증과 다음 단위
 
@@ -41,4 +41,4 @@ context 생성·초기화 계약은 [Repository 사용 순서](../../core/data/R
 
 계좌 등록 Route/Screen·top-level Preview와 거래 입력 왕복을 연결했다. 합성 호스트 렌더와 실제 Route/VM/Nav2 UI 시험을 제공한다. Prevue·실기기 실행 및 IME·재부팅 검증은 해당 실행 증거가 있을 때만 보고하며 실기기 조작은 QA가 담당한다.
 
-기준액 확인·수정·삭제·서버 동기화는 지원 API가 준비되기 전까지 후속 범위다. PR은 계좌 상태 계층의 완료이며 첫 제품 동선 전체나 PRD 전체의 완료가 아니다.
+신규 등록은 일반/저축/투자 성격을 선택하고 저장 후 성격은 잠근다. 기준액 확인/정정·자산 집계는 [ASSETS](ASSETS.md)에 구현됐다. 일반 계좌 정보 수정/삭제와 서버 동기화는 이 등록 계약의 지원 범위가 아니다. 전체 검증 완료 여부는 [현재 상태](../../docs/README.md#검증과-남은-일)로 구분한다.
