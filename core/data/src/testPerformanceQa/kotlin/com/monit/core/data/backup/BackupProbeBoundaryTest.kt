@@ -236,6 +236,8 @@ class BackupProbeBoundaryTest {
         assertEquals(before, digest())
         assertNull(backup.result(preview.id))
         assertEquals(1, recoveryCount)
+        assertEquals(listOf(true, false), backup.workProbe.snapshot().filter { it.event == "MERGED_LIMITS" }.map { it.start })
+        assertTrue(backup.workProbe.snapshot().none { it.event == "RESTORE_PLAN" })
         assertTrue(backup.workProbe.snapshot().none { it.event == "REPLACEMENT" })
     }
 

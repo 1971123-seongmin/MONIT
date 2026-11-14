@@ -3,7 +3,6 @@ package com.monit.core.data.backup
 import com.monit.core.data.*
 import com.monit.core.model.*
 import java.time.*
-import java.util.Base64
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -154,23 +153,28 @@ internal class BackupValidator(private val clock: Clock, private val probe: Back
         val listed = manifest.list("originals").associateBy { it.text("id") }
         require(files.size == listed.size && files.map { it.text("id") }.distinct().size == files.size)
         var total = 0L
-        for (file in files) {
-            requireLedgerId(file.text("id"))
-            val length = file.exactLong("byteLength")
-            require(length in 0L..(2 * 1024 * 1024L))
-            val bytes = Base64.getDecoder().decode(file.text("bytesBase64"))
-            require(Base64.getEncoder().encodeToString(bytes) == file.text("bytesBase64") && bytes.size.toLong() == length && BackupJson.digest(bytes) == file.text("sha256"))
-            bytes.fill(0)
-            total = Math.addExact(total, length)
-            require(total <= 2 * 1024 * 1024)
-            val declared = checkNotNull(listed[file.text("id")])
-            require(declared.text("byteLength") == file.text("byteLength") && declared.text("sha256") == file.text("sha256"))
-            requireLedgerText(file.text("fileName"))
-            requireLedgerText(file.text("sourceNamespace"))
+        val scratch = ByteArray(BACKUP_ORIGINAL_CHUNK)
+        try {
+            for (file in files) {
+                requireLedgerId(file.text("id"))
+                val length = file.exactLong("byteLength")
+                require(length in 0L..(2 * 1024 * 1024L))
+                verifyBackupOriginal(file.text("bytesBase64"), length, file.text("sha256"), scratch)
+                total = Math.addExact(total, length)
+                require(total <= 2 * 1024 * 1024)
+                val declared = checkNotNull(listed[file.text("id")])
+                require(declared.text("byteLength") == file.text("byteLength") && declared.text("sha256") == file.text("sha256"))
+                requireLedgerText(file.text("fileName"))
+                requireLedgerText(file.text("sourceNamespace"))
+            }
+        } finally {
+            scratch.fill(0)
         }
-        val fences = root.getJSONArray("operationFences").values().map { requireLedgerId(it as String) }
-        val fenceSet = fences.toSet()
-        require(fenceSet.size == fences.size)
+        val fences = root.getJSONArray("operationFences")
+        for (index in 0 until fences.length()) requireLedgerId(fences.get(index) as String)
+        val fenceSet = HashSet<String>(fences.length() * 4 / 3 + 1)
+        for (index in 0 until fences.length()) fenceSet.add(fences.get(index) as String)
+        require(fenceSet.size == fences.length())
         require(root.list("submissionsEvidence").all { it.text("operationId") in fenceSet })
     }
 }

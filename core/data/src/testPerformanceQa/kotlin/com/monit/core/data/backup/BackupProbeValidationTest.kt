@@ -141,8 +141,9 @@ class BackupProbeValidationTest {
 
     /** 50,000개 상한에도 관측은 항목마다 늘지 않으며 기존 enum 이름·ordinal과 4,096 event 용량을 유지한다. */
     @Test fun recordLimitKeepsObservationBoundedAndExistingEventCodesStable() = runTest {
-        val existing = listOf("KDF_ENCRYPT", "KDF_DECRYPT", "GCM_ENCRYPT", "GCM_DECRYPT", "PARSE", "LOGICAL_VALIDATION", "RECOVERY_COPY", "REPLACEMENT", "REPLACEMENT_BODY")
+        val existing = listOf("KDF_ENCRYPT", "KDF_DECRYPT", "GCM_ENCRYPT", "GCM_DECRYPT", "PARSE", "LOGICAL_VALIDATION", "RECOVERY_COPY", "REPLACEMENT", "REPLACEMENT_BODY") + phases
         assertEquals(existing, BackupProbeEvent.entries.take(existing.size).map { it.name })
+        assertEquals(listOf("MERGED_LIMITS", "RESTORE_PLAN"), BackupProbeEvent.entries.drop(existing.size).map { it.name })
         assertEquals(4096, BackupWorkProbe.CAPACITY)
         val root = source()
         val missing = 50_000 - root.getJSONObject("manifest").getInt("recordTotal")

@@ -204,6 +204,25 @@ class BackupProbeSession private constructor(
 
         fun password(): CharArray = BackupProbeFixtures.password()
 
+        /** 실제 API의 serializer와 길이를 대조하고 합성 case 개수만 반환한다. heap 표본에는 호출하지 않는다. */
+        fun verifyPlatformJsonSizes(): Int {
+            val values = mutableListOf<Any?>(null, JSONObject.NULL, true, false, 0, -0.0, Long.MIN_VALUE, Long.MAX_VALUE, 1.0e-9, Double.MAX_VALUE)
+            for (code in 0..127) values += code.toChar().toString()
+            values.addAll(listOf("", "가é", "\u007F\u0080\u07FF\u0800\uD7FF\uE000\uFFFF", "\u2028\u2029", "\uD800\uDC00\uDBFF\uDFFF", "</\\\"\n"))
+            for (value in values) {
+                val root = JSONObject().put("key/\\\n", value ?: JSONObject.NULL).put("array", JSONArray().put(value))
+                check(BackupJsonSize.count(root) == BackupJson.utf8ByteCount(root.toString()))
+            }
+            var nested = JSONObject().put("value", "합성/\\\uD83D\uDE00")
+            repeat(14) { nested = JSONObject().put("nested", nested) }
+            check(BackupJsonSize.count(nested) == BackupJson.utf8ByteCount(nested.toString()))
+            for (invalid in listOf("\uD800", "\uDC00")) {
+                check((runCatching { BackupJsonSize.count(invalid) }.exceptionOrNull() as? BackupException)?.problem == BackupProblem.INVALID_PAYLOAD)
+                check((runCatching { BackupJson.utf8ByteCount(JSONObject.quote(invalid)) }.exceptionOrNull() as? BackupException)?.problem == BackupProblem.INVALID_PAYLOAD)
+            }
+            return values.size + 3
+        }
+
         /** 공개 OpenSSL vector와 실제 플랫폼 원문을 비교한다. 비밀번호/키/원문은 반환하지 않는다. */
         fun verifyPlatformVectors(): Int {
             val input = checkNotNull(BackupProbeSession::class.java.getResourceAsStream("/backup/crypto-vectors.json"))

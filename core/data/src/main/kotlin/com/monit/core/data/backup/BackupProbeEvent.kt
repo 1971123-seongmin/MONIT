@@ -16,6 +16,8 @@ internal enum class BackupProbeEvent {
     FINANCE,
     EVIDENCE,
     IMPORT,
+    MERGED_LIMITS,
+    RESTORE_PLAN,
 }
 
 internal enum class BackupCheckpoint {
