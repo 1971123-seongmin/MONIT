@@ -70,8 +70,8 @@ class BackupProbeBoundaryTest {
         RuntimeEnvironment.getApplication().deleteDatabase(activeName)
     }
 
-    private suspend fun prepare() {
-        val (a, b) = BackupProbeFixtures(database, clock, contexts).create(ProbeProfile.SMALL)
+    private suspend fun prepare(profile: ProbeProfile = ProbeProfile.SMALL) {
+        val (a, b) = BackupProbeFixtures(database, clock, contexts).create(profile)
         source = b
         database.close()
         database = createLedgerDatabase(RuntimeEnvironment.getApplication(), activeName)
@@ -179,6 +179,64 @@ class BackupProbeBoundaryTest {
         assertTrue(password.all { it == '\u0000' })
         assertEquals(listOf(true, false), backup.workProbe.snapshot().map { it.start })
         assertTrue(backup.workProbe.snapshot().all { it.event == "KDF_DECRYPT" })
+    }
+
+    /**
+     * 목적: 입력 자체가 유효50,000개여도 보존해야 할 이전 fence가 더해지면 무쓰기 거부한다.
+     * 조건: 실제 record-limit source와 source에 없는 A의 역사 UUID1개.
+     * 절차: preview→검증 사본→정확 합집합 검사 후 A/결과/교체 관찰을 대조한다.
+     * 기대: LIMIT·A 동일·새 결과0·교체 시작0이며 이전 fence를 버려 통과하지 않는다.
+     */
+    @Test fun mergedRecordLimitStillRejectsAdditionalHistoricalFence() = runTest {
+        prepare(ProbeProfile.RECORD_LIMIT)
+        assertEquals(50_000, source.getJSONObject("manifest").getInt("recordTotal"))
+        mergedLimitLeavesAUnchanged()
+    }
+
+    /**
+     * 목적: 합집합 건수≤50,000이어도 전체 UTF-8이8MiB를 넘으면 교체 전에 거부한다.
+     * 조건: 유효8MiB/49,999 source와 source 밖의 역사 fence1개.
+     * 절차: 불필요한 합성 fence1개를 제거하고 허용된 파일 이름으로 byte 상한을 맞춰 재검증한다.
+     * 기대: 실제 source는 유효하지만 합집합 byte LIMIT·A 동일·교체/결과0이다.
+     */
+    @Test fun mergedUtf8LimitStillRejectsWithinRecordLimit() = runTest {
+        prepare(ProbeProfile.MIXED_LIMIT)
+        val fences = source.getJSONArray("operationFences")
+        val spare = BackupProbeFixtures.id(1_000_000)
+        assertTrue(source.list("submissionsEvidence").none { it.text("operationId") == spare })
+        fences.remove((0 until fences.length()).single { fences.getString(it) == spare })
+        val manifest = source.getJSONObject("manifest")
+        source.put("manifest", BackupSnapshotAdapter.manifest(source, manifest.text("submissionCoverage"), manifest.text("sourceMappings")))
+        val raw = BackupProbeFixtures.bytes(source)
+        val padding = BackupEnvelope.MAX_PAYLOAD - raw.size
+        raw.fill(0)
+        assertTrue(padding in 1..100)
+        val file = source.getJSONArray("originals").values().map { it as JSONObject }.single { it.getString("id") == BackupProbeFixtures.id(9990) }
+        file.put("fileName", file.getString("fileName") + "p".repeat(padding))
+        val plain = BackupProbeFixtures.bytes(source)
+        val password = BackupProbeFixtures.password()
+        try {
+            assertEquals(BackupEnvelope.MAX_PAYLOAD, plain.size)
+            assertEquals(49_999, BackupValidator(clock).validate(plain).root.getJSONObject("manifest").getInt("recordTotal"))
+            encrypted.fill(0)
+            encrypted = BackupEnvelope.encrypt(plain, password)
+        } finally {
+            password.fill('\u0000')
+            plain.fill(0)
+        }
+        mergedLimitLeavesAUnchanged()
+    }
+
+    private suspend fun mergedLimitLeavesAUnchanged() {
+        database.withTransaction { database.backupDao().fence(OperationFenceEntity(UUID.randomUUID().toString())) }
+        val preview = backup.inspect(context, encrypted, BackupProbeFixtures.password())
+        val before = digest()
+        backup.workProbe.configure()
+        assertEquals(BackupProblem.LIMIT, assertFailsWith<BackupException> { backup.restore(context, preview.id, recovery) }.problem)
+        assertEquals(before, digest())
+        assertNull(backup.result(preview.id))
+        assertEquals(1, recoveryCount)
+        assertTrue(backup.workProbe.snapshot().none { it.event == "REPLACEMENT" })
     }
 
     /**
