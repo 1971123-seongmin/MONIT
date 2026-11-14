@@ -89,6 +89,12 @@ raw에는 source head(인계 입력임을 명시), 설치된 두 APK SHA256·공
 
 버퍼 후속의 host 시험639개(모델28/debug591/전용20)는 실패·오류·skip 0이다. 새 stream/사본 소유권12개와 envelope offset·호출자 입력 보존1개를 포함한다. partial/EOF/상한±1/zero16/interruption/read-close 오류와 key/auth callback 오류의 소유 배열 소거를 확인했다. compiled performanceQa의 protectCurrent saved local은 필요한 recoveryPayload/plain/hash를 보유하고 전체 current/validation root를 저장하지 않으며, wrapper도 plain과 필요한 fence list만 가진다. 교체 continuation은 lease/fences/outcome/plan을 유지한다. 이 검사는 강한 참조 축소 근거이고 실제 GC·기기 peak 성공 근거는 아니다.
 
+네 번째 head `626f0f6`의 S23 최초 crypto smoke run `07f254ae-b21a-4dfc-8fd7-1fc736ec7857`은 추가 동시 heap92,352,088bytes로 실패했다. 최초 baseline은 Java55,866,080+native10,849,824=66,715,904bytes이며 peak는 입력 B의 LOGICAL_VALIDATION 시작127.774479ms 뒤, 현재 A snapshot 생성 전이다. 표본376개/max gap9,746,146ns/truncation=false이다. 하위 단계나 객체별 할당 소유자는 기존 raw로 확정하지 못하며 restore/fault/20회는 NOT_RUN으로 보존한다. API26 SMALL7개는 같은 head에서 통과했다. 이전 세션과의 차이를 보완 효과로 환산하거나 실패 표본을 교체하지 않는다.
+
+이 후속은 공통 `requireLedgerId`의 UUID parse/toString 왕복을 길이·ASCII 소문자16진수·하이픈 위치 검사로 바꾸고, 논리 검증에 여섯 개의 bounded 하위 경계를 추가하는 범위다. nil·모든 version/variant와 원본 String 반환, 외부 IllegalArgumentException/BackupProblem 분류는 유지한다. 잘못된36자 입력의 플랫폼 내부 NumberFormatException/개별 메시지는 일반 IllegalArgumentException("Expected a lowercase UUID")로 달라질 수 있으며 제품 호출자는 해당 세부값에 분기하지 않는다. schema/JSON parser·evidence decode·A snapshot 구조는 변경하지 않는다. 정상 경로의 할당 제거 근거와 실기기 heap 수용은 구분하고 정확한 새 head/APK에서 QA가 판정한다.
+
+UUID/하위 관측 후속의 host 시험651개(모델33/debug591/전용27)는 실패·오류·skip 0이다. UUID 호환성5개는 ASCII 모든 위치 치환·고정 UUID 표본·모든 version/variant·Unicode/축약형·생성자 첫 오류를 확인한다. 관측 회귀7개는 v3 결과/순서, 여섯 단계 실패 분류/종료, 취소 동일성, v1 재귀, v2 원래 manifest 우선 검사, 복합 첫 오류와50,000개에서의 일정한 event 수를 확인한다. compiled 정상 UUID 경로에 UUID/배열/문자열 생성이 없고 debug/performanceQa validator 경계에 래퍼용 ObjectRef/Function0 호출이 추가되지 않음을 대조했다. 별도 ktlintCheck, 앱5변형·계측 APK 빌드, 전체 lintDebug·전용 Lint, 일반 APK4종 DEX/manifest 및 compiled no-op API12개 격리를 통과했다. 취소 회귀는 Clock의 CancellationException 주입이며 실제 Job 경합이나 기기 heap 시험의 대역이 아니다.
+
 같은 소스로 ktlintFormat 뒤 별도 ktlintCheck, 일반4변형/전용 target·test APK 빌드와 전체 lintDebug/전용 Lint를 통과했다. 일반 네 APK의 DEX/manifest 격리, compiled no-op API12건 및 새 target의 버퍼 보완 포함을 확인했고 두 APK의 기존 인증서·runner/targetPackage·non-debuggable을 대조했다. 계측 test 소스는 변경하지 않아 test APK의 bytes/SHA는9f와 같으며 새 target과 함께 인계한다. 최종 커밋/CI·정확한 두 APK/소스 입력 digest는 PR과 PM 인계 원본에 연결한다.
 
 구현·호스트 검사·APK 격리/서명 검증 및 최신 head CI의 최종 결과는 연결 PR과 PM 인계에서 정확한 커밋/SHA로 기록한다. 실제 기기 실행은 Android에서 수행하지 않았으며 QA 담당이다. PR #71 작업 공간/APK와 기존 데이터는 보존한다.

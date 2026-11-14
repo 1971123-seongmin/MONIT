@@ -10,6 +10,12 @@ internal enum class BackupProbeEvent {
     RECOVERY_COPY,
     REPLACEMENT,
     REPLACEMENT_BODY,
+    SCHEMA,
+    MANIFEST,
+    FIELD_KEYS,
+    FINANCE,
+    EVIDENCE,
+    IMPORT,
 }
 
 internal enum class BackupCheckpoint {

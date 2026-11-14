@@ -30,24 +30,58 @@ internal class BackupValidator(private val clock: Clock, private val probe: Back
             logicalStarted = true
             val version = root.get("formatVersion")
             if (version != 1 && version != 2 && version != 3) BackupJson.fail(BackupProblem.UNSUPPORTED)
-            BackupSchema.bundled(version as Int).validate(root)
+            probe.start(BackupProbeEvent.SCHEMA)
+            try {
+                BackupSchema.bundled(version as Int).validate(root)
+            } finally {
+                probe.end(BackupProbeEvent.SCHEMA)
+            }
             if (version == 1) return validate(BackupV1Reader.convert(root, bytes))
             if (version == 2) {
                 // 정규화로 manifest를 다시 만들기 전에 원래 선언과 실제 배열/원문을 대조한다.
                 val legacySource = root.getJSONObject("sourceLedger")
                 val legacyContext = LedgerContext(legacySource.text("id"), legacySource.text("storageGeneration"))
-                validateManifest(ValidatedBackup(root, legacyContext, legacySource.exactLong("revision").also { require(it > 0) }, root.instant("createdAt")))
+                probe.start(BackupProbeEvent.MANIFEST)
+                try {
+                    validateManifest(ValidatedBackup(root, legacyContext, legacySource.exactLong("revision").also { require(it > 0) }, root.instant("createdAt")))
+                } finally {
+                    probe.end(BackupProbeEvent.MANIFEST)
+                }
                 root = BackupImportV3.upgradeV2(root)
             }
             val source = root.getJSONObject("sourceLedger")
             val context = LedgerContext(source.text("id"), source.text("storageGeneration"))
             val data = ValidatedBackup(root, context, source.exactLong("revision").also { require(it > 0) }, root.instant("createdAt"))
-            validateManifest(data)
-            validateFieldsAndKeys(data)
-            val finance = BackupFinanceValidator(data, today)
-            finance.validate()
-            BackupEvidenceValidator(data, finance).validate()
-            BackupImportV3.validate(data, finance, today)
+            probe.start(BackupProbeEvent.MANIFEST)
+            try {
+                validateManifest(data)
+            } finally {
+                probe.end(BackupProbeEvent.MANIFEST)
+            }
+            probe.start(BackupProbeEvent.FIELD_KEYS)
+            try {
+                validateFieldsAndKeys(data)
+            } finally {
+                probe.end(BackupProbeEvent.FIELD_KEYS)
+            }
+            probe.start(BackupProbeEvent.FINANCE)
+            val finance = try {
+                BackupFinanceValidator(data, today).also { it.validate() }
+            } finally {
+                probe.end(BackupProbeEvent.FINANCE)
+            }
+            probe.start(BackupProbeEvent.EVIDENCE)
+            try {
+                BackupEvidenceValidator(data, finance).validate()
+            } finally {
+                probe.end(BackupProbeEvent.EVIDENCE)
+            }
+            probe.start(BackupProbeEvent.IMPORT)
+            try {
+                BackupImportV3.validate(data, finance, today)
+            } finally {
+                probe.end(BackupProbeEvent.IMPORT)
+            }
             currentCoroutineContext().ensureActive()
             return data
         } catch (cancelled: CancellationException) {

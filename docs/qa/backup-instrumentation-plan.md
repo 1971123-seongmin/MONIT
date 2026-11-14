@@ -51,6 +51,8 @@ Issue [#72](https://github.com/1971123-seongmin/MONIT/issues/72). 최초 설계 
 
 bridge/provider/장애 주입 설정 입구가 일반 release/debug/QA 산출물에 없음을 manifest/API로 확인한다. 일반 변형의 probe는 설정·주입 API 없는 no-op 구현이고 전용 변형만 설정 가능한 구현을 갖는다. probe는 성공 값을 만들거나 검증을 생략하지 않는다. 성능 모드의 관찰자는 원시 숫자만 미리 할당한 버퍼에 기록하고 hot path에서 JSON/로그를 만들지 않는다. 실패 주입은 이름이 명시된 장애 시험에서만 활성화한다.
 
+논리 검증의 하위 관측은 `SCHEMA`, `MANIFEST`, `FIELD_KEYS`, `FINANCE`, `EVIDENCE`, `IMPORT` 여섯 경계에만 둔다. 기존 enum 이름/ordinal과 외부 `LOGICAL_VALIDATION` 경계는 유지하며, 각 호출은 실패·취소에도 finally로 종료한다. v1 재귀와 v2의 원래 manifest/정규화 후 manifest는 실제 호출 횟수대로 남긴다. v3 한 번의 검증은 PARSE/LOGICAL을 포함해16개 event이며 항목별 event는 추가하지 않는다. 버퍼4,096개·baseline·5ms 표본 주기·전체 창은 유지한다. 추가 start/end 호출과 provider 배열 슬롯에 관측 비용이 있으므로 비용0이나 실기기 heap 해결을 주장하지 않는다.
+
 JCA provider 이름은 실제 `generateSecret` 성공 뒤에만 관찰한다. 선조회는 [Android libcore의 SecretKeyFactory 구현](https://android.googlesource.com/platform/libcore/+/d30ce4a7c809da1f168b7ff4d98ea1baa89183d3/ojluni/src/main/java/javax/crypto/SecretKeyFactory.java)에서 failover를 중단하므로 기존 암호 동작을 바꿀 수 있다. host의 임시 합성 provider 거부→정상 provider 대체 회귀로 이 순서를 보호한다. 기기 provider 목록을 변경하는 시험은 아니다.
 
 2026-11-14 첫 S23 smoke의 heap 초과에 따라 PM이 세 가지 보완을 선정했다. 번들 schema의 pattern/Matcher는 `validate` 호출 내부에서만 재사용하고 매 값마다 reset/find하여 기존 언어와 동시 호출 격리를 유지한다. 복원 계측은 암호화된 합성 파일만 사전 준비하고 baseline 뒤 실제 SAF 읽기·inspect·입력 bytes 소거/참조 해제·restore/정리를 포함한다. 제품 복원은 같은 maintenance lease와 사본 검증/CAS 순서를 유지하며 A snapshot·plain 및 정확한 병합 한도 검사의 union을 각각 짧은 helper 수명에 두어 transaction continuation으로 넘기지 않는다. 검증 생략·강제 GC·상한/64MiB 완화는 없으며 실제 감소량과 성공은 새 raw로 확인한다.
