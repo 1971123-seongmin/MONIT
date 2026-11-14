@@ -3,7 +3,11 @@ package com.monit.core.data.backup
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 검증된 tree의 기존 JSON 표현 길이만 센다. 출력 문자열이나 leaf 사본을 만들지 않는다. */
+/**
+ * Room 캡처 또는 strict 파싱한 tree의 기존 JSON 표현 길이만 센다. 스키마 검증을 대신하지 않는다.
+ * JSON-native 값만 다루며 숫자는 플랫폼 numberToString의 유한 수 검사/표현을 따른다.
+ * 출력 문자열이나 leaf 사본을 만들지 않는다.
+ */
 internal object BackupJsonSize {
     fun count(value: Any?, member: (JSONObject, String) -> Any? = { owner, key -> owner.get(key) }): Long = Counter(member).size(value)
 

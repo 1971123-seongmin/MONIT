@@ -106,3 +106,15 @@ UUID/하위 관측 후속의 host 시험651개(모델33/debug591/전용27)는 �
 같은 소스로 ktlintFormat 뒤 별도 ktlintCheck, 일반4변형/전용 target·test APK 빌드와 전체 lintDebug/전용 Lint를 통과했다. 일반 네 APK의 DEX/manifest 격리, compiled no-op API12건 및 새 target의 버퍼 보완 포함을 확인했고 두 APK의 기존 인증서·runner/targetPackage·non-debuggable을 대조했다. 계측 test 소스는 변경하지 않아 test APK의 bytes/SHA는9f와 같으며 새 target과 함께 인계한다. 최종 커밋/CI·정확한 두 APK/소스 입력 digest는 PR과 PM 인계 원본에 연결한다.
 
 구현·호스트 검사·APK 격리/서명 검증 및 최신 head CI의 최종 결과는 연결 PR과 PM 인계에서 정확한 커밋/SHA로 기록한다. 실제 기기 실행은 Android에서 수행하지 않았으며 QA 담당이다. PR #71 작업 공간/APK와 기존 데이터는 보존한다.
+
+### 0a4fa86 실측과 캡처·증빙 최소 보완
+
+`0a4fa86`은 API26/S23 SMALL7개와 JSON 길이147조건·Keystore 교차5조건·공개 암호 벡터3개, 두 smoke를 통과했다. crypto/restore 각각20개 시간 표본도 유효했고 KDF p95는 암호화0.564초/복호화0.560초, transaction p95는0.760초였다. 그러나 restore20 실행의 **별도 heapOnly1회**는 원래 baseline66,672,632bytes에서76,018,488bytes/72.497MiB가 증가해64MiB 기준을 초과했다. 20회 전체 heap 분포를 측정한 결과가 아니다. 실패 run `2db3fd35-ce5a-4914-b817-eeacc285b607`, raw SHA-256 `f3c17cf2c369bc5ab32578ca8248dea06782cb475516e2e1bf94294415a174fc`와 현재 합성DB·복구 사본·이전 원본을 보존한다.
+
+첫 최대 tuple은 `[246368719892516ns, 131150560 Java bytes, 11540560 native bytes]`이며 restore API 시작245.267ms 뒤·두 번째 PARSE 시작135.667ms 전이다. 열린 event가 없어 특정 할당의 원인으로 귀속하지 않는다. 두 번째 A EVIDENCE도 같은 baseline 대비74,627,976bytes로 초과했고 구간 자체의 순수 할당량은 아니다. 표본977개/max gap6.548ms/truncated=false, event46개/짝 누락0이다. smoke 통과와 낮은 하위 구간 관측으로 전체 창 실패를 해소하지 않는다.
+
+후속 최소 보완은 `SnapshotBudget.add(row)`와 최종 root의 크기 검사 전용 직렬화 두 곳을 기존 `BackupJsonSize.count`로 대체하고, 같은 item의 정확한 operations 행에서 처음 검증한 명령만 마지막 successful 등록에 재사용한다. 실제 최종 JSON 직렬화·UTF-8 인코딩·strict 재파싱과 모든 행의 strict/digest/canonical 검사, shared mapper의 hash/receipt/ref/revision·세대·kind·intent·rejection 검사는 유지한다. 공통 모델 encoder·mapper/codec API·Keystore·계측 이벤트·baseline/전체 창/5ms·입력/KDF/64MiB/GC 정책은 변경하지 않는다.
+
+길이 계산기의 적용 전제는 schema 검증 완료 tree에서 **Room이 만든 JSON-native 값과 strict 파싱된 과거 evidence**까지 넓힌다. 이는 schema 검사를 생략한다는 뜻이 아니다. 수정 전 API26/28 실제 serializer oracle10개는 Room 캡처와 실제 복원 후 archived evidence, native 숫자/null·slash/control·surrogate, 비유한 수 유입 거부,8MiB±1·50,000건 경계와 행 Unicode 오류 우선순위를 확인했다. 추가 회귀2개는 v1~4 정상 committed 및 손상 원문/hash/canonical/세대/kind/refs·revision/pending/intent·strict 우선 오류와 현재 A 손상 시 copy0·REPLACEMENT 미진입/DB 불변을 확인했다. 두 회귀는 수정 전에도 통과하는 동등성 기준이며 메모리 회귀 재현이나 절감량의 증거가 아니다. 수정 후 host·빌드/Lint·정확 head CI와 새 APK는 PR/인계에 기록하고 기기 수용은 새 head에서 다시 판단한다.
+
+수정 후 host702개(모델33/debug639/전용30,87 XML)는 실패·오류·skip0이고 ktlintCheck·앱5변형/계측 APK 빌드·전체 lintDebug/전용 Lint·문서27개 검사를 통과했다. 일반 APK4종 DEX/manifest와 compiled no-op API12개 격리, 새 두 APK의 같은 인증서·minSdk26·runner/targetPackage·non-debuggable을 확인했다. debug/performanceQa bytecode 모두 snapshot budget의 counter 호출2곳, 증빙 검증기의 직접 decodeWrite1곳, 그대로 남은 shared mapper decodeWrite1곳을 확인했다. 이 결과는 새 기기 heap 수용을 보장하지 않는다. 기존 실패와 동결 자료를 보존하고 새 head의 기기 재시험은 QA가 수행한다.

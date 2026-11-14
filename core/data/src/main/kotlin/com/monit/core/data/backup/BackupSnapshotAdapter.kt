@@ -110,7 +110,7 @@ internal class BackupSnapshotAdapter(private val database: LedgerDatabase, priva
             .put("sourceLedger", JSONObject().put("id", context.ledgerId).put("storageGeneration", context.storageGeneration).put("revision", ledger.revision.toString()).put("timeZone", "Asia/Seoul").put("currency", "KRW"))
             .put("collections", collections).put("submissionsEvidence", evidence).put("operationFences", fences).put("reminderPreferences", preferences).put("originals", originals).put("imports", imports)
         root.put("manifest", manifest(root, status?.submissionCoverage ?: "RECORDED", imports.text("coverage")))
-        if (root.getJSONObject("manifest").getInt("recordTotal") > 50_000 || BackupJson.utf8ByteCount(root.toString()) > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
+        if (root.getJSONObject("manifest").getInt("recordTotal") > 50_000 || BackupJsonSize.count(root) > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
         return root
     }
 
@@ -176,7 +176,7 @@ private class SnapshotBudget {
     private var bytes = 0L
     fun add(row: JSONObject, count: Int = 1) {
         records += count
-        bytes += BackupJson.utf8ByteCount(row.toString())
+        bytes += BackupJsonSize.count(row)
         if (records > 50_000 || bytes > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
     }
 }
