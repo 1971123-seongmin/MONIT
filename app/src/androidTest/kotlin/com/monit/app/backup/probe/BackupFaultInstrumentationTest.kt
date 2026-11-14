@@ -82,9 +82,11 @@ class BackupFaultInstrumentationTest {
                     readBack.fill(0)
                 }
                 if (mode == ProbeDocumentMode.FALSE_SIZE) {
-                    app.contentResolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_SIZE), null, null, null)!!.use {
+                    val projection = arrayOf(DocumentsContract.Document.COLUMN_SIZE)
+                    app.contentResolver.query(uri, projection, null, null, null)!!.use {
+                        assertContentEquals(projection, it.columnNames)
                         assertTrue(it.moveToFirst())
-                        assertEquals(Long.MAX_VALUE, it.getLong(0))
+                        assertEquals(Long.MAX_VALUE, it.getLong(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE)))
                     }
                 }
                 writer.append(JSONObject().put("case", mode.name).put("status", "PASS"))

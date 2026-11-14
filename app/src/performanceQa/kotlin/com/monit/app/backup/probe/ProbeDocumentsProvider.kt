@@ -38,18 +38,48 @@ class ProbeDocumentsProvider : DocumentsProvider() {
 
     override fun queryRoots(projection: Array<out String>?): Cursor {
         ownUid()
-        return MatrixCursor(arrayOf(Root.COLUMN_ROOT_ID, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_TITLE, Root.COLUMN_FLAGS)).apply {
-            addRow(arrayOf("root", "root", "공개 합성 계측", Root.FLAG_LOCAL_ONLY or Root.FLAG_SUPPORTS_CREATE))
+        val columns = projection ?: arrayOf(Root.COLUMN_ROOT_ID, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_TITLE, Root.COLUMN_FLAGS)
+        return MatrixCursor(columns).apply {
+            val row = newRow()
+            for (column in columns) {
+                row.add(
+                    when (column) {
+                        Root.COLUMN_ROOT_ID, Root.COLUMN_DOCUMENT_ID -> "root"
+                        Root.COLUMN_TITLE -> "공개 합성 계측"
+                        Root.COLUMN_FLAGS -> Root.FLAG_LOCAL_ONLY or Root.FLAG_SUPPORTS_CREATE
+                        else -> null
+                    },
+                )
+            }
         }
     }
 
     override fun queryDocument(documentId: String, projection: Array<out String>?): Cursor {
         ownUid()
-        return MatrixCursor(arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE, Document.COLUMN_FLAGS, Document.COLUMN_SIZE)).apply {
-            if (documentId == "root") addRow(arrayOf("root", "synthetic", Document.MIME_TYPE_DIR, Document.FLAG_DIR_SUPPORTS_CREATE, 0L))
-            else {
-                val entry = entry(documentId)
-                addRow(arrayOf(documentId, "synthetic.monitbak", "application/octet-stream", Document.FLAG_SUPPORTS_WRITE, if (entry.mode == ProbeDocumentMode.FALSE_SIZE) Long.MAX_VALUE else entry.file.length()))
+        val entry = if (documentId == "root") null else entry(documentId)
+        val columns = projection ?: arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE, Document.COLUMN_FLAGS, Document.COLUMN_SIZE)
+        return MatrixCursor(columns).apply {
+            val row = newRow()
+            for (column in columns) {
+                row.add(
+                    when (column) {
+                        Document.COLUMN_DOCUMENT_ID -> documentId
+
+                        Document.COLUMN_DISPLAY_NAME -> if (entry == null) "synthetic" else "synthetic.monitbak"
+
+                        Document.COLUMN_MIME_TYPE -> if (entry == null) Document.MIME_TYPE_DIR else "application/octet-stream"
+
+                        Document.COLUMN_FLAGS -> if (entry == null) Document.FLAG_DIR_SUPPORTS_CREATE else Document.FLAG_SUPPORTS_WRITE
+
+                        Document.COLUMN_SIZE -> when {
+                            entry == null -> 0L
+                            entry.mode == ProbeDocumentMode.FALSE_SIZE -> Long.MAX_VALUE
+                            else -> entry.file.length()
+                        }
+
+                        else -> null
+                    },
+                )
             }
         }
     }
@@ -57,7 +87,7 @@ class ProbeDocumentsProvider : DocumentsProvider() {
     override fun queryChildDocuments(parentDocumentId: String, projection: Array<out String>?, sortOrder: String?): Cursor {
         ownUid()
         require(parentDocumentId == "root")
-        return MatrixCursor(arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME))
+        return MatrixCursor(projection ?: arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME))
     }
 
     override fun createDocument(parentDocumentId: String, mimeType: String, displayName: String): String {
