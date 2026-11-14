@@ -59,6 +59,10 @@ JCA provider 이름은 실제 `generateSecret` 성공 뒤에만 관찰한다. �
 
 합성 입력 파일을 준비한 뒤 read 전 한 번만 관찰을 활성화해 inspect 이후 초기화로 입력 단계 이력을 지우지 않는다. baseline·sampler 전체 창·GC 정책은 유지하며, 종료 후 inspect의 KDF/parse/논리 검증 시작·종료 이벤트가 입력 구간 안에 있는지 확인한다. API26에서 확인한 전용 DocumentsProvider의 projection 무시 결함도 요청 컬럼/순서와 null의 기존 기본값을 지키도록 보완한다. 일반 앱의 SAF 구현은 그대로 두고, FALSE_SIZE/실제 바이트 초과 거부를 포함한 호스트·기기 회귀를 구분한다. 기존 APK·실패 raw는 보존하며 새 head의 실측 전까지 64MiB 해결을 주장하지 않는다.
 
+세 번째 head `9f9d2b9`도 S23 복원 전체106,961,416bytes로 실패했다. 원래 baseline39,946,584bytes로 대조한 입력 B PARSE는100,894,408bytes, RECOVERY_COPY는106,961,416bytes였다. 두 구간을 함께 대상으로 하되 이벤트 겹침을 특정 객체의 실제 소유/생존 증거로 해석하지 않는다. 최소 후속은 실제 SAF 읽기의 bounded segment/EOF 결과 배열, envelope 본문 복사 제거, 내부 사본의 짧은 write/sync 수명과 payload+116 정확 재읽기, 전체 A snapshot 대신 검증된 필요한 fence 값만 사본 작업으로 전달하는 범위다. parser/형식/KDF/한도/전체 측정창/GC 정책은 변경하지 않는다.
+
+segment는 짧은 read마다 만들지 않고 최대8KiB까지 채우며 실제 Long 합계 상한/+1·zero16·interruption·close를 보존한다. 결과 복사 뒤 내부 chunk를 소거하고 read/close 실패에는 반환되지 않은 결과도 소거한다. 사본은 실제 EOF/추가1byte/short·zero를 확인하고 두 번의 GCM 재인증·상수시간 원문 대조·rename/directory fsync/proof를 유지한다. key/decrypt 자체의 예외도 소유 암호문 소거 범위에 포함한다. A helper는 같은 lease/CAS와 전체 strict 검증 후 plain과 필요한 하위 fence 값만 반환하며 B union은 기존처럼 proof 뒤에 수행한다. compiled continuation 검사는 강한 참조 축소의 근거이며 실제 GC/heap 성공 증거와 구분한다.
+
 ## 합성 상한과 시간 측정
 
 - 금액·종류·날짜·건수를 고정하고 실제 Repository 경로로 현재 v3의 유효 source snapshot을 생성한다. 실제 생성 경로의 UUID는 run별로 다를 수 있으므로 run 간 byte 동일성을 주장하지 않는다. 같은 run의 20회는 보존한 같은 source bytes/SHA를 사용한다. count는 거래 수가 아니라 manifest의 금융·evidence·operation fence·import·원문 등 전체 recordTotal이다.

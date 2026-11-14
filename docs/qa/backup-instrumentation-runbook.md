@@ -83,4 +83,12 @@ raw에는 source head(인계 입력임을 명시), 설치된 두 APK SHA256·공
 
 이 후속 보완의 호스트 시험은626개(모델28·debug578·전용20), 실패/오류/skip 0이다. UTF-8 계약8개와 API26 host provider 계약6개를 추가했으며, provider 회귀는 수정 전 projection 불일치5개 실패·기존 null 기본값1개 통과를 확인하고 수정 후6개 모두 통과했다. ktlintFormat 뒤 별도 ktlintCheck, debug/qa/backupQa/release/performanceQa·계측 APK 빌드, 전체 lintDebug와 전용 Lint를 통과했다. 일반 APK 네 종의 DEX/manifest 격리, compiled no-op API, 새 두 APK의 동일 서명·runner/targetPackage·non-debuggable도 확인했다. 호스트 통과는 실제 기기 메모리/API26 수용을 대신하지 않는다.
 
+세 번째 head `9f9d2b9`의 S23 복원 run `6729288e-b9c4-41c5-93b6-74440cea2f6f`도106,961,416bytes로 실패했다. 최초 baseline은 Java28,938,976+native11,007,608=39,946,584bytes이며 입력 B PARSE100,894,408bytes·RECOVERY_COPY106,961,416bytes의 두 초과를 기존 이벤트와 대조했다. 표본965개/max gap9,749,427ns/truncation=false이고 candidate/target verify의 세부 peak 객체 소유자는 미확정이다. crypto run `403bc215-b22c-4044-b809-4b1508176301`의36,935,480bytes는 단일 smoke의 기준 내 관측이며 절대 peak/수용 증거가 아니다. API26 영향3개는 같은 head에서 통과했고 S23 fault/20회는 미실행이다. 이전 결과의 차이 전체를 Pattern/helper/UTF-8 변경 효과로 환산하지 않는다.
+
+이번 버퍼 후속은 읽기의 큰 증설/결과 복사와 복호화 본문 복사, 사본의 중복 배열 및 전체 A 참조를 줄인다. 내부 사본은 원래 payload+116 정확 길이와 실제 EOF를 확인하고 두 번의 재인증/원문 대조를 유지한다. 새 parser/형식/측정 이벤트는 도입하지 않으며 모든 기존3버전 APK/raw/DB 사본은 보존한다. 관련 호스트·일반 변형 격리·최신 head CI와 고정 새 APK 확인 후 QA가 새 run에서 판정한다. 새 기기 실측 전까지64MiB 해결·병합 조건 충족을 주장하지 않는다.
+
+버퍼 후속의 host 시험639개(모델28/debug591/전용20)는 실패·오류·skip 0이다. 새 stream/사본 소유권12개와 envelope offset·호출자 입력 보존1개를 포함한다. partial/EOF/상한±1/zero16/interruption/read-close 오류와 key/auth callback 오류의 소유 배열 소거를 확인했다. compiled performanceQa의 protectCurrent saved local은 필요한 recoveryPayload/plain/hash를 보유하고 전체 current/validation root를 저장하지 않으며, wrapper도 plain과 필요한 fence list만 가진다. 교체 continuation은 lease/fences/outcome/plan을 유지한다. 이 검사는 강한 참조 축소 근거이고 실제 GC·기기 peak 성공 근거는 아니다.
+
+같은 소스로 ktlintFormat 뒤 별도 ktlintCheck, 일반4변형/전용 target·test APK 빌드와 전체 lintDebug/전용 Lint를 통과했다. 일반 네 APK의 DEX/manifest 격리, compiled no-op API12건 및 새 target의 버퍼 보완 포함을 확인했고 두 APK의 기존 인증서·runner/targetPackage·non-debuggable을 대조했다. 계측 test 소스는 변경하지 않아 test APK의 bytes/SHA는9f와 같으며 새 target과 함께 인계한다. 최종 커밋/CI·정확한 두 APK/소스 입력 digest는 PR과 PM 인계 원본에 연결한다.
+
 구현·호스트 검사·APK 격리/서명 검증 및 최신 head CI의 최종 결과는 연결 PR과 PM 인계에서 정확한 커밋/SHA로 기록한다. 실제 기기 실행은 Android에서 수행하지 않았으며 QA 담당이다. PR #71 작업 공간/APK와 기존 데이터는 보존한다.
