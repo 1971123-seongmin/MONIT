@@ -134,7 +134,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         }
     }
 
-    /** A의 전체 snapshot/소거된 plain이 교체 continuation에 남지 않도록 필요한 fence만 반환한다. */
+    /** 사본 작업에는 원래 plain과 필요한 fence 값만 유지하고 전체 A snapshot은 넘기지 않는다. */
     private suspend fun protectCurrent(
         context: LedgerContext,
         preview: RestorePreview,
@@ -143,15 +143,9 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         onStage: (BackupStage) -> Unit,
         lease: String,
     ): RestoreFences {
-        onStage(BackupStage.SNAPSHOT)
-        val current = database.withTransaction {
-            database.requireMaintenanceWriter(lease)
-            checkPreview(preview)
-            adapter.captureInside(context)
-        }
-        val plain = BackupJson.utf8(current.toString())
+        val recoveryPayload = prepareCurrentRecovery(context, preview, onStage, lease)
+        val plain = recoveryPayload.plain
         try {
-            validate(plain, onStage)
             val expectedHash = BackupJson.digest(plain)
             onStage(BackupStage.RECOVERY_COPY)
             workProbe.start(BackupProbeEvent.RECOVERY_COPY)
@@ -170,10 +164,36 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         } finally {
             plain.fill(0)
         }
-        val operations = current.list("submissionsEvidence").mapTo(HashSet()) { it.text("operationId") } + current.getJSONArray("operationFences").values().map { it as String }
-        val importFences = BackupImportV3.unionFences(current.getJSONObject("imports").list("import_source_fences"), source.root.getJSONObject("imports").list("import_source_fences"))
+        val operations = recoveryPayload.submissionOperations.toHashSet() + recoveryPayload.operationFences
+        val importFences = BackupImportV3.unionFences(recoveryPayload.importFences, source.root.getJSONObject("imports").list("import_source_fences"))
         return RestoreFences(operations, importFences)
     }
+
+    private suspend fun prepareCurrentRecovery(context: LedgerContext, preview: RestorePreview, onStage: (BackupStage) -> Unit, lease: String): CurrentRecoveryPayload {
+        onStage(BackupStage.SNAPSHOT)
+        val current = database.withTransaction {
+            database.requireMaintenanceWriter(lease)
+            checkPreview(preview)
+            adapter.captureInside(context)
+        }
+        val plain = BackupJson.utf8(current.toString())
+        var transferred = false
+        try {
+            validate(plain, onStage)
+            val payload = CurrentRecoveryPayload(
+                plain = plain,
+                submissionOperations = current.list("submissionsEvidence").map { it.text("operationId") },
+                operationFences = current.getJSONArray("operationFences").values().map { it as String },
+                importFences = current.getJSONObject("imports").list("import_source_fences"),
+            )
+            transferred = true
+            return payload
+        } finally {
+            if (!transferred) plain.fill(0)
+        }
+    }
+
+    private class CurrentRecoveryPayload(val plain: ByteArray, val submissionOperations: List<String>, val operationFences: List<String>, val importFences: List<JSONObject>)
 
     /** 정확한 기존 전체 UTF-8/record 검사를 끝낸 임시 union을 transaction에 넘기지 않는다. */
     private fun checkMergedLimits(source: ValidatedBackup, fences: RestoreFences) {

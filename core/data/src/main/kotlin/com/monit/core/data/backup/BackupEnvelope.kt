@@ -51,10 +51,10 @@ internal object BackupEnvelope {
         val length = buffer.long
         if (length !in 16L..(MAX_PAYLOAD + 16L) || length != bytes.size.toLong() - HEADER_SIZE) fail(BackupProblem.HEADER)
         // doFinal 하나로 인증을 완료한다. update 결과를 파서/DB에 전달하지 않는다.
-        return crypt(Cipher.DECRYPT_MODE, bytes.copyOfRange(HEADER_SIZE, bytes.size), password, salt, nonce, header, probe)
+        return crypt(Cipher.DECRYPT_MODE, bytes, password, salt, nonce, header, probe, HEADER_SIZE, bytes.size - HEADER_SIZE)
     }
 
-    private fun crypt(mode: Int, bytes: ByteArray, password: CharArray, salt: ByteArray, nonce: ByteArray, aad: ByteArray, probe: BackupWorkProbe): ByteArray {
+    private fun crypt(mode: Int, bytes: ByteArray, password: CharArray, salt: ByteArray, nonce: ByteArray, aad: ByteArray, probe: BackupWorkProbe, offset: Int = 0, length: Int = bytes.size): ByteArray {
         validatePassword(password)
         val spec = PBEKeySpec(password, salt, 600_000, 256)
         var key: ByteArray? = null
@@ -77,7 +77,7 @@ internal object BackupEnvelope {
                     init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
                     updateAAD(aad)
                     probe.provider(gcmEvent, provider.name)
-                    doFinal(bytes)
+                    doFinal(bytes, offset, length)
                 }
             } finally {
                 probe.end(gcmEvent)

@@ -60,6 +60,20 @@ class BackupEnvelopeTest {
         assertContentEquals(bytes, BackupEnvelope.decrypt(two, password))
     }
 
+    /** offset 복호화가 빈/binary payload를 그대로 복원하고 성공/인증 실패 모두 호출자 암호문을 수정하지 않는다. */
+    @Test fun offsetDecryptPreservesPayloadAndCallerOwnedCiphertext() {
+        for (payload in listOf(byteArrayOf(), ByteArray(8193) { (it % 251).toByte() })) {
+            val encrypted = BackupEnvelope.encrypt(payload, password)
+            val before = encrypted.copyOf()
+            assertContentEquals(payload, BackupEnvelope.decrypt(encrypted, password))
+            assertContentEquals(before, encrypted)
+            val tampered = encrypted.copyOf().apply { this[lastIndex] = (this[lastIndex].toInt() xor 1).toByte() }
+            val tamperedBefore = tampered.copyOf()
+            assertEquals(BackupProblem.AUTHENTICATION, assertFailsWith<BackupException> { BackupEnvelope.decrypt(tampered, password) }.problem)
+            assertContentEquals(tamperedBefore, tampered)
+        }
+    }
+
     /** header/AAD·ciphertext·tag 변조/암호 오류는 평문을 반환하지 않고 같은 안전한 인증 오류다. */
     @Test fun tamperingAndWrongPasswordNeverReturnPlaintext() {
         val bytes = BackupEnvelope.encrypt("{\"synthetic\":true}".toByteArray(), password)

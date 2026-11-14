@@ -8,9 +8,9 @@ import android.system.OsConstants
 import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.*
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.security.KeyStore
 import java.security.MessageDigest
@@ -50,32 +50,22 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
                 val candidate = File(folder, "$id.pending")
                 val target = File(folder, "verified.monitrec")
                 require(candidate.canonicalFile.parentFile == folder.canonicalFile && target.canonicalFile.parentFile == folder.canonicalFile)
-                val encrypted = LocalRecoveryCipher.encrypt(payload, context, key())
+                writeCandidate(candidate, context, payload)
+                workProbe.checkpoint(RecoveryCopyCheckpoint.AFTER_CANDIDATE_SYNC)
+                currentCoroutineContext().ensureActive()
+                verify(candidate, context, payload)
+                currentCoroutineContext().ensureActive()
+                // 같은 앱 내부 디렉터리에서 이미 검증한 암호문만 원자적으로 교체한다.
+                Os.rename(candidate.absolutePath, target.absolutePath)
+                val directory = Os.open(folder.absolutePath, OsConstants.O_RDONLY, 0)
                 try {
-                    currentCoroutineContext().ensureActive()
-                    require(candidate.createNewFile())
-                    FileOutputStream(candidate).use { stream ->
-                        stream.write(encrypted)
-                        stream.fd.sync()
-                    }
-                    workProbe.checkpoint(RecoveryCopyCheckpoint.AFTER_CANDIDATE_SYNC)
-                    currentCoroutineContext().ensureActive()
-                    verify(candidate, context, payload)
-                    currentCoroutineContext().ensureActive()
-                    // 같은 앱 내부 디렉터리에서 이미 검증한 암호문만 원자적으로 교체한다.
-                    Os.rename(candidate.absolutePath, target.absolutePath)
-                    val directory = Os.open(folder.absolutePath, OsConstants.O_RDONLY, 0)
-                    try {
-                        Os.fsync(directory)
-                    } finally {
-                        Os.close(directory)
-                    }
-                    verify(target, context, payload)
-                    currentCoroutineContext().ensureActive()
-                    RecoveryCopyProof(id, digest(payload), payload.size)
+                    Os.fsync(directory)
                 } finally {
-                    encrypted.fill(0)
+                    Os.close(directory)
                 }
+                verify(target, context, payload)
+                currentCoroutineContext().ensureActive()
+                RecoveryCopyProof(id, digest(payload), payload.size)
                 // 오류 상태의 암호화 사본은 진단/복구를 위해 자동 폐기하지 않는다.
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -87,29 +77,29 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
         }
     }
 
+    private suspend fun writeCandidate(file: File, context: LedgerContext, payload: ByteArray) {
+        val encrypted = LocalRecoveryCipher.encrypt(payload, context, key())
+        try {
+            currentCoroutineContext().ensureActive()
+            require(file.createNewFile())
+            FileOutputStream(file).use { stream ->
+                stream.write(encrypted)
+                stream.fd.sync()
+            }
+        } finally {
+            encrypted.fill(0)
+        }
+    }
+
     private fun verify(file: File, context: LedgerContext, payload: ByteArray) {
         require(file.length() in 116L..(8 * 1024 * 1024L + 116))
-        val encrypted = file.inputStream().use { stream ->
-            val output = ByteArrayOutputStream()
-            val chunk = ByteArray(8192)
+        withRecoveryCiphertext(file.inputStream(), payload.size) { encrypted ->
+            val plain = LocalRecoveryCipher.decrypt(encrypted, context, key())
             try {
-                while (true) {
-                    val count = stream.read(chunk)
-                    if (count < 0) break
-                    require(count > 0 && output.size().toLong() + count <= 8 * 1024 * 1024L + 116)
-                    output.write(chunk, 0, count)
-                }
-                output.toByteArray()
+                require(MessageDigest.isEqual(payload, plain))
             } finally {
-                chunk.fill(0)
+                plain.fill(0)
             }
-        }
-        val plain = LocalRecoveryCipher.decrypt(encrypted, context, key())
-        try {
-            require(MessageDigest.isEqual(payload, plain))
-        } finally {
-            plain.fill(0)
-            encrypted.fill(0)
         }
     }
     private fun key(): SecretKey {
@@ -124,6 +114,28 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
     private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
     companion object {
         private const val ALIAS = "monit-backup-recovery-v1"
+    }
+}
+
+/** 원래 payload 길이로만 할당하고 실제 EOF까지 대조한다. borrowed 암호문은 callback/닫기 실패에도 소거한다. */
+internal fun withRecoveryCiphertext(input: InputStream, payloadSize: Int, verify: (ByteArray) -> Unit) {
+    var encrypted: ByteArray? = null
+    try {
+        input.use { stream ->
+            require(payloadSize in 0..(8 * 1024 * 1024))
+            val bytes = ByteArray(payloadSize + 116)
+            encrypted = bytes
+            var offset = 0
+            while (offset < bytes.size) {
+                val count = stream.read(bytes, offset, bytes.size - offset)
+                require(count > 0)
+                offset += count
+            }
+            require(stream.read() == -1)
+        }
+        verify(checkNotNull(encrypted))
+    } finally {
+        encrypted?.fill(0)
     }
 }
 
