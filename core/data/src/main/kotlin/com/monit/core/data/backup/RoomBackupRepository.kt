@@ -182,7 +182,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         union.put("operationFences", org.json.JSONArray((fences.operations + incomingIds).sorted()))
         union.getJSONObject("imports").put("import_source_fences", org.json.JSONArray(fences.importFences))
         union.put("manifest", BackupSnapshotAdapter.manifest(union, source.root.getJSONObject("manifest").text("submissionCoverage"), source.root.getJSONObject("imports").text("coverage")))
-        if (union.getJSONObject("manifest").getLong("recordTotal") > 50_000 || BackupJson.utf8(union.toString()).size > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
+        if (union.getJSONObject("manifest").getLong("recordTotal") > 50_000 || BackupJson.utf8ByteCount(union.toString()) > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
     }
 
     private data class RestoreFences(val operations: Set<String>, val importFences: List<JSONObject>)
