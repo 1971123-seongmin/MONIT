@@ -113,6 +113,68 @@ class BackupValidationTest {
         assertEquals(300, ledger.snapshot(context, day).income)
     }
 
+    /** 같은 operation의 최초 명령을 재사용해도 strict/hash/canonical·세대·영수증·intent·pending 검사를 유지한다. */
+    @Test fun committedRequestsKeepEveryValidationBoundary() = runTest {
+        ready()
+        ledger.updateTransaction(context, id(131), UpdateTransaction(CreateTransaction(id(30), TransactionKind.INCOME, day.minusDays(1), 350, creditAccountId = id(10), memo = "합성 수정"), 1))
+        payments.submit(context, id(140), PaymentCommand.RegisterRule(id(40), PaymentTerms("합성 규칙", PaymentPurpose.SAVINGS, 100, 13, id(10), id(20)), "2026-11"))
+        val original = capture()
+        validator.validate(bytes(original))
+        assertEquals(setOf(1, 2, 3, 4), original.list("submissionsEvidence").filter { !it.isNull("operations") }.map { JSONObject(it.getJSONObject("operations").text("requestJson")).getInt("version") }.toSet())
+        fun item(root: JSONObject, number: Int = 130) = root.list("submissionsEvidence").single { it.text("operationId") == id(number) }
+        fun operation(root: JSONObject) = item(root).getJSONObject("operations")
+        fun manifest(root: JSONObject) {
+            root.put("manifest", BackupSnapshotAdapter.manifest(root, root.getJSONObject("manifest").text("submissionCoverage"), root.getJSONObject("imports").text("coverage")))
+        }
+        fun rewrite(root: JSONObject, change: (String) -> String) {
+            val row = operation(root)
+            val raw = change(row.text("requestJson"))
+            row.put("requestJson", raw).put("requestSha256", requestHash(raw))
+        }
+        val changes = linkedMapOf<String, (JSONObject) -> Unit>(
+            "hash" to { operation(it).put("requestSha256", "0".repeat(64)) },
+            "canonical" to { rewrite(it) { raw -> " $raw" } },
+            "request-generation" to { rewrite(it) { raw -> raw.replace(context.storageGeneration, id(999)) } },
+            "unsupported-version" to { rewrite(it) { raw -> raw.replace("\"version\":1", "\"version\":5") } },
+            "stored-kind" to { operation(it).put("kind", "UPDATE_TRANSACTION") },
+            "stored-generation" to { operation(it).put("storageGeneration", id(999)) },
+            "receipt-revision" to {
+                val row = operation(it)
+                val refs = org.json.JSONArray(row.text("resultJson"))
+                refs.getJSONObject(0).put("revision", "2")
+                row.put("resultJson", refs.toString())
+            },
+            "receipt-canonical" to { operation(it).put("resultJson", operation(it).text("resultJson") + " ") },
+            "ledger-revision" to { operation(it).put("ledgerRevision", "999") },
+            "pending-conflict" to {
+                val row = operation(it)
+                item(it).put("submissions", JSONObject().put("ledgerId", row.text("ledgerId")).put("operationId", row.text("operationId")).put("requestJson", row.text("requestJson")).put("requestSha256", row.text("requestSha256")))
+                manifest(it)
+            },
+            "reference-operation" to { item(it).getJSONObject("submission_references").put("operationId", id(999)) },
+            "missing-intent" to { root ->
+                item(root, 140).put("payment_intents", JSONObject.NULL)
+                manifest(root)
+            },
+            "intent-state" to { item(it, 140).getJSONObject("payment_intents").put("status", "READY") },
+        )
+        for ((name, change) in changes) {
+            val root = JSONObject(original.toString())
+            change(root)
+            assertEquals(BackupProblem.INVALID_RELATION, assertFailsWith<BackupException>(name) { validator.validate(bytes(root)) }.problem, name)
+        }
+        for (rawChange in listOf<(String) -> String>(
+            { raw -> raw.replaceFirst("{", "{\"version\":1,") },
+            { raw -> raw.replaceFirst("\"memo\":\"", "\"memo\":\"\\uD800") },
+        )) {
+            val root = JSONObject(original.toString())
+            // hash도 틀렸지만 strict JSON/Unicode 오류가 먼저여야 한다.
+            operation(root).put("requestJson", rawChange(operation(root).text("requestJson"))).put("requestSha256", "0".repeat(64))
+            assertEquals(BackupProblem.INVALID_PAYLOAD, assertFailsWith<BackupException> { validator.validate(bytes(root)) }.problem)
+        }
+        assertEquals(original.toString(), capture().toString())
+    }
+
     /** 미래 실제일·잘못된 FK·manifest 수치·알 수 없는 필드·원래 세대 변경은 모두 무쓰기 거부다. */
     @Test fun invalidDateReferenceCountsUnknownFieldsAndSourceGenerationAreRejected() = runTest {
         ready()

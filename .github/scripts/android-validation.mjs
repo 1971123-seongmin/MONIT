@@ -4,9 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const targets = {
-  assemble: [':app:assembleDebug', ':app:assembleQa'],
-  tests: [':core:model:test', 'testDebugUnitTest'],
-  lint: ['ktlintCheck', 'lintDebug'],
+  assemble: [':app:assembleDebug', ':app:assembleQa', ':app:assemblePerformanceQa', ':app:assemblePerformanceQaAndroidTest'],
+  tests: [':core:model:test', 'testDebugUnitTest', ':core:data:testPerformanceQaUnitTest', ':app:testPerformanceQaUnitTest'],
+  lint: ['ktlintCheck', 'lintDebug', ':app:lintPerformanceQa'],
 };
 
 export function validationTasks(scope) {

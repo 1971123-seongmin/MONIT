@@ -165,14 +165,16 @@ class BackupPlatformTest {
     @Test fun recoveryCipherBindsOriginalContextAndRejectsTampering() {
         val key = SecretKeySpec(ByteArray(32) { it.toByte() }, "AES")
         val payload = "합성 복구 사본".toByteArray()
-        val encrypted = LocalRecoveryCipher.encrypt(payload, context, key)
-        assertFalse(encrypted.contentEquals(LocalRecoveryCipher.encrypt(payload, context, key)))
-        assertContentEquals(payload, LocalRecoveryCipher.decrypt(encrypted, context, key))
+        fun encrypt(): ByteArray = java.io.ByteArrayOutputStream().apply { LocalRecoveryCipher.encrypt(this, payload, context, key) }.toByteArray()
+        fun decrypt(bytes: ByteArray, owner: LedgerContext = context): ByteArray = bytes.inputStream().use { LocalRecoveryCipher.decrypt(it, bytes.size - 116, owner, key) }
+        val encrypted = encrypt()
+        assertFalse(encrypted.contentEquals(encrypt()))
+        assertContentEquals(payload, decrypt(encrypted))
         for (offset in listOf(0, 8, 44, 80, 92, 100, encrypted.lastIndex)) {
-            assertFails { LocalRecoveryCipher.decrypt(encrypted.copyOf().apply { this[offset] = (this[offset].toInt() xor 1).toByte() }, context, key) }
+            assertFails { decrypt(encrypted.copyOf().apply { this[offset] = (this[offset].toInt() xor 1).toByte() }) }
         }
-        assertFails { LocalRecoveryCipher.decrypt(encrypted, context.copy(storageGeneration = "00000000-0000-0000-0000-000000000902"), key) }
-        assertFails { LocalRecoveryCipher.decrypt(encrypted.copyOf(encrypted.size - 1), context, key) }
+        assertFails { decrypt(encrypted, context.copy(storageGeneration = "00000000-0000-0000-0000-000000000902")) }
+        assertFails { decrypt(encrypted.copyOf(encrypted.size - 1)) }
     }
 
     /** host의 AndroidKeyStore 미제공은 명시 실패이며 평문 사본을 남기지 않는다. */

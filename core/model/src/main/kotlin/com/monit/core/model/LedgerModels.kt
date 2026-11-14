@@ -4,11 +4,18 @@ import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.time.Instant
 import java.time.LocalDate
-import java.util.UUID
 
 fun requireLedgerId(value: String): String {
     require(value.length == 36) { "Expected a lowercase UUID" }
-    require(UUID.fromString(value).toString() == value) { "Expected a lowercase UUID" }
+    for (index in value.indices) {
+        val character = value[index]
+        require(
+            when (index) {
+                8, 13, 18, 23 -> character == '-'
+                else -> character in '0'..'9' || character in 'a'..'f'
+            },
+        ) { "Expected a lowercase UUID" }
+    }
     return value
 }
 

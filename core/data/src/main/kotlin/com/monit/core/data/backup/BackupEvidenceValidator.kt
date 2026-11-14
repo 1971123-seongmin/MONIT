@@ -44,6 +44,7 @@ internal class BackupEvidenceValidator(private val data: ValidatedBackup, privat
         require(context.ledgerId == data.context.ledgerId)
         val rows = BackupLayout.evidence.associateWith { if (item.isNull(it)) null else item.getJSONObject(it) }
         require(rows.values.any { it != null })
+        var operationCommand: WriteCommand? = null
         for (row in rows.values.filterNotNull()) {
             require(row.text("ledgerId") == context.ledgerId && row.text("operationId") == id)
             if (row.has("storageGeneration")) require(row.text("storageGeneration") == context.storageGeneration)
@@ -55,7 +56,8 @@ internal class BackupEvidenceValidator(private val data: ValidatedBackup, privat
                 val raw = row.text("requestJson")
                 BackupJson.parseText(raw)
                 require(BackupJson.digest(raw) == row.text("requestSha256"))
-                decodeWrite(context, raw)
+                val command = decodeWrite(context, raw)
+                if (row === rows["operations"]) operationCommand = command
             }
         }
         val operation = rows["operations"]?.operation()
@@ -91,7 +93,7 @@ internal class BackupEvidenceValidator(private val data: ValidatedBackup, privat
                 val result = submissionRecoveryItem(context, data.revision, reference ?: SubmissionReferenceEntity(context.ledgerId, id, context.storageGeneration), pending, operation)
                 require(result is SubmissionRecoveryItem.Committed)
                 for (ref in result.receipt.entities) require(checkNotNull(finance.revision(ref.collection, ref.id)) >= ref.revision)
-                val command = decodeWrite(context, operation.requestJson)
+                val command = checkNotNull(operationCommand)
                 if (command is WriteCommand.Payment) require(intent?.status == "CONSUMED") else require(intent == null)
                 successful[id] = command
                 operations[id] = operation
