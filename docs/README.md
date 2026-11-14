@@ -2,9 +2,9 @@
 
 ## 확인 기준
 
-2026-11-14 KST, main `dd16d95122400ea2ef3a1be593a41f8e5592b854` 기준이다. [main CI 43470901555](https://github.com/1971123-seongmin/MONIT/actions/runs/43470901555)는 해당 커밋에서 성공했다. 이 기록은 이후 변경의 검증 결과를 대신하지 않는다.
+2026-11-14 23:30 KST 상태 기록이다. 제품 기준은 `dd16d95122400ea2ef3a1be593a41f8e5592b854`, 기존 문서 PR #75를 포함한 main은 `8de243d64b5439bc9b1bc55abe5d503eebf66093`이다. [main CI 43540272865](https://github.com/1971123-seongmin/MONIT/actions/runs/43540272865)는 해당 main에서 성공했다. 아래 PR #73의 후보 검증은 main 반영·출시 완료와 구분하며 이후 변경의 결과를 대신하지 않는다.
 
-기술 계약·구현·검증 절차의 원본은 Git이다. 제품 요구사항과 진행 기록은 MONIT 팀스페이스의 Notion, 승인된 시각 설계는 Figma에서 관리한다. 외부 진입점과 원본 경계는 [협업 운영](ai/workflow.md#원본과-기록)을 따른다. 이번 Git 문서 점검에서는 Notion·Figma 내용과 실제 파일 위치를 다시 조회하지 않았다.
+기술 계약·구현·검증 절차의 원본은 Git이다. 제품 요구사항과 진행 기록은 MONIT 팀스페이스의 Notion, 승인된 시각 설계는 Figma에서 관리한다. 외부 진입점과 원본 경계는 [협업 운영](ai/workflow.md#원본과-기록)을 따른다. 이번에는 기존 대시보드·기획과 Figma 인계 문구만 좁게 갱신했으며 전체 디자인을 재검증하지 않았다. [Day6 학습 기록](https://app.notion.com/p/4182e2ce2fe681759e14c0805dc6e001)은 Day5 이후의 검증·실패·선택 이유를 정리한다.
 
 ## main에 반영된 범위
 
@@ -18,7 +18,7 @@
 | 납입·알림 | 월별 규칙·수동 확인·연결/해제·건너뜀·재확인, 사용자 알림 선호·OS 재조정. [납입 상태](../feature/home/STATE.md), [알림 계약](../feature/home/REMINDERS.md) |
 | 기준액·자산 | 기준일 마감액의 영향 검토·명시 확정·이력, 확인된 장부 잔액과 선택 월 순납입. [계좌·자산 계약](../feature/accounts/ASSETS.md) |
 | 백업·복원 | 암호화 `.monitbak`, 논리 v3 작성·strict v1/v2 읽기, 현재 Room의 원자 전체 교체·새 세대·복원 근거와 fence. [백업 계약](../core/data/BACKUP.md) |
-| 이관 | 지원 JSON의 검토·명시 판단·검증된 같은 revision 백업 뒤 원자 반영·출처 대조. 합성 자료로 구현·시험했으며 실제 자료 반영은 보류. [입력 형식](contracts/import-preview-v1.md), [writer 계약](architecture/import-writer-plan.md) |
+| 이관 | 지원 JSON의 검토·명시 판단·검증된 같은 revision 백업 뒤 원자 반영·출처 대조. 합성 자료로 구현·시험했으며 실제 자료 이관은 승인 후 실행 조건 확인 중. [입력 형식](contracts/import-preview-v1.md), [writer 계약](architecture/import-writer-plan.md) |
 
 관련 [#48](https://github.com/1971123-seongmin/MONIT/pull/48)·[#50](https://github.com/1971123-seongmin/MONIT/pull/50)·[#51](https://github.com/1971123-seongmin/MONIT/pull/51)·[#53](https://github.com/1971123-seongmin/MONIT/pull/53)·[#55](https://github.com/1971123-seongmin/MONIT/pull/55)·[#57](https://github.com/1971123-seongmin/MONIT/pull/57)·[#59](https://github.com/1971123-seongmin/MONIT/pull/59)·[#61](https://github.com/1971123-seongmin/MONIT/pull/61)·[#63](https://github.com/1971123-seongmin/MONIT/pull/63)·[#65](https://github.com/1971123-seongmin/MONIT/pull/65)·[#67](https://github.com/1971123-seongmin/MONIT/pull/67)·[#69](https://github.com/1971123-seongmin/MONIT/pull/69)·[#71](https://github.com/1971123-seongmin/MONIT/pull/71)은 병합됐다.
 
@@ -27,10 +27,12 @@
 ## 검증과 남은 일
 
 - PM/QA 인계 기준으로 #71의 S23 지정 수용시험은 PASS다. 원래 QA 자료와 초안은 보존됐다. 지정 시험의 통과를 전체 앱·성능·장애 검증 완료로 확대하지 않는다. [당시 host 결과와 APK 기록](qa/s23-acceptance-fixes.md)을 함께 확인한다.
-- [PR #73](https://github.com/1971123-seongmin/MONIT/pull/73)은 위 확인 시점에 **OPEN·미병합**이다. head `7b5b51ab89293c4d072931effd20b701b782d244`의 [CI 43493273161](https://github.com/1971123-seongmin/MONIT/actions/runs/43493273161)는 성공했으나 계측 지원의 CI 결과다. main 구현 또는 기기 성능시험 PASS로 기록하지 않는다.
+- [PR #73](https://github.com/1971123-seongmin/MONIT/pull/73)은 위 확인 시점에 **OPEN·미병합**이다. head `5319f195ede151ae15caa178302a026f0e455937`의 [CI 43603796073](https://github.com/1971123-seongmin/MONIT/actions/runs/43603796073) 필수 5개가 성공했고 PM이 88 XML·716시험의 실패/오류/skip 0과 동결 APK hash를 확인했다. API26 첫 검사에서는 Hilt 수신기/Application 불일치로 프로세스가 종료됐다. 해당 실패를 확인한 뒤 S23 새 APK 설치·smoke·장애·20회 측정은 시작하지 않았다. 실제 trigger action은 미확정이며 CI 성공을 기기 PASS로 기록하지 않는다.
+- 이전 `b788045` 후보의 S23 복원 smoke는 73.269MiB로 기존 64MiB 기준을 초과했다. 새 후보는 해당 기준의 실측 결과가 아직 없다. 이전 후보의 20회 시간 결과·최고 메모리·호환성 성공을 새 head에 옮기지 않는다. 측정 baseline·전체 window·5ms 간격을 유지하고 강제 GC·한도 상향·측정 부담 차감으로 실패를 해소하지 않는다.
 - KDF 20회 p95, 상한 payload의 시간·peak heap, 복원 성능·장애·알림의 남은 기기 검증이 있어 **출시 준비는 미완료**다. [백업 host 검증의 미측정 항목](qa/backup-restore-host.md), [후속 검증 Issue #72](https://github.com/1971123-seongmin/MONIT/issues/72)를 따른다.
-- 기기 제어는 사용자가 최근 앱 카드에서 앱을 육안 확인하는 동안 보류한다. 확인 응답·인계 후 이미 승인된 QA를 재개하며 별도 재승인을 요구하지 않는다. 지정 기기는 `SM-S911N`뿐이다. 기존 `.qa`와 복원 전용 `.qa.backup`, #73의 `.qa.performance`는 격리하며 원래 자료·초안을 삭제하거나 복원으로 대체하지 않는다. [.qa/.qa.backup 안내](../app/QA.md)를 따른다.
-- 실제 Notion 자료 판정·앱 반영과 배포·릴리스는 보류다. 호스트 합성 시험이 실제 자료의 적합성·완전성을 증명하지 않는다.
+- 기기 검증은 사용자 승인 범위에서 재개했다. 실제 기기는 `SM-S911N`이며 최소 지원 API26 에뮬레이터도 설치·검증 승인을 받았다. 기존 `.qa`와 복원 전용 `.qa.backup`, #73의 `.qa.performance`는 격리하며 원래 자료·초안을 삭제하거나 복원으로 대체하지 않는다. [.qa/.qa.backup 안내](../app/QA.md)를 따른다. 최신 후보의 API26 시작 오류 해결과 S23 수용은 잔여다.
+- 실제 Notion 자료 이관은 사용자 승인됐지만 23:30 기준 실제 앱 반영은 없다. 기존 앱의 검증된 업데이트 전 복구 사본·계좌 대응·미확정값 확인을 먼저 수행한다. 합성 QA 백업은 실제 앱 사본을 대신하지 않으며, 원본·기존 앱 자료를 보존한다. 호스트 합성 시험과 이관 승인은 실제 자료의 적합성·완전성 또는 반영 완료를 뜻하지 않는다. 배포·릴리스 보류는 유지한다.
+- 23:30 전체 완료 목표는 미달이다. 시간 도달로 미검증을 통과 처리하거나 미확정 금융값을 채우지 않는다.
 - CodeRabbit은 사용자의 재활성화 요청 전까지 지속 OFF다. [운영 기준](ai/automation.md#coderabbit-선택적-리뷰)에 따라 요청·대기하지 않으며 최신 head 필수 CI와 직접 검토는 유지한다.
 
 ## 문서 찾기와 이력의 읽는 법
