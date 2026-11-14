@@ -53,6 +53,14 @@ bridge/provider/장애 주입 설정 입구가 일반 release/debug/QA 산출물
 
 논리 검증의 하위 관측은 `SCHEMA`, `MANIFEST`, `FIELD_KEYS`, `FINANCE`, `EVIDENCE`, `IMPORT` 여섯 경계에만 둔다. 기존 enum 이름/ordinal과 외부 `LOGICAL_VALIDATION` 경계는 유지하며, 각 호출은 실패·취소에도 finally로 종료한다. v1 재귀와 v2의 원래 manifest/정규화 후 manifest는 실제 호출 횟수대로 남긴다. v3 한 번의 검증은 PARSE/LOGICAL을 포함해16개 event이며 항목별 event는 추가하지 않는다. 버퍼4,096개·baseline·5ms 표본 주기·전체 창은 유지한다. 추가 start/end 호출과 provider 배열 슬롯에 관측 비용이 있으므로 비용0이나 실기기 heap 해결을 주장하지 않는다.
 
+복원의 논리 검증 이후에는 `MERGED_LIMITS`, `RESTORE_PLAN` 두 고정 경계를 기존 enum 뒤에 추가한다. 두 경계도 finally로 닫으며 실제 크기 검사와 plan 생성 순서를 유지한다. 항목별 로그·추가 sampler·baseline 이동은 없다.
+
+`bf66964`의 다섯 번째 실측 실패 후에는 A·R·U·M을 한 묶음으로 보완한다. A의 캡처/직렬화 helper는 plain만 반환하고 strict validate 반환 root에서 최소 fence를 추출해 전체 A 두 개의 강한 참조 중복을 줄인다. 검증/추출 실패·취소 시 소유 plain을 소거한다. R은 같은 키·기본 Cipher provider·100byte header/AAD·16byte tag를 사용하며 private candidate 쓰기와 두 재검증 읽기를 표준 JCA multipart로 처리한다. 입력은8KiB로 나누고 출력 합계는 신뢰한 payload 길이로 제한한다. update null/빈 출력과 final 전량 출력을 지원하며, 인증 전 평문은 격리하고 인증·close가 성공한 뒤만 기존 상수시간 원문 비교에 빌려준다. candidate sync/인증→rename→directory fsync→target 인증→proof/hash 순서를 유지한다.
+
+U는 검증된 tree의 operationFences/imports.import_source_fences/manifest 세 경로만 읽기 전용으로 대체한다. 동일 manifest 규칙과 정확한 Long 건수 계산, 플랫폼 serializer와 동등한 JSON escape/UTF-8 길이 합산으로 전체 B clone·직렬화 String·큰 quoted leaf를 만들지 않는다. 기존 provenance 충돌 검사와 최종8MiB/50,000 한도는 유지한다. M은 canonical Base64 alphabet/길이/padding/unused bits를 확인하고 고정 scratch의 표준 decode/SHA256으로 대조한다. 원문 합계2MiB·hash·fence ID/중복/membership을 유지하며 decoded 원문을 캐시하지 않는다.
+
+앱 입력 scratch는8KiB이고 R의 provider 반환 chunk는 총 길이를 제한해 쓰거나 소거한다. provider가 final에 전량을 반환할 수 있어 반환 버퍼까지8KiB라고 주장하지 않는다. GCM provider의 내부 인증 버퍼·native·이전 임시값의 실제 GC 회수는 별도 미확인이다. 소거·강한 참조 축소·정적 예산을 실패 관측값에서 빼지 않으며 새 정확 head/APK의 실제 수용 판정은 QA가 수행한다.
+
 JCA provider 이름은 실제 `generateSecret` 성공 뒤에만 관찰한다. 선조회는 [Android libcore의 SecretKeyFactory 구현](https://android.googlesource.com/platform/libcore/+/d30ce4a7c809da1f168b7ff4d98ea1baa89183d3/ojluni/src/main/java/javax/crypto/SecretKeyFactory.java)에서 failover를 중단하므로 기존 암호 동작을 바꿀 수 있다. host의 임시 합성 provider 거부→정상 provider 대체 회귀로 이 순서를 보호한다. 기기 provider 목록을 변경하는 시험은 아니다.
 
 2026-11-14 첫 S23 smoke의 heap 초과에 따라 PM이 세 가지 보완을 선정했다. 번들 schema의 pattern/Matcher는 `validate` 호출 내부에서만 재사용하고 매 값마다 reset/find하여 기존 언어와 동시 호출 격리를 유지한다. 복원 계측은 암호화된 합성 파일만 사전 준비하고 baseline 뒤 실제 SAF 읽기·inspect·입력 bytes 소거/참조 해제·restore/정리를 포함한다. 제품 복원은 같은 maintenance lease와 사본 검증/CAS 순서를 유지하며 A snapshot·plain 및 정확한 병합 한도 검사의 union을 각각 짧은 helper 수명에 두어 transaction continuation으로 넘기지 않는다. 검증 생략·강제 GC·상한/64MiB 완화는 없으며 실제 감소량과 성공은 새 raw로 확인한다.
