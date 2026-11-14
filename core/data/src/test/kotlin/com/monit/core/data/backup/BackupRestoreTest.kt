@@ -118,6 +118,24 @@ class BackupRestoreTest {
         ledger.createTransaction(context, id(131), transaction(31, 1))
     }
 
+    /** 목적: 현재 A 증빙이 손상되면 사본 보호와 DB 교체를 시작하지 않는다.
+     * 조건: 정상 B를 inspect한 뒤 ledger revision을 바꾸지 않고 A operation kind만 손상한다.
+     * 절차: restore의 현재 캡처 재검증→실패→DB·상태와 stage/copy 호출을 대조한다.
+     * 기대: INVALID_RELATION, copy0·REPLACEMENT 미진입, 현재 DB와 완료표식 불변이다.
+     */
+    @Test fun invalidCurrentEvidenceNeverBeginsRecoveryOrReplacement() = runTest {
+        ready()
+        val preview = inspect(exported())
+        db.openHelper.writableDatabase.execSQL("UPDATE operations SET kind='UPDATE_TRANSACTION' WHERE operationId=?", arrayOf(id(130)))
+        val before = root().toString()
+        val stages = mutableListOf<BackupStage>()
+        assertEquals(BackupProblem.INVALID_RELATION, assertFailsWith<BackupException> { backup.restore(context, preview.id, recovery, stages::add) }.problem)
+        assertEquals(0, recovery.calls)
+        assertFalse(BackupStage.REPLACEMENT in stages)
+        assertEquals(before, root().toString())
+        assertNull(backup.status().unacknowledgedRestore)
+    }
+
     /** 목적: 대체 중 SQL 실패가 fence·삭제·새세대·완료표식을 부분 반영하지 못하게 한다.
      * 조건: accounts INSERT를 실패시키는 실제 SQLite trigger다.
      * 절차: 사본 확보 후 restore 실패→원래 snapshot/원문/결과/fence를 읽고 trigger를 제거한다.

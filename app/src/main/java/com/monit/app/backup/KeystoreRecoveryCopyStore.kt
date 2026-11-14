@@ -8,9 +8,10 @@ import android.system.OsConstants
 import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.*
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.security.KeyStore
 import java.security.MessageDigest
@@ -32,6 +33,7 @@ import kotlinx.coroutines.withTimeout
 @Singleton
 class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext private val context: Context, private val contexts: CoroutineContextProvider) : RecoveryCopyStore {
     private val mutex = Mutex()
+    internal val workProbe = RecoveryCopyProbe()
     override suspend fun protect(context: LedgerContext, payload: ByteArray): RecoveryCopyProof = withTimeout(60_000) {
         withContext(contexts.io) {
             if (!mutex.tryLock()) throw BackupException(BackupProblem.RECOVERY_COPY)
@@ -42,37 +44,29 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
                 val database = this@KeystoreRecoveryCopyStore.context.getDatabasePath("monit-ledger.db")
                 val databaseSize = listOf(database, File(database.path + "-wal"), File(database.path + "-shm")).sumOf { it.length() }
                 val needed = maxOf(64 * 1024 * 1024L, Math.addExact(Math.multiplyExact(databaseSize, 2), Math.addExact(Math.multiplyExact(payload.size.toLong(), 4), 4 * 1024 * 1024L)))
+                workProbe.checkpoint(RecoveryCopyCheckpoint.BEFORE_SPACE_CHECK)
                 require(folder.usableSpace >= needed)
                 currentCoroutineContext().ensureActive()
                 val id = UUID.randomUUID().toString()
                 val candidate = File(folder, "$id.pending")
                 val target = File(folder, "verified.monitrec")
                 require(candidate.canonicalFile.parentFile == folder.canonicalFile && target.canonicalFile.parentFile == folder.canonicalFile)
-                val encrypted = LocalRecoveryCipher.encrypt(payload, context, key())
+                writeCandidate(candidate, context, payload)
+                workProbe.checkpoint(RecoveryCopyCheckpoint.AFTER_CANDIDATE_SYNC)
+                currentCoroutineContext().ensureActive()
+                verify(candidate, context, payload)
+                currentCoroutineContext().ensureActive()
+                // 같은 앱 내부 디렉터리에서 이미 검증한 암호문만 원자적으로 교체한다.
+                Os.rename(candidate.absolutePath, target.absolutePath)
+                val directory = Os.open(folder.absolutePath, OsConstants.O_RDONLY, 0)
                 try {
-                    currentCoroutineContext().ensureActive()
-                    require(candidate.createNewFile())
-                    FileOutputStream(candidate).use { stream ->
-                        stream.write(encrypted)
-                        stream.fd.sync()
-                    }
-                    currentCoroutineContext().ensureActive()
-                    verify(candidate, context, payload)
-                    currentCoroutineContext().ensureActive()
-                    // 같은 앱 내부 디렉터리에서 이미 검증한 암호문만 원자적으로 교체한다.
-                    Os.rename(candidate.absolutePath, target.absolutePath)
-                    val directory = Os.open(folder.absolutePath, OsConstants.O_RDONLY, 0)
-                    try {
-                        Os.fsync(directory)
-                    } finally {
-                        Os.close(directory)
-                    }
-                    verify(target, context, payload)
-                    currentCoroutineContext().ensureActive()
-                    RecoveryCopyProof(id, digest(payload), payload.size)
+                    Os.fsync(directory)
                 } finally {
-                    encrypted.fill(0)
+                    Os.close(directory)
                 }
+                verify(target, context, payload)
+                currentCoroutineContext().ensureActive()
+                RecoveryCopyProof(id, digest(payload), payload.size)
                 // 오류 상태의 암호화 사본은 진단/복구를 위해 자동 폐기하지 않는다.
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -84,32 +78,31 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
         }
     }
 
-    private fun verify(file: File, context: LedgerContext, payload: ByteArray) {
-        require(file.length() in 116L..(8 * 1024 * 1024L + 116))
-        val encrypted = file.inputStream().use { stream ->
-            val output = ByteArrayOutputStream()
-            val chunk = ByteArray(8192)
-            try {
-                while (true) {
-                    val count = stream.read(chunk)
-                    if (count < 0) break
-                    require(count > 0 && output.size().toLong() + count <= 8 * 1024 * 1024L + 116)
-                    output.write(chunk, 0, count)
-                }
-                output.toByteArray()
-            } finally {
-                chunk.fill(0)
-            }
+    private suspend fun writeCandidate(file: File, context: LedgerContext, payload: ByteArray) {
+        val active = currentCoroutineContext()
+        val key = key()
+        active.ensureActive()
+        require(file.createNewFile())
+        writeRecoveryOutput(FileOutputStream(file), sync = { stream ->
+            active.ensureActive()
+            (stream as FileOutputStream).fd.sync()
+        }) { stream ->
+            LocalRecoveryCipher.encrypt(stream, payload, context, key) { active.ensureActive() }
         }
-        val plain = LocalRecoveryCipher.decrypt(encrypted, context, key())
-        try {
+    }
+
+    private suspend fun verify(file: File, context: LedgerContext, payload: ByteArray) {
+        val active = currentCoroutineContext()
+        require(file.length() in 116L..(8 * 1024 * 1024L + 116))
+        withRecoveryPlaintext(file.inputStream(), decrypt = { input ->
+            LocalRecoveryCipher.decrypt(input, payload.size, context, key()) { active.ensureActive() }
+        }) { plain ->
+            active.ensureActive()
             require(MessageDigest.isEqual(payload, plain))
-        } finally {
-            plain.fill(0)
-            encrypted.fill(0)
         }
     }
     private fun key(): SecretKey {
+        workProbe.checkpoint(RecoveryCopyCheckpoint.BEFORE_KEY_ACCESS)
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         if (store.containsAlias(ALIAS)) return checkNotNull(store.getKey(ALIAS, null) as? SecretKey)
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
@@ -125,28 +118,55 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
 
 internal object LocalRecoveryCipher {
     private val magic = "MONITRC1".toByteArray(Charsets.US_ASCII)
-    fun encrypt(payload: ByteArray, context: LedgerContext, key: SecretKey): ByteArray {
-        require(payload.size <= 8 * 1024 * 1024)
+    fun encrypt(output: OutputStream, payload: ByteArray, context: LedgerContext, key: SecretKey, checkActive: () -> Unit = {}) {
+        require(payload.size <= RECOVERY_PAYLOAD_LIMIT)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key)
-        require(cipher.iv.size == 12)
-        val header = ByteBuffer.allocate(100).put(magic).put(context.ledgerId.toByteArray(Charsets.US_ASCII)).put(context.storageGeneration.toByteArray(Charsets.US_ASCII)).put(cipher.iv).putLong(payload.size.toLong() + 16).array()
-        cipher.updateAAD(header)
-        return header + cipher.doFinal(payload)
+        val nonce = checkNotNull(cipher.iv)
+        val header = ByteArray(100)
+        try {
+            require(nonce.size == 12)
+            magic.copyInto(header)
+            for (index in 0 until 36) {
+                header[8 + index] = context.ledgerId[index].code.toByte()
+                header[44 + index] = context.storageGeneration[index].code.toByte()
+            }
+            ByteBuffer.wrap(header, 80, 20).put(nonce).putLong(payload.size.toLong() + 16)
+            cipher.updateAAD(header)
+            checkActive()
+            output.write(header)
+            writeRecoveryCiphertext(output, payload, cipher, checkActive)
+        } finally {
+            header.fill(0)
+            nonce.fill(0)
+        }
     }
-    fun decrypt(file: ByteArray, context: LedgerContext, key: SecretKey): ByteArray {
-        require(file.size in 116..(8 * 1024 * 1024 + 116))
-        val header = file.copyOfRange(0, 100)
-        val buffer = ByteBuffer.wrap(header)
-        require(ByteArray(8).also(buffer::get).contentEquals(magic))
-        require(String(ByteArray(36).also(buffer::get), Charsets.US_ASCII) == context.ledgerId)
-        require(String(ByteArray(36).also(buffer::get), Charsets.US_ASCII) == context.storageGeneration)
-        val nonce = ByteArray(12).also(buffer::get)
-        require(buffer.long == file.size.toLong() - 100)
-        return Cipher.getInstance("AES/GCM/NoPadding").run {
-            init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, nonce))
-            updateAAD(header)
-            doFinal(file, 100, file.size - 100)
+    fun decrypt(input: InputStream, payloadSize: Int, context: LedgerContext, key: SecretKey, checkActive: () -> Unit = {}): ByteArray {
+        require(payloadSize in 0..RECOVERY_PAYLOAD_LIMIT)
+        val header = ByteArray(100)
+        var nonce: ByteArray? = null
+        try {
+            var offset = 0
+            while (offset < header.size) {
+                checkActive()
+                val count = input.read(header, offset, header.size - offset)
+                require(count > 0)
+                offset += count
+            }
+            for (index in magic.indices) require(header[index] == magic[index])
+            for (index in 0 until 36) {
+                require(header[8 + index].toInt() == context.ledgerId[index].code)
+                require(header[44 + index].toInt() == context.storageGeneration[index].code)
+            }
+            require(ByteBuffer.wrap(header, 92, 8).long == payloadSize.toLong() + 16)
+            nonce = header.copyOfRange(80, 92)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, nonce))
+            cipher.updateAAD(header)
+            return readRecoveryPlaintext(input, payloadSize, cipher, checkActive)
+        } finally {
+            header.fill(0)
+            nonce?.fill(0)
         }
     }
 }

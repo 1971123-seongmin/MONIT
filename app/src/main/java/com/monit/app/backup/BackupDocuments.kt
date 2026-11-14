@@ -8,7 +8,6 @@ import com.monit.core.common.coroutines.CoroutineContextProvider
 import com.monit.core.model.BackupException
 import com.monit.core.model.BackupProblem
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.InputStream
 import java.io.OutputStream
@@ -89,26 +88,50 @@ internal object BackupDocumentStreams {
         }
     }
 
-    fun read(input: InputStream): ByteArray = input.use { stream ->
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
-        var zeros = 0
+    fun read(input: InputStream): ByteArray {
+        val chunks = ArrayList<ByteArray>()
+        var output: ByteArray? = null
         try {
-            while (true) {
-                if (Thread.currentThread().isInterrupted) throw java.io.InterruptedIOException()
-                val count = stream.read(buffer)
-                if (count < 0) break
-                if (count == 0) {
-                    require(++zeros <= 16)
-                    continue
+            input.use { stream ->
+                var total = 0L
+                var zeros = 0
+                var ended = false
+                while (!ended) {
+                    val chunk = ByteArray(minOf(8192L, MAX_FILE.toLong() - total + 1).toInt())
+                    chunks.add(chunk)
+                    var used = 0
+                    while (used < chunk.size) {
+                        if (Thread.currentThread().isInterrupted) throw java.io.InterruptedIOException()
+                        val count = stream.read(chunk, used, chunk.size - used)
+                        if (count < 0) {
+                            ended = true
+                            break
+                        }
+                        if (count == 0) {
+                            require(++zeros <= 16)
+                            continue
+                        }
+                        zeros = 0
+                        used += count
+                        if (total + used > MAX_FILE) throw BackupException(BackupProblem.LIMIT)
+                    }
+                    total += used
                 }
-                zeros = 0
-                if (output.size().toLong() + count > MAX_FILE) throw BackupException(BackupProblem.LIMIT)
-                output.write(buffer, 0, count)
+                val result = ByteArray(total.toInt())
+                output = result
+                var offset = 0
+                for (chunk in chunks) {
+                    val count = minOf(chunk.size, result.size - offset)
+                    chunk.copyInto(result, offset, 0, count)
+                    offset += count
+                }
             }
-            output.toByteArray()
+            return checkNotNull(output)
+        } catch (failure: Throwable) {
+            output?.fill(0)
+            throw failure
         } finally {
-            buffer.fill(0)
+            chunks.forEach { it.fill(0) }
         }
     }
 }

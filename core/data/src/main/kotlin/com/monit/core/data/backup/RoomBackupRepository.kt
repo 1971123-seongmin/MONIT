@@ -19,8 +19,9 @@ import org.json.JSONObject
 @Singleton
 internal class RoomBackupRepository @Inject constructor(private val database: LedgerDatabase, private val clock: Clock, private val contexts: CoroutineContextProvider) : BackupRepository {
     private val single = Mutex()
+    internal val workProbe = BackupWorkProbe()
     private val adapter get() = BackupSnapshotAdapter(database, clock)
-    private val validator get() = BackupValidator(clock)
+    private val validator get() = BackupValidator(clock, workProbe)
     private var exported: Pair<BackupExport, String>? = null
     private var inspected: Pair<RestorePreview, ValidatedBackup>? = null
     private fun id() = UUID.randomUUID().toString()
@@ -34,7 +35,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
                 val source = validate(plain, onStage)
                 currentCoroutineContext().ensureActive()
                 onStage(BackupStage.CRYPTO)
-                val encrypted = BackupEnvelope.encrypt(plain, password)
+                val encrypted = BackupEnvelope.encrypt(plain, password, workProbe)
                 currentCoroutineContext().ensureActive()
                 BackupExport(id(), context, source.revision, source.createdAt.toString(), encrypted).also { exported = it to BackupJson.digest(encrypted) }
             } finally {
@@ -49,7 +50,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         work {
             val (original, hash) = checkNotNull(exported).also { require(it.first.id == id && it.first.context == context) }
             onStage(BackupStage.CRYPTO)
-            val plain = BackupEnvelope.decrypt(readBack, password)
+            val plain = BackupEnvelope.decrypt(readBack, password, workProbe)
             try {
                 currentCoroutineContext().ensureActive()
                 val source = validate(plain, onStage)
@@ -76,7 +77,7 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
     override suspend fun inspect(context: LedgerContext, encrypted: ByteArray, password: CharArray, onStage: (BackupStage) -> Unit): RestorePreview = try {
         work {
             onStage(BackupStage.CRYPTO)
-            val plain = BackupEnvelope.decrypt(encrypted, password)
+            val plain = BackupEnvelope.decrypt(encrypted, password, workProbe)
             try {
                 currentCoroutineContext().ensureActive()
                 val source = validate(plain, onStage)
@@ -101,55 +102,100 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
         result(previewId)?.let { return@work it }
         val (preview, source) = checkNotNull(inspected).also { require(it.first.id == previewId && it.first.currentContext == context) }
         database.maintenance { lease ->
-            onStage(BackupStage.SNAPSHOT)
-            val current = database.withTransaction {
-                database.requireMaintenanceWriter(lease)
-                checkPreview(preview)
-                adapter.captureInside(context)
-            }
-            val plain = BackupJson.utf8(current.toString())
-            try {
-                validate(plain, onStage)
-                val expectedHash = BackupJson.digest(plain)
-                onStage(BackupStage.RECOVERY_COPY)
-                val proof = try {
-                    recovery.protect(context, plain)
-                } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    BackupJson.fail(BackupProblem.RECOVERY_COPY)
-                }
-                currentCoroutineContext().ensureActive()
-                requireLedgerId(proof.id)
-                if (proof.payloadSha256 != expectedHash || BackupJson.digest(plain) != expectedHash || proof.byteLength != plain.size) BackupJson.fail(BackupProblem.RECOVERY_COPY)
-            } finally {
-                plain.fill(0)
-            }
+            val fences = protectCurrent(context, preview, source, recovery, onStage, lease)
             val outcome = RestoreResult(previewId, LedgerContext(source.context.ledgerId, id()), source.createdAt.toString(), clock.instant().toString(), source.root.getJSONObject("manifest").getInt("recordTotal"), preview.legacyEvidenceMissing)
-            val oldIds = current.list("submissionsEvidence").mapTo(HashSet()) { it.text("operationId") } + current.getJSONArray("operationFences").values().map { it as String }
-            val incomingIds = source.root.getJSONArray("operationFences").values().map { it as String }.toSet()
-            val sourceFences = BackupImportV3.unionFences(current.getJSONObject("imports").list("import_source_fences"), source.root.getJSONObject("imports").list("import_source_fences"))
-            val union = JSONObject(source.root.toString())
-            union.put("operationFences", org.json.JSONArray((oldIds + incomingIds).sorted()))
-            union.getJSONObject("imports").put("import_source_fences", org.json.JSONArray(sourceFences))
-            union.put("manifest", BackupSnapshotAdapter.manifest(union, source.root.getJSONObject("manifest").text("submissionCoverage"), source.root.getJSONObject("imports").text("coverage")))
-            if (union.getJSONObject("manifest").getLong("recordTotal") > 50_000 || BackupJson.utf8(union.toString()).size > BackupEnvelope.MAX_PAYLOAD) BackupJson.fail(BackupProblem.LIMIT)
-            val plan = BackupRestorePlan(source, outcome, oldIds, sourceFences)
+            workProbe.start(BackupProbeEvent.MERGED_LIMITS)
+            try {
+                BackupMergeBudget.requireWithinLimits(source, fences.operations, fences.importFences)
+            } finally {
+                workProbe.end(BackupProbeEvent.MERGED_LIMITS)
+            }
+            workProbe.start(BackupProbeEvent.RESTORE_PLAN)
+            val plan = try {
+                BackupRestorePlan(source, outcome, fences.operations, fences.importFences)
+            } finally {
+                workProbe.end(BackupProbeEvent.RESTORE_PLAN)
+            }
             try {
                 onStage(BackupStage.REPLACEMENT)
-                database.withTransaction {
-                    database.requireMaintenanceWriter(lease)
-                    checkPreview(preview)
-                    plan.apply(database)
+                workProbe.start(BackupProbeEvent.REPLACEMENT)
+                try {
+                    database.withTransaction {
+                        workProbe.start(BackupProbeEvent.REPLACEMENT_BODY)
+                        try {
+                            database.requireMaintenanceWriter(lease)
+                            checkPreview(preview)
+                            plan.apply(database, workProbe)
+                            workProbe.checkpoint(BackupCheckpoint.BEFORE_COMMIT)
+                        } finally {
+                            workProbe.end(BackupProbeEvent.REPLACEMENT_BODY)
+                        }
+                    }
+                } finally {
+                    workProbe.end(BackupProbeEvent.REPLACEMENT)
                 }
             } finally {
                 plan.clear()
             }
             inspected = null
             exported = null
+            workProbe.checkpoint(BackupCheckpoint.AFTER_COMMIT)
             outcome
         }
     }
+
+    /** 사본 작업에는 원래 plain과 필요한 fence 값만 유지하고 전체 A snapshot은 넘기지 않는다. */
+    private suspend fun protectCurrent(
+        context: LedgerContext,
+        preview: RestorePreview,
+        source: ValidatedBackup,
+        recovery: RecoveryCopyStore,
+        onStage: (BackupStage) -> Unit,
+        lease: String,
+    ): RestoreFences {
+        val recoveryPayload = prepareCurrentRecovery(context, preview, onStage, lease)
+        val plain = recoveryPayload.plain
+        try {
+            val expectedHash = BackupJson.digest(plain)
+            onStage(BackupStage.RECOVERY_COPY)
+            workProbe.start(BackupProbeEvent.RECOVERY_COPY)
+            val proof = try {
+                recovery.protect(context, plain)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                BackupJson.fail(BackupProblem.RECOVERY_COPY)
+            } finally {
+                workProbe.end(BackupProbeEvent.RECOVERY_COPY)
+            }
+            currentCoroutineContext().ensureActive()
+            requireLedgerId(proof.id)
+            if (proof.payloadSha256 != expectedHash || BackupJson.digest(plain) != expectedHash || proof.byteLength != plain.size) BackupJson.fail(BackupProblem.RECOVERY_COPY)
+        } finally {
+            plain.fill(0)
+        }
+        val operations = recoveryPayload.submissionOperations.toHashSet() + recoveryPayload.operationFences
+        val importFences = BackupImportV3.unionFences(recoveryPayload.importFences, source.root.getJSONObject("imports").list("import_source_fences"))
+        return RestoreFences(operations, importFences)
+    }
+
+    private suspend fun prepareCurrentRecovery(context: LedgerContext, preview: RestorePreview, onStage: (BackupStage) -> Unit, lease: String): BackupRecoveryPayload {
+        onStage(BackupStage.SNAPSHOT)
+        val plain = captureCurrentPlain(context, preview, lease)
+        return prepareBackupRecoveryPayload(plain) { validate(it, onStage) }
+    }
+
+    /** 캡처한 DOM은 재파싱 검증의 호출 프레임에 넘기지 않는다. */
+    private suspend fun captureCurrentPlain(context: LedgerContext, preview: RestorePreview, lease: String): ByteArray {
+        val current = database.withTransaction {
+            database.requireMaintenanceWriter(lease)
+            checkPreview(preview)
+            adapter.captureInside(context)
+        }
+        return BackupJson.utf8(current.toString())
+    }
+
+    private data class RestoreFences(val operations: Set<String>, val importFences: List<JSONObject>)
 
     override suspend fun status(): BackupStatus = database.withTransaction {
         database.requireAvailable()
