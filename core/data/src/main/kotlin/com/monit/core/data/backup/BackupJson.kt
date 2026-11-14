@@ -9,6 +9,7 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
+import java.util.regex.Pattern
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
@@ -16,6 +17,7 @@ import org.json.JSONObject
 
 /** 인증을 마친 바이트만 받는다. JSONObject가 중복 키/숫자 표현을 잃기 전에 strict pass를 수행한다. */
 internal object BackupJson {
+    private val numberPattern = Pattern.compile("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?")
     suspend fun parse(bytes: ByteArray): JSONObject {
         if (bytes.size > BackupEnvelope.MAX_PAYLOAD) fail(BackupProblem.LIMIT)
         val text = try {
@@ -29,6 +31,7 @@ internal object BackupJson {
 
     suspend fun parseText(text: String): JSONObject {
         if (utf8(text).size > BackupEnvelope.MAX_PAYLOAD) fail(BackupProblem.LIMIT)
+        val numberMatcher = numberPattern.matcher("")
         var tokens = 0
         try {
             JsonReader(StringReader(text)).use { reader ->
@@ -59,7 +62,7 @@ internal object BackupJson {
                         JsonToken.STRING -> utf8(reader.nextString())
 
                         JsonToken.NUMBER -> {
-                            if (!reader.nextString().matches(Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?"))) fail(BackupProblem.INVALID_PAYLOAD)
+                            if (!numberMatcher.reset(reader.nextString()).matches()) fail(BackupProblem.INVALID_PAYLOAD)
                         }
 
                         JsonToken.BOOLEAN -> reader.nextBoolean()
@@ -104,4 +107,5 @@ internal fun JSONObject.fields(vararg names: String) {
 internal fun JSONObject.text(key: String): String = get(key) as? String ?: BackupJson.fail(BackupProblem.INVALID_PAYLOAD)
 internal fun JSONObject.list(key: String): List<JSONObject> = (get(key) as? JSONArray ?: BackupJson.fail(BackupProblem.INVALID_PAYLOAD)).let { array -> (0 until array.length()).map { array.get(it) as? JSONObject ?: BackupJson.fail(BackupProblem.INVALID_PAYLOAD) } }
 internal fun JSONObject.optional(key: String): String? = if (isNull(key)) null else text(key)
-internal fun JSONObject.exactLong(key: String): Long = text(key).also { if (!it.matches(Regex("0|-[1-9][0-9]*|[1-9][0-9]*"))) BackupJson.fail(BackupProblem.INVALID_PAYLOAD) }.toLong()
+private val exactLongPattern = Pattern.compile("0|-[1-9][0-9]*|[1-9][0-9]*")
+internal fun JSONObject.exactLong(key: String): Long = text(key).also { if (!exactLongPattern.matcher(it).matches()) BackupJson.fail(BackupProblem.INVALID_PAYLOAD) }.toLong()
