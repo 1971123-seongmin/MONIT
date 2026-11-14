@@ -128,3 +128,13 @@ UUID/하위 관측 후속의 host 시험651개(모델33/debug591/전용27)는 �
 이제 캡처 DOM은 논리 검증까지 의도적으로 한 개 보유하며, 기본 v3 경로에서 같은 A를 다시 전체 UTF-8 decode하거나 DOM으로 구축하지 않는다. plain 생성은 논리 검증·metadata 추출 뒤이고 wrapper 출력은 이전처럼 plain/최소 fence만 포함한다. 검증·추출 실패와 실제 Job 취소에서 이미 소유한 배열도 소거한다. 입력 root는 소유권을 넘긴 뒤 변경하지 않는 내부 계약이며 외부 파일/변경 가능한 호출자 값을 검증됐다고 신뢰하는 API가 아니다. legacy 원본 보관과 parser 정규화가 필요한 예외 경로까지 bytes oracle로 대조한다. String/GC/provider 내부의 실제 수명과64MiB 수용은 새 기기 시험에서 판단하며 예상 절감량으로 통과 처리하지 않는다.
 
 수정 전 bytes oracle10조건과 수정 후 내부 경로의12조건, 소유 배열 실패/실제 Job 취소2개를 추가하고 기존 단계별 실패·정상 trace와 상한 fixture에도 내부 경로를 대조했다. 최종 host716개(모델33/debug653/전용30,88 XML), 실패·오류·skip0이며 앱5변형/계측 APK·ktlintCheck·전체 lintDebug/전용 Lint·문서27개 검사를 통과했다. 일반4APK격리/no-op12·두APK 서명/minSdk26/runner·target/non-debuggable도 확인했다. debug/performanceQa의 strict scanner 유지·validation/metadata 후 encode 순서와 payload wrapper의 전체 snapshot 부재를 bytecode로 확인했다. 정확 head CI와 동결 APK는 PR/PM 인계에 연결하며 새 기기 수용은 아직 미실행이다.
+
+### 5319f195 API26 계측 프로세스 실패와 수신기 격리
+
+`5319f195`는 CI716 성공 후 API26 첫 platformCryptoVectors 실행에서 프로세스가 종료됐다. 실패 run `d0f082c8-b357-4025-ab76-28b5b5ce1f9e`의 raw는1,335bytes/SHA-256 `bad5b8a74ce6ec857c3ffb25474b3e15352d9e4a4d4db1f1a1d73094e1a48770`이며 header1행, case/summary0행이다. API26 PASS0/실패·불완전1/후속6미실행, S23 새APK설치·모든시험 미실행이다. 따라서 새 메모리 수용값이나 JSON147/Keystore5조건 성공을 갖고 있지 않다.
+
+원본 stack은 `Hilt_ReminderSystemReceiver.inject`가 일반 `android.app.Application`을 거부한 것을 확인한다. 합성 runner는 제품 Application/알림 observer를 시작하지 않기 위해 일반 Application을 쓰는데, 전용 manifest가 제품 Hilt 수신기를 상속하고 있었다. 실제 trigger action은 원본에 없어 특정 OS 이벤트로 단정하지 않는다. b788→5319에 Application/runner/수신기 코드는 바뀌지 않았으며 A 수명 보완이 충돌을 유발했다고 단정하지 않는다.
+
+최소 수정은 performanceQa overlay에서 제품 `ReminderAlarmReceiver`/`ReminderSystemReceiver` 등록만 제거한다. 일반4변형의 Application/Hilt/알림 코드와 manifest, 전용 provider/runner·파일 형식·측정 입력/창/baseline/5ms/64MiB는 유지한다. 실제 병합 manifest를 읽는 회귀는 수정 전 API26/28에서 등록을 검출해 실패했고, 수정 후에는 전용 provider 유지·수신기 부재와 일반 debug 수신기 유지/시스템 action 해결을 대조한다. 최종 APK의 전용 수신기 부재도 별도로 확인한다. 이는 구성 결함의 검증이며 실제 API26 재실행과 S23 메모리 수용을 대체하지 않는다.
+
+수정 후 앱 debug/performanceQa 호스트207개(신규 manifest4조건 포함,28 XML)는 실패·오류·skip0이고 영향받은 target/test APK 빌드·app ktlintCheck/전용 Lint·문서27개 검사도 통과했다. 제품 runtime 변경은 전용 manifest뿐이라 core/feature 등 비앱513개와 일반4APK의 기존5319f195 검증을 재사용하며 재실행했다고 세지 않는다. 실제 이전 APK hash와 일반 수신기/Application 등록 유지, 새 target의 수신기 부재/provider 유지·minSdk26/nondebuggable·서명/runner를 대조했다. 신규 head의 CI/동결 APK를 받은 뒤 QA가 원래 실패를 보존한 상태로 새 기기 검증을 수행한다.

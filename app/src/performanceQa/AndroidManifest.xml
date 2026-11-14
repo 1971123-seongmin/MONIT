@@ -1,8 +1,11 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <queries>
         <package android:name="com.monit.app.qa.performance.test" />
     </queries>
     <application>
+        <!-- 일반 Application을 쓰는 합성 계측에는 제품 Hilt 수신기를 등록하지 않는다. -->
+        <receiver android:name="com.monit.app.notifications.ReminderAlarmReceiver" tools:node="remove" />
+        <receiver android:name="com.monit.app.notifications.ReminderSystemReceiver" tools:node="remove" />
         <provider
             android:name="com.monit.app.backup.probe.ProbeDocumentsProvider"
             android:authorities="com.monit.app.qa.performance.backup.probe"
