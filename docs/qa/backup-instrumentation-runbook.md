@@ -46,7 +46,7 @@ adb -s $serial shell am instrument -w -r -e class $faultClass -e sourceHead $sou
 adb -s $serial shell am instrument -w -r -e class $performanceClass -e sourceHead $sourceHead -e targetApkSha $targetSha -e testApkSha $testSha $runner
 ```
 
-성능 class의 두 메서드는 각각 별도 유효 MIXED_LIMIT 입력/runId를 만든다. crypto warmup2, restore warmup1 후 20회이며 heap은 별도1회다. restore 각 sample은 새 A DB를 사용한다. B의 예상값은 전체50,000records·유효 거래201개·삭제1개·income200·expense5000과 전체 의미 digest다. 단순 transaction 수만 대사하지 않는다.
+성능 class의 두 메서드는 각각 별도 유효 MIXED_LIMIT 입력/runId를 만든다. crypto warmup2, restore warmup1 후 20회이며 heap은 별도1회다. restore 각 sample은 새 A DB를 사용한다. 암호화된 합성 입력 파일은 사전 준비하고 baseline 뒤 실제 `BackupDocuments.read`·inspect·암호문 소거/참조 해제·restore/정리를 측정한다. `inputReadStartNanos`·`inspectEndNanos`와 준비/측정 경계 표시도 raw에 남긴다. B의 예상값은 전체50,000records·유효 거래201개·삭제1개·income200·expense5000과 전체 의미 digest다. 단순 transaction 수만 대사하지 않는다.
 
 새 DB·암호화 복구 사본을 sample별로 보존하므로 누적 저장 공간이 필요하다. QA는 smoke의 파일 크기/여유 공간을 기준으로 20회 및 기존 증거 보존 여유를 먼저 대조한다. 부족한 기기에서 반복을 강행하거나 디스크를 채우지 않고 준비 미충족으로 남긴다. raw header의 `usableSpaceBeforeBytes`는 준비 후의 진단값이며 공간 전체 보장의 대체값은 아니다.
 
@@ -72,5 +72,7 @@ raw에는 source head(인계 입력임을 명시), 설치된 두 APK SHA256·공
 - API26과 대표 API33+·낮은 성능 기기·OEM SAF/권한 회수/close·실제 kill/reboot/time/Doze·절대 peak heap은 별도 QA/영향 계획으로 확인한다. S23/API36 또는 Robolectric SDK28 결과로 대체하지 않는다.
 
 ## 검증 상태
+
+첫 S23/API36 smoke(head `7b5b51a`, 각1표본)는 복원·crypto 모두 `OBSERVED_HEAP_LIMIT_EXCEEDED`였다. 원래 두 APK와 실패 raw는 동결 보존한다. 복원 run `3de6a951-787c-4d7c-bdb4-dac87e0ab930`의 같은 표본 Java+native baseline 대비 최대는196.541MiB, crypto run `6a2c8f10-f368-4c60-8bba-03eaed7fd401`는166.478MiB다. 독립 최대값을 합한 값이 아니며 20회 p95도 아니다. 복원 최대는 실제 restore API 전 준비 구간에 있지만 API 창만 잘라도86.497MiB가 관측되어 제품 수명도 함께 보완한다. 새 head의 동일 기준 실측 전까지 한도 해결·출시 수용을 주장하지 않는다.
 
 구현·호스트 검사·APK 격리/서명 검증 및 최신 head CI의 최종 결과는 연결 PR과 PM 인계에서 정확한 커밋/SHA로 기록한다. 실제 기기 실행은 Android에서 수행하지 않았으며 QA 담당이다. PR #71 작업 공간/APK와 기존 데이터는 보존한다.
