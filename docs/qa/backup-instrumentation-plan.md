@@ -55,6 +55,10 @@ JCA provider 이름은 실제 `generateSecret` 성공 뒤에만 관찰한다. �
 
 2026-11-14 첫 S23 smoke의 heap 초과에 따라 PM이 세 가지 보완을 선정했다. 번들 schema의 pattern/Matcher는 `validate` 호출 내부에서만 재사용하고 매 값마다 reset/find하여 기존 언어와 동시 호출 격리를 유지한다. 복원 계측은 암호화된 합성 파일만 사전 준비하고 baseline 뒤 실제 SAF 읽기·inspect·입력 bytes 소거/참조 해제·restore/정리를 포함한다. 제품 복원은 같은 maintenance lease와 사본 검증/CAS 순서를 유지하며 A snapshot·plain 및 정확한 병합 한도 검사의 union을 각각 짧은 helper 수명에 두어 transaction continuation으로 넘기지 않는다. 검증 생략·강제 GC·상한/64MiB 완화는 없으며 실제 감소량과 성공은 새 raw로 확인한다.
 
+두 번째 S23 smoke(head `754d6716`)도 복원 전체137,350,488bytes·같은 전체 baseline을 유지한 restore API 창114,006,280bytes의 동시 추가 표본으로 실패했다. 전체 최대의 세부 단계와 API 최대의 할당 소유자는 확인되지 않았으며 서로 다른 세션/측정창의 차이 전체를 제품 최적화 효과로 해석하지 않는다. 추가 보완은 UTF-8 길이/유효성 검사와 bytes 생성을 분리하는 범위다. 길이는 전체 surrogate 유효성을 검사하며 Long으로 계산하고, 실제 bytes만 정확한 출력 배열 하나에 표준 REPORT encoder로 생성해 encode/flush·입력 소진·출력 길이를 확인한다. strict JSON·오류 우선순위·한도·KDF·복구 사본/원자성은 유지하고, 누적 stream 버퍼나 DOM 파싱 구조는 변경하지 않는다.
+
+합성 입력 파일을 준비한 뒤 read 전 한 번만 관찰을 활성화해 inspect 이후 초기화로 입력 단계 이력을 지우지 않는다. baseline·sampler 전체 창·GC 정책은 유지하며, 종료 후 inspect의 KDF/parse/논리 검증 시작·종료 이벤트가 입력 구간 안에 있는지 확인한다. API26에서 확인한 전용 DocumentsProvider의 projection 무시 결함도 요청 컬럼/순서와 null의 기존 기본값을 지키도록 보완한다. 일반 앱의 SAF 구현은 그대로 두고, FALSE_SIZE/실제 바이트 초과 거부를 포함한 호스트·기기 회귀를 구분한다. 기존 APK·실패 raw는 보존하며 새 head의 실측 전까지 64MiB 해결을 주장하지 않는다.
+
 ## 합성 상한과 시간 측정
 
 - 금액·종류·날짜·건수를 고정하고 실제 Repository 경로로 현재 v3의 유효 source snapshot을 생성한다. 실제 생성 경로의 UUID는 run별로 다를 수 있으므로 run 간 byte 동일성을 주장하지 않는다. 같은 run의 20회는 보존한 같은 source bytes/SHA를 사용한다. count는 거래 수가 아니라 manifest의 금융·evidence·operation fence·import·원문 등 전체 recordTotal이다.
