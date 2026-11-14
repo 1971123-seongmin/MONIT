@@ -191,6 +191,7 @@ class BackupPerformanceTest {
         var apiStart = 0L
         var apiEnd = 0L
         var previewId = ""
+        session.record()
         sampler?.start()
         val inputReadStart = SystemClock.elapsedRealtimeNanos()
         var inspectEnd = 0L
@@ -198,7 +199,6 @@ class BackupPerformanceTest {
             val preview = inspectRestoreDocument(session, documents, document)
             inspectEnd = SystemClock.elapsedRealtimeNanos()
             previewId = preview.id
-            session.record()
             apiStart = SystemClock.elapsedRealtimeNanos()
             val result = session.repository.restore(session.context, preview.id, recovery)
             apiEnd = SystemClock.elapsedRealtimeNanos()
@@ -208,6 +208,10 @@ class BackupPerformanceTest {
         }
         val events = session.events()
         assertTrue(events.none { it.mainThread })
+        for (event in listOf("KDF_DECRYPT", "PARSE", "LOGICAL_VALIDATION")) {
+            assertTrue(events.any { it.event == event && it.start && it.nanos in inputReadStart..inspectEnd }, "Missing inspect start: $event")
+            assertTrue(events.any { it.event == event && !it.start && it.nanos in inputReadStart..inspectEnd }, "Missing inspect end: $event")
+        }
         assertNotEquals(session.context.storageGeneration, result.context.storageGeneration)
         val after = session.state(result.context)
         assertEquals(session.pack.info.semanticSha256, after.semanticSha256)
