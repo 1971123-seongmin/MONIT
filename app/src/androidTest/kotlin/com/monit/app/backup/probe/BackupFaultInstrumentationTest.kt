@@ -4,6 +4,8 @@ import android.database.sqlite.SQLiteFullException
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import androidx.lifecycle.ViewModelStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -12,10 +14,15 @@ import com.monit.core.common.io.LocalDataWorkGate
 import com.monit.core.data.backup.*
 import com.monit.core.model.*
 import com.monit.feature.home.backup.BackupPhase
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.security.KeyStore
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.spec.GCMParameterSpec
 import kotlin.test.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -34,7 +41,9 @@ class BackupFaultInstrumentationTest {
         evidence("vectors") { pack, writer ->
             val count = BackupProbeSession.verifyPlatformVectors()
             assertTrue(count > 0)
-            writer.append(JSONObject().put("vectors", count))
+            val jsonCases = BackupProbeSession.verifyPlatformJsonSizes()
+            val (recoveryCases, referenceProviders) = verifyRecoveryCompatibility()
+            writer.append(JSONObject().put("vectors", count).put("platformJsonSizeCases", jsonCases).put("legacyRecoveryCrossChecks", recoveryCases).put("legacyRecoveryReferenceProviders", org.json.JSONArray(referenceProviders)))
             BackupProbeSession.open(app, pack, 1).use { session ->
                 val before = session.state()
                 val bytes = session.encryptSource(BackupProbeSession.password())
@@ -306,6 +315,61 @@ class BackupFaultInstrumentationTest {
                     writer.append(JSONObject().put("case", failure.name).put("reopened", true).put("events", ProbeResultWriter.events(events)))
                 }
             }
+        }
+    }
+
+    /** 새로 생성한 합성 alias만 정리하며 기존 복구 키를 조회·삭제하지 않는다. 실제 기기에서만 실행한다. */
+    private fun verifyRecoveryCompatibility(): Pair<Int, Set<String>> {
+        val alias = "monit-probe-72-compat-${UUID.randomUUID()}"
+        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        check(!store.containsAlias(alias))
+        val providers = mutableSetOf<String>()
+        try {
+            val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+            generator.init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).setKeySize(256).setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).setRandomizedEncryptionRequired(true).build())
+            val key = generator.generateKey()
+            val owner = LedgerContext("72000000-0000-0000-0000-000000000001", "72000000-0000-0000-0000-000000000002")
+            val sizes = listOf(0, 8176, 8191, 8193, 65_537)
+            for (size in sizes) {
+                val payload = ByteArray(size) { (it % 251).toByte() }
+                var image: ByteArray? = null
+                var oldImage: ByteArray? = null
+                var referencePlain: ByteArray? = null
+                var streamPlain: ByteArray? = null
+                var oldBody: ByteArray? = null
+                try {
+                    val output = ByteArrayOutputStream()
+                    LocalRecoveryCipher.encrypt(output, payload, owner, key)
+                    val file = output.toByteArray().also { image = it }
+                    val reference = Cipher.getInstance("AES/GCM/NoPadding").apply {
+                        init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, file.copyOfRange(80, 92)))
+                        updateAAD(file, 0, 100)
+                    }
+                    providers += reference.provider.name
+                    referencePlain = reference.doFinal(file, 100, file.size - 100)
+                    assertContentEquals(payload, referencePlain)
+                    val old = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key) }
+                    providers += old.provider.name
+                    val header = ByteBuffer.allocate(100).put("MONITRC1".toByteArray(Charsets.US_ASCII)).put(owner.ledgerId.toByteArray(Charsets.US_ASCII)).put(owner.storageGeneration.toByteArray(Charsets.US_ASCII)).put(old.iv).putLong(size.toLong() + 16).array()
+                    old.updateAAD(header)
+                    oldBody = old.doFinal(payload)
+                    val legacy = (header + checkNotNull(oldBody)).also { oldImage = it }
+                    streamPlain = legacy.inputStream().use { LocalRecoveryCipher.decrypt(it, size, owner, key) }
+                    assertContentEquals(payload, streamPlain)
+                    legacy[legacy.lastIndex] = (legacy.last().toInt() xor 1).toByte()
+                    assertFails { legacy.inputStream().use { LocalRecoveryCipher.decrypt(it, size, owner, key).also { plain -> plain.fill(0) } } }
+                } finally {
+                    payload.fill(0)
+                    image?.fill(0)
+                    oldImage?.fill(0)
+                    referencePlain?.fill(0)
+                    streamPlain?.fill(0)
+                    oldBody?.fill(0)
+                }
+            }
+            return sizes.size to providers
+        } finally {
+            if (store.containsAlias(alias)) store.deleteEntry(alias)
         }
     }
 

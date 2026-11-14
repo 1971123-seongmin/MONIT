@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.security.KeyStore
 import java.security.MessageDigest
@@ -78,28 +79,26 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
     }
 
     private suspend fun writeCandidate(file: File, context: LedgerContext, payload: ByteArray) {
-        val encrypted = LocalRecoveryCipher.encrypt(payload, context, key())
-        try {
-            currentCoroutineContext().ensureActive()
-            require(file.createNewFile())
-            FileOutputStream(file).use { stream ->
-                stream.write(encrypted)
-                stream.fd.sync()
-            }
-        } finally {
-            encrypted.fill(0)
+        val active = currentCoroutineContext()
+        val key = key()
+        active.ensureActive()
+        require(file.createNewFile())
+        writeRecoveryOutput(FileOutputStream(file), sync = { stream ->
+            active.ensureActive()
+            (stream as FileOutputStream).fd.sync()
+        }) { stream ->
+            LocalRecoveryCipher.encrypt(stream, payload, context, key) { active.ensureActive() }
         }
     }
 
-    private fun verify(file: File, context: LedgerContext, payload: ByteArray) {
+    private suspend fun verify(file: File, context: LedgerContext, payload: ByteArray) {
+        val active = currentCoroutineContext()
         require(file.length() in 116L..(8 * 1024 * 1024L + 116))
-        withRecoveryCiphertext(file.inputStream(), payload.size) { encrypted ->
-            val plain = LocalRecoveryCipher.decrypt(encrypted, context, key())
-            try {
-                require(MessageDigest.isEqual(payload, plain))
-            } finally {
-                plain.fill(0)
-            }
+        withRecoveryPlaintext(file.inputStream(), decrypt = { input ->
+            LocalRecoveryCipher.decrypt(input, payload.size, context, key()) { active.ensureActive() }
+        }) { plain ->
+            active.ensureActive()
+            require(MessageDigest.isEqual(payload, plain))
         }
     }
     private fun key(): SecretKey {
@@ -117,52 +116,57 @@ class KeystoreRecoveryCopyStore @Inject constructor(@param:ApplicationContext pr
     }
 }
 
-/** 원래 payload 길이로만 할당하고 실제 EOF까지 대조한다. borrowed 암호문은 callback/닫기 실패에도 소거한다. */
-internal fun withRecoveryCiphertext(input: InputStream, payloadSize: Int, verify: (ByteArray) -> Unit) {
-    var encrypted: ByteArray? = null
-    try {
-        input.use { stream ->
-            require(payloadSize in 0..(8 * 1024 * 1024))
-            val bytes = ByteArray(payloadSize + 116)
-            encrypted = bytes
+internal object LocalRecoveryCipher {
+    private val magic = "MONITRC1".toByteArray(Charsets.US_ASCII)
+    fun encrypt(output: OutputStream, payload: ByteArray, context: LedgerContext, key: SecretKey, checkActive: () -> Unit = {}) {
+        require(payload.size <= RECOVERY_PAYLOAD_LIMIT)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        val nonce = checkNotNull(cipher.iv)
+        val header = ByteArray(100)
+        try {
+            require(nonce.size == 12)
+            magic.copyInto(header)
+            for (index in 0 until 36) {
+                header[8 + index] = context.ledgerId[index].code.toByte()
+                header[44 + index] = context.storageGeneration[index].code.toByte()
+            }
+            ByteBuffer.wrap(header, 80, 20).put(nonce).putLong(payload.size.toLong() + 16)
+            cipher.updateAAD(header)
+            checkActive()
+            output.write(header)
+            writeRecoveryCiphertext(output, payload, cipher, checkActive)
+        } finally {
+            header.fill(0)
+            nonce.fill(0)
+        }
+    }
+    fun decrypt(input: InputStream, payloadSize: Int, context: LedgerContext, key: SecretKey, checkActive: () -> Unit = {}): ByteArray {
+        require(payloadSize in 0..RECOVERY_PAYLOAD_LIMIT)
+        val header = ByteArray(100)
+        var nonce: ByteArray? = null
+        try {
             var offset = 0
-            while (offset < bytes.size) {
-                val count = stream.read(bytes, offset, bytes.size - offset)
+            while (offset < header.size) {
+                checkActive()
+                val count = input.read(header, offset, header.size - offset)
                 require(count > 0)
                 offset += count
             }
-            require(stream.read() == -1)
-        }
-        verify(checkNotNull(encrypted))
-    } finally {
-        encrypted?.fill(0)
-    }
-}
-
-internal object LocalRecoveryCipher {
-    private val magic = "MONITRC1".toByteArray(Charsets.US_ASCII)
-    fun encrypt(payload: ByteArray, context: LedgerContext, key: SecretKey): ByteArray {
-        require(payload.size <= 8 * 1024 * 1024)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key)
-        require(cipher.iv.size == 12)
-        val header = ByteBuffer.allocate(100).put(magic).put(context.ledgerId.toByteArray(Charsets.US_ASCII)).put(context.storageGeneration.toByteArray(Charsets.US_ASCII)).put(cipher.iv).putLong(payload.size.toLong() + 16).array()
-        cipher.updateAAD(header)
-        return header + cipher.doFinal(payload)
-    }
-    fun decrypt(file: ByteArray, context: LedgerContext, key: SecretKey): ByteArray {
-        require(file.size in 116..(8 * 1024 * 1024 + 116))
-        val header = file.copyOfRange(0, 100)
-        val buffer = ByteBuffer.wrap(header)
-        require(ByteArray(8).also(buffer::get).contentEquals(magic))
-        require(String(ByteArray(36).also(buffer::get), Charsets.US_ASCII) == context.ledgerId)
-        require(String(ByteArray(36).also(buffer::get), Charsets.US_ASCII) == context.storageGeneration)
-        val nonce = ByteArray(12).also(buffer::get)
-        require(buffer.long == file.size.toLong() - 100)
-        return Cipher.getInstance("AES/GCM/NoPadding").run {
-            init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, nonce))
-            updateAAD(header)
-            doFinal(file, 100, file.size - 100)
+            for (index in magic.indices) require(header[index] == magic[index])
+            for (index in 0 until 36) {
+                require(header[8 + index].toInt() == context.ledgerId[index].code)
+                require(header[44 + index].toInt() == context.storageGeneration[index].code)
+            }
+            require(ByteBuffer.wrap(header, 92, 8).long == payloadSize.toLong() + 16)
+            nonce = header.copyOfRange(80, 92)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, nonce))
+            cipher.updateAAD(header)
+            return readRecoveryPlaintext(input, payloadSize, cipher, checkActive)
+        } finally {
+            header.fill(0)
+            nonce?.fill(0)
         }
     }
 }

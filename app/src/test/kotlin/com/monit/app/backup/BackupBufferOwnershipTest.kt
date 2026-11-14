@@ -3,11 +3,14 @@ package com.monit.app.backup
 import android.app.Application
 import com.monit.core.model.BackupException
 import com.monit.core.model.BackupProblem
+import com.monit.core.model.LedgerContext
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InterruptedIOException
 import java.security.UnrecoverableKeyException
 import javax.crypto.AEADBadTagException
+import javax.crypto.spec.SecretKeySpec
 import kotlin.test.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -143,70 +146,75 @@ class BackupBufferOwnershipTest {
         }
     }
 
-    /** 사본은 payload+116의 실제 bytes/EOF를 확인하고 stream을 닫은 뒤 borrowed 암호문만 잠시 제공한다. */
-    @Test fun recoveryReadUsesOneExactBufferAndClearsItAfterVerification() {
+    private val recoveryContext = LedgerContext("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002")
+    private val recoveryKey = SecretKeySpec(ByteArray(32) { 7 }, "AES")
+    private fun encrypted(payload: ByteArray) = ByteArrayOutputStream().apply { LocalRecoveryCipher.encrypt(this, payload, recoveryContext, recoveryKey) }.toByteArray()
+    private fun decrypt(input: InputStream, size: Int) = LocalRecoveryCipher.decrypt(input, size, recoveryContext, recoveryKey)
+
+    /** 인증과 close 뒤에만 평문을 빌려주고 scratch/평문을 소거하며 원래 입력은 보존한다. */
+    @Test fun recoveryReadIsBoundedAndClearsAuthenticatedPlaintextAfterVerification() {
         for (payloadSize in listOf(0, 31, 8 * 1024 * 1024)) {
-            val source = ByteArray(payloadSize + 116) { (it % 251).toByte() }
+            val payload = ByteArray(payloadSize) { (it % 251).toByte() }
+            val source = encrypted(payload)
+            val before = source.copyOf()
             val input = ObservedInput(source, maxRead = if (payloadSize < 100) 7 else 8192)
             var verified: ByteArray? = null
-            withRecoveryCiphertext(input, payloadSize) { encrypted ->
+            withRecoveryPlaintext(input, { decrypt(it, payloadSize) }) { plain ->
                 assertTrue(input.closed)
-                assertContentEquals(source, encrypted)
-                verified = encrypted
+                assertContentEquals(payload, plain)
+                verified = plain
             }
-            assertEquals(1, input.buffers.size)
-            assertSame(input.buffers.single(), verified)
-            assertEquals(payloadSize + 116, checkNotNull(verified).size)
+            assertTrue(input.buffers.all { it.size <= RECOVERY_CHUNK })
+            assertEquals(payloadSize, checkNotNull(verified).size)
             assertTrue(checkNotNull(verified).all { it == 0.toByte() })
             assertOwnedBuffersCleared(input)
-            assertEquals(1.toByte(), source[1])
+            assertContentEquals(before, source)
         }
     }
 
     /** 짧은 사본/추가1byte/zero read는 인증 callback 전에 거부하고 소유 암호문을 소거한다. */
     @Test fun recoveryReadRejectsShortLongAndZeroBeforeVerification() {
-        for (input in listOf(ObservedInput(ByteArray(146) { 43 }), ObservedInput(ByteArray(148) { 43 }), ObservedInput(ByteArray(147) { 43 }, zeros = 1))) {
+        val source = encrypted(ByteArray(31) { 43 })
+        for (input in listOf(ObservedInput(source.copyOf(source.size - 1)), ObservedInput(source + byteArrayOf(1)), ObservedInput(source, zeros = 1))) {
             var called = false
-            assertFailsWith<IllegalArgumentException> { withRecoveryCiphertext(input, 31) { called = true } }
+            assertFailsWith<IllegalArgumentException> { withRecoveryPlaintext(input, { decrypt(it, 31) }) { called = true } }
             assertFalse(called)
             assertOwnedBuffersCleared(input)
         }
     }
 
-    /** key 취득 또는 인증 callback이 실패해도 원래 오류를 전파하며 borrowed 암호문은 남기지 않는다. */
-    @Test fun keyAndAuthenticationFailuresStillClearOwnedCiphertext() {
+    /** key 취득/인증 오류를 그대로 전파하고 stream을 닫으며 검증 callback은 실행하지 않는다. */
+    @Test fun keyAndAuthenticationFailuresNeverReachPlaintextVerification() {
         for (failure in listOf(UnrecoverableKeyException("Synthetic key failure"), AEADBadTagException("Synthetic tag failure"))) {
             val input = ObservedInput(ByteArray(147) { 47 })
-            var borrowed: ByteArray? = null
+            var called = false
             assertSame(
                 failure,
                 assertFails {
-                    withRecoveryCiphertext(input, 31) {
-                        borrowed = it
-                        throw failure
-                    }
+                    withRecoveryPlaintext(input, { throw failure }) { called = true }
                 },
             )
-            assertTrue(checkNotNull(borrowed).all { it == 0.toByte() })
+            assertFalse(called)
             assertOwnedBuffersCleared(input)
         }
     }
 
-    /** read/close 실패에는 인증을 시작하지 않고 이미 할당한 사본 배열을 소거한다. */
-    @Test fun recoveryReadAndCloseFailuresDoNotStartVerification() {
-        for (input in listOf(ObservedInput(ByteArray(147) { 53 }, failureAfter = 50), ObservedInput(ByteArray(147) { 53 }, closeFailure = IOException("Synthetic close failure")))) {
-            var called = false
-            assertFailsWith<IOException> { withRecoveryCiphertext(input, 31) { called = true } }
-            assertFalse(called)
-            assertOwnedBuffersCleared(input)
-        }
+    /** close가 실패하면 인증된 반환 배열도 외부 검증에 넘기지 않고 소거한다. */
+    @Test fun recoveryCloseFailureClearsDecryptedResultBeforeCallback() {
+        val input = ObservedInput(byteArrayOf(), closeFailure = IOException("Synthetic close failure"))
+        val plain = ByteArray(31) { 53 }
+        var called = false
+        assertFailsWith<IOException> { withRecoveryPlaintext(input, { plain }) { called = true } }
+        assertFalse(called)
+        assertTrue(plain.all { it == 0.toByte() })
+        assertTrue(input.closed)
     }
 
     /** 불가능한 원래 payload 길이는 읽기/할당 전에 거부하고 stream 소유권은 정리한다. */
     @Test fun recoveryPayloadBoundsFailBeforeAnyRead() {
         for (payloadSize in listOf(-1, 8 * 1024 * 1024 + 1, Int.MAX_VALUE)) {
             val input = ObservedInput(byteArrayOf())
-            assertFailsWith<IllegalArgumentException> { withRecoveryCiphertext(input, payloadSize) { fail("Unexpected verification") } }
+            assertFailsWith<IllegalArgumentException> { withRecoveryPlaintext(input, { decrypt(it, payloadSize) }) { fail("Unexpected verification") } }
             assertTrue(input.closed)
             assertEquals(0, input.bulkReads)
         }
