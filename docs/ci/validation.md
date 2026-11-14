@@ -2,7 +2,7 @@
 
 필수 job 이름은 `build`다. 앱 빌드·단위 테스트·Lint·독립 컴파일을 4개 job에서 병렬 검증하고, 모든 결과가 성공일 때만 `build`가 성공한다. 실패·취소·생략 결과는 통과시키지 않는다. 모든 PR·main push·수동 실행에서 완료 상태를 남기며 workflow 전체를 `paths-ignore`로 생략하지 않는다. 제품 코드·검증 입력이 달라졌거나 판단할 수 없으면 Android 빌드·단위 테스트·Lint를 유지한다.
 
-앱 빌드는 `:app:assembleDebug`로 앱 APK와 필요한 모듈을 컴파일한다. 내부 라이브러리 배포용 AAR 패키징은 요청하지 않는다. 단위 테스트는 `:core:model:test testDebugUnitTest`, Lint는 `lintDebug`로 전체 모듈을 검사한다. 문서·diff·분류기 검사는 독립 컴파일 job에서 한 번 실행해 앱 빌드의 시작을 지연시키지 않는다.
+앱 빌드는 `:app:assembleDebug :app:assembleQa`로 앱 APK와 필요한 모듈을 컴파일한다. `backupQa`와 미병합 #73의 `performanceQa` 빌드를 현재 필수 CI 명령으로 간주하지 않는다. 내부 라이브러리 배포용 AAR 패키징은 요청하지 않는다. 단위 테스트는 `:core:model:test testDebugUnitTest`, 정적 검사는 `ktlintCheck lintDebug`로 전체 모듈을 검사한다. 실제 명령은 [android-validation.mjs](../../.github/scripts/android-validation.mjs)를 따른다. 문서·diff·분류기 검사는 독립 컴파일 job에서 한 번 실행해 앱 빌드의 시작을 지연시키지 않는다.
 
 ## 검사별 선택
 

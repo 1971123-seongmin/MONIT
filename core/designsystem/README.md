@@ -22,7 +22,7 @@ Material 3 Compose 기반 공통 UI와 테마를 제공한다. 기기 Light/Dark
 | `MonitSkeleton` | 줄 개수·폭 비율·높이·막대 모양 |
 | `MonitDateCell`·`MonitCalendarHeader`·`MonitDatePicker` | 날짜·월·선택 값·설명·이동/선택 콜백·선택 가능 정책 |
 
-계좌 목록 조회·ID 선택·명시적 적용, 거래 행, 월 수입/지출 요약, 납입 상태 조합은 공개 공통 API가 아니다. [preview](src/main/kotlin/com/monit/core/designsystem/preview)의 internal 합성 예시로 공통 컴포넌트를 조합한다. 실제 제품 구현 시 해당 조합과 정책은 feature의 화면 컴포넌트에 둔다. 현재 제품 화면이나 feature 모듈은 생성하지 않았다.
+계좌 목록 조회·ID 선택·명시적 적용, 거래 행, 월 수입/지출 요약, 납입 상태 조합은 공개 공통 API가 아니다. [preview](src/main/kotlin/com/monit/core/designsystem/preview)의 internal 합성 예시로 공통 컴포넌트를 조합한다. 제품의 조합과 정책은 각 feature 화면 컴포넌트에 둔다. 현재 홈·거래·계좌 제품 화면은 이를 조합해 사용하며 [현재 구현 범위](../../docs/README.md)를 따른다.
 
 ```kotlin
 MonitButton(

@@ -20,7 +20,7 @@
 3. 명백한 anchor revision 불일치만 `AnchorRejected`로 확정한다. 원문과 REJECTED 초안을 보존하고 명시 결과 확인만 참조를 종료한다. I/O·취소·세대·손상·입력·ledger CAS 실패를 확정 거절로 바꾸지 않는다. 두 번째 단계 실패는 금융/이력/결과를 rollback하며 첫 단계 캡처는 남아 같은 요청으로만 재시도한다.
 4. 성공 receipt가 우선이며 새 revision으로 과거 영수증을 맞추지 않는다. 새 기준액 성공은 해당 operation의 검증된 이력과 현재 anchor의 존재/동일 소유·기준일/이후 revision도 대조한다. 앱 재진입은 기존 EntryRecoveryGate의 typed 조회·명시 재시도로 연결된다. 서로 다른 명령의 동일 operation 충돌은 원문/납입 intent fence와 대조해 차단한다.
 
-schema7은 `anchor_history`, `anchor_rejections`만 추가한다. 6→7과 기존 1/2→7 경로는 기존 행·열·원문/hash를 보존한다. 향후 백업·복원은 새 두 테이블과 명령 v4/typed 거절을 포함해야 한다. OS 알림 권한/예약은 백업 금융 결과에 포함하지 않고 기존 dirty 재조정 계약을 유지한다. 미제출 초안과 잠긴 제출 참조는 구분하며 실제 백업 기능은 별도 작업이다.
+schema7은 `anchor_history`, `anchor_rejections`만 추가한다. 6→7과 기존 1/2→7 경로는 기존 행·열·원문/hash를 보존한다. 현재 [백업·복원](../../core/data/BACKUP.md)은 두 테이블과 명령 v4/typed 거절을 보존한다. OS 알림 권한/예약은 백업 금융 결과에 포함하지 않고 기존 dirty 재조정 계약을 유지한다. 미제출 초안과 잠긴 제출 참조는 구분하며 백업의 원래 제출은 복원 후 실행 대기열이 아닌 evidence-only 근거로 보존한다.
 
 ## 화면과 검증
 
@@ -28,4 +28,4 @@ schema7은 `anchor_history`, `anchor_rejections`만 추가한다. 6→7과 기�
 
 Figma 대응: [자산 소계 A13](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=349-1849), [미확인 상세 A14](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=349-1904), [확인 상세 A15](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=349-1954), [기준액 입력 F01](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=129-1002), [최초 검토](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=349-2003), [변경 검토](https://www.figma.com/design/7jkAht5c7RtQ0DkZ9QFxXw?node-id=349-2053). 합성 예시 수치는 실제 snapshot 값으로 대체한다. OS 상태/탐색 바 이미지는 제품 UI 자산으로 넣지 않는다.
 
-모델 계산, 파일 Room 멱등·충돌/rollback·마이그레이션, ViewModel 초안/응답 유실, 실제 Nav2/Compose 입력·Back·최종확인과 Native Canvas 렌더를 검증한다. 호스트 렌더는 실기기·IME·프로세스 종료 검증을 대신하지 않는다. 실기기 시험은 사용자가 재개할 때 별도로 수행한다.
+모델 계산, 파일 Room 멱등·충돌/rollback·마이그레이션, ViewModel 초안/응답 유실, 실제 Nav2/Compose 입력·Back·최종확인과 Native Canvas 렌더를 검증한다. 호스트 렌더는 실기기·IME·프로세스 종료 검증을 대신하지 않는다. S23 지정 수용시험과 남은 기기 검증은 [현재 상태](../../docs/README.md#검증과-남은-일)에서 구분한다.

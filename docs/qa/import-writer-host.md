@@ -1,5 +1,7 @@
 # 이관 writer host 검증
 
+> #69의 host 검증·APK 산출물 이력이다. #69와 후속 S23 수용 결함 수정 #71은 main에 병합됐다. 아래 당시 다음 작업·기기 미실행·hash 기록은 보존하며, 이후 지정 수용시험과 남은 검증은 [현재 안내](../README.md#검증과-남은-일)를 따른다. 실제 자료 반영 PASS를 뜻하지 않는다.
+
 Issue [#68](https://github.com/1971123-seongmin/MONIT/issues/68). 구현 계약은 [이관 writer](../architecture/import-writer-plan.md), 백업 형식·복원 책임은 [BACKUP](../../core/data/BACKUP.md), 입력은 [공개 합성 envelope](../contracts/fixtures/import-preview-v1-synthetic.json)를 따른다. 실제 원본 서비스·사용자 금융 자료·기기는 조회하거나 변경하지 않았다. 기존 QA 작업 공간과 동결 APK도 변경하지 않았다.
 
 ## 기준과 결과

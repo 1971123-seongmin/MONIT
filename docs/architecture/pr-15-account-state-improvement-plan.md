@@ -1,5 +1,7 @@
 # PR #15 계좌 등록 상태 계층 개선 설계
 
+> PR #15 당시 설계·검증 경계의 이력이다. 이후 등록 UI·초안·기준액/자산이 추가됐다. 현재 계약은 [계좌 STATE](../../feature/accounts/STATE.md)와 [ASSETS](../../feature/accounts/ASSETS.md), 검증 상태는 [문서 안내](../README.md)를 따른다.
+
 - 기준일: 2026-11-10 (Asia/Seoul)
 - 상태: 승인된 설계를 PR #15에 구현. 현재 동작과 복구 범위는 [상태 계층 계약](../../feature/accounts/STATE.md)을 따른다.
 - 기준 main: `21f6f86ecbd139cc0c2e51efdb2f6f72234020e7` (개발 계획 MR #20 병합 포함)

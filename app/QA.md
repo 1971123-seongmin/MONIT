@@ -14,6 +14,12 @@ S23에서 합성 금융 자료를 입력하기 위한 debug 성격의 별도 앱
 
 QA 앱은 다른 applicationId를 사용하고 sharedUserId나 앱 간 DB 접근을 선언하지 않는다. 같은 DB 파일 이름도 [앱별 UID로 분리되는 내부 샌드박스](https://source.android.com/docs/security/app-sandbox)에 속한다. Room은 기존 ApplicationContext로 파일을 열며 저장 경로·스키마·계산·쓰기 동작을 분기하지 않는다. 새로 설치한 QA 앱에서 QA가 실제 UI로 합성 계좌/거래를 입력한다. QA 앱을 이전에 사용했다면 그 QA 데이터는 유지되므로 자동으로 빈 DB라고 가정하지 않는다.
 
+## 복원 전용 앱과 현재 기기 경계
+
+main에는 debug 설정을 복제한 `backupQa`도 있다. `com.monit.app.qa.backup` / `MONIT 백업 검증`으로 별도 UID·DB를 사용하며 `:app:assembleBackupQa`로 빌드한다. 복원은 전체 장부를 교체하고 UI 초안 payload를 제외하므로 원래 `.qa`의 자료·초안 보존을 이 백업으로 대신하지 않는다. 기존 `.qa`와 `.qa.backup` 자료를 삭제·초기화하지 않는다.
+
+`performanceQa` / `.qa.performance`는 [PR #73](https://github.com/1971123-seongmin/MONIT/pull/73)의 계측 지원이며 이 문서의 기준 main에는 아직 없다. CI 성공과 기기 성능시험 미실행을 구분한다. 사용자의 최근 앱 카드 육안 확인 중에는 기기 제어를 보류하고 확인 응답·인계 후 이미 승인된 QA를 재개한다. 지정 기기는 `SM-S911N`뿐이다. [현재 검증 상태](../docs/README.md#검증과-남은-일)를 따른다.
+
 ## 빌드와 전달
 
 ```sh

@@ -6,7 +6,7 @@
 
 사용자가 요청한 날짜별 학습 기록에는 [learning-log](../../.agents/skills/learning-log/SKILL.md)를 사용한다. 관련 증거를 수집해 기존 날짜 기록을 갱신하는 절차이며 예약 실행·무인 외부 쓰기 설정이 아니다.
 
-Android CI의 `build` 작업은 문서 검사 후 `:core:model:test`·assembleDebug·testDebugUnitTest·lintDebug를 수행한다. 문서 검사 실패도 같은 필수 검사를 실패 처리하며 보호 규칙을 별도로 변경하지 않는다. CodeRabbit은 아래 현재 OFF 운영 기준을 적용하며 필수 CI와 구분한다. 과거 PR의 성공 결과는 현재 미커밋 변경의 검증 결과가 아니다.
+Android CI는 변경 입력을 분류하고 앱 빌드·단위 테스트·Lint·독립 컴파일을 병렬 job으로 검증한 뒤 필수 `build`에서 결과를 종합한다. 문서 전용 변경은 문서·diff·분류기 검사를 수행하며 Android 명령은 해당 없음으로 구분한다. 정확한 명령과 선택 경계는 [CI 실행 범위](../ci/validation.md)를 따른다. 문서 검사 실패도 필수 검사를 실패 처리하며 보호 규칙을 별도로 변경하지 않는다. CodeRabbit은 아래 현재 OFF 운영 기준을 적용하며 필수 CI와 구분한다. 과거 PR의 성공 결과는 현재 미커밋 변경의 검증 결과가 아니다.
 
 ## 검증 선택
 
