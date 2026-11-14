@@ -1,10 +1,13 @@
 package com.monit.app.backup.probe
 
+import android.net.Uri
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.monit.app.backup.BackupDocuments
 import com.monit.core.data.backup.*
 import com.monit.core.model.BackupStage
+import com.monit.core.model.RestorePreview
 import java.util.UUID
 import kotlin.test.*
 import kotlinx.coroutines.runBlocking
@@ -183,14 +186,17 @@ class BackupPerformanceTest {
 
     private suspend fun restoreRound(session: BackupProbeSession, label: String, sampler: ProbeHeapSampler? = null): JSONObject {
         val recovery = probeRecovery(app, session, label)
-        var encrypted: ByteArray? = null
+        val document = prepareRestoreDocument(app, session, label)
+        val documents = BackupDocuments(app, probeContexts)
         var apiStart = 0L
         var apiEnd = 0L
         var previewId = ""
         sampler?.start()
+        val inputReadStart = SystemClock.elapsedRealtimeNanos()
+        var inspectEnd = 0L
         val result = try {
-            encrypted = session.encryptSource(BackupProbeSession.password())
-            val preview = session.repository.inspect(session.context, encrypted, BackupProbeSession.password())
+            val preview = inspectRestoreDocument(session, documents, document)
+            inspectEnd = SystemClock.elapsedRealtimeNanos()
             previewId = preview.id
             session.record()
             apiStart = SystemClock.elapsedRealtimeNanos()
@@ -198,7 +204,6 @@ class BackupPerformanceTest {
             apiEnd = SystemClock.elapsedRealtimeNanos()
             result
         } finally {
-            encrypted?.fill(0)
             sampler?.close()
         }
         val events = session.events()
@@ -213,9 +218,21 @@ class BackupPerformanceTest {
         assertEquals(session.pack.info.expectedDeleted, after.deleted)
         assertEquals(result, session.repository.result(previewId))
         return JSONObject().put("apiStartNanos", apiStart).put("apiEndNanos", apiEnd)
+            .put("inputReadStartNanos", inputReadStart).put("inspectEndNanos", inspectEnd)
+            .put("preparedEncryptedFileOutsideHeap", true).put("inputReadAndInspectInsideHeap", sampler != null)
             .put("restoreApiNanos", apiEnd - apiStart).put("transactionNanos", ProbeResultWriter.duration(events, "REPLACEMENT"))
             .put("transactionBodyNanos", ProbeResultWriter.duration(events, "REPLACEMENT_BODY")).put("recoveryCopyNanos", ProbeResultWriter.duration(events, "RECOVERY_COPY"))
             .put("events", ProbeResultWriter.events(events)).put("afterSemanticSha256", after.semanticSha256).put("actualKeystoreRecovery", true).put("heapSamplerEnabled", sampler != null)
+    }
+
+    /** 파일 읽기·검증은 측정 안에 두고 암호문을 복원 대기/transaction까지 보관하지 않는다. */
+    private suspend fun inspectRestoreDocument(session: BackupProbeSession, documents: BackupDocuments, uri: Uri): RestorePreview {
+        val encrypted = documents.read(uri)
+        return try {
+            session.repository.inspect(session.context, encrypted, BackupProbeSession.password())
+        } finally {
+            encrypted.fill(0)
+        }
     }
 
     private fun failed(error: Throwable) = JSONObject().put("status", "FAILED").put("errorClass", error.javaClass.simpleName)
