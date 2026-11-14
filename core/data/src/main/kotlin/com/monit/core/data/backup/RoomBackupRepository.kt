@@ -181,18 +181,18 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
 
     private suspend fun prepareCurrentRecovery(context: LedgerContext, preview: RestorePreview, onStage: (BackupStage) -> Unit, lease: String): BackupRecoveryPayload {
         onStage(BackupStage.SNAPSHOT)
-        val plain = captureCurrentPlain(context, preview, lease)
-        return prepareBackupRecoveryPayload(plain) { validate(it, onStage) }
+        val snapshot = captureCurrentSnapshot(context, preview, lease)
+        return prepareBackupRecoveryPayload(snapshot) { validate(it, onStage) }
     }
 
-    /** 캡처한 DOM은 재파싱 검증의 호출 프레임에 넘기지 않는다. */
-    private suspend fun captureCurrentPlain(context: LedgerContext, preview: RestorePreview, lease: String): ByteArray {
+    /** 같은 A tree/직렬화 시점을 소유하고 plain 생성은 논리 검증 뒤로 미룬다. */
+    private suspend fun captureCurrentSnapshot(context: LedgerContext, preview: RestorePreview, lease: String): BackupCapturedSnapshot {
         val current = database.withTransaction {
             database.requireMaintenanceWriter(lease)
             checkPreview(preview)
             adapter.captureInside(context)
         }
-        return BackupJson.utf8(current.toString())
+        return BackupCapturedSnapshot.capture(current)
     }
 
     private data class RestoreFences(val operations: Set<String>, val importFences: List<JSONObject>)
@@ -264,6 +264,10 @@ internal class RoomBackupRepository @Inject constructor(private val database: Le
     private suspend fun validate(bytes: ByteArray, onStage: (BackupStage) -> Unit): ValidatedBackup = withTimeout(30_000) {
         onStage(BackupStage.VALIDATION)
         validator.validate(bytes)
+    }
+    private suspend fun validate(snapshot: BackupCapturedSnapshot, onStage: (BackupStage) -> Unit): ValidatedBackup = withTimeout(30_000) {
+        onStage(BackupStage.VALIDATION)
+        validator.validate(snapshot)
     }
     private fun counts(root: JSONObject): Map<String, Int> = root.getJSONObject("manifest").getJSONObject("recordCounts").let { value -> value.keys().asSequence().associateWith { value.getInt(it) } }
     private fun emptyStatus() = BackupStatusEntity(lastBackupAt = null, lastBackupLedger = null, lastBackupGeneration = null, restoreResultJson = null, restoreAcknowledged = true)

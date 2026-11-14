@@ -16,12 +16,16 @@ internal data class ValidatedBackup(val root: JSONObject, val context: LedgerCon
 /** 인증 후만 실행하는 무쓰기 검증. SQL/파일/Keystore와 분리해 실패가 활성 자료를 바꾸지 못한다. */
 internal class BackupValidator(private val clock: Clock, private val probe: BackupWorkProbe = BackupWorkProbe()) {
     private val today get() = LocalDate.now(clock.withZone(ZoneId.of("Asia/Seoul")))
-    suspend fun validate(bytes: ByteArray): ValidatedBackup {
+    suspend fun validate(bytes: ByteArray): ValidatedBackup = validateInput(bytes, null)
+
+    suspend fun validate(snapshot: BackupCapturedSnapshot): ValidatedBackup = validateInput(null, snapshot)
+
+    private suspend fun validateInput(bytes: ByteArray?, snapshot: BackupCapturedSnapshot?): ValidatedBackup {
         var logicalStarted = false
         try {
             probe.start(BackupProbeEvent.PARSE)
             var root = try {
-                BackupJson.parse(bytes)
+                if (snapshot == null) BackupJson.parse(checkNotNull(bytes)) else snapshot.parseRoot()
             } finally {
                 probe.end(BackupProbeEvent.PARSE)
             }
@@ -35,7 +39,7 @@ internal class BackupValidator(private val clock: Clock, private val probe: Back
             } finally {
                 probe.end(BackupProbeEvent.SCHEMA)
             }
-            if (version == 1) return validate(BackupV1Reader.convert(root, bytes))
+            if (version == 1) return validate(BackupV1Reader.convert(root, bytes ?: checkNotNull(snapshot).encode()))
             if (version == 2) {
                 // 정규화로 manifest를 다시 만들기 전에 원래 선언과 실제 배열/원문을 대조한다.
                 val legacySource = root.getJSONObject("sourceLedger")

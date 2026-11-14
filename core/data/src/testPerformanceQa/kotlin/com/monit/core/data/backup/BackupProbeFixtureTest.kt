@@ -65,6 +65,7 @@ class BackupProbeFixtureTest {
         assertFailsWith<BackupException> { BackupValidator(clock).validate(BackupProbeFixtures.bytes(b)) }
     }
 
+    /** 실제 유효8MiB/50k·원문2MiB 입력은 bytes와 내부 캡처 경로 모두 같은 자료/정확한 plain을 보존한다. */
     @Test fun mixedProfileIsValidAtBothExactLimits() = runTest {
         val (a, b) = BackupProbeFixtures(database, clock, contexts).create(ProbeProfile.MIXED_LIMIT)
         val bytes = BackupProbeFixtures.bytes(b)
@@ -72,6 +73,11 @@ class BackupProbeFixtureTest {
         assertEquals(50_000, b.getJSONObject("manifest").getInt("recordTotal"))
         BackupValidator(clock).validate(bytes)
         BackupValidator(clock).validate(BackupProbeFixtures.bytes(a))
+        val captured = BackupCapturedSnapshot.capture(a)
+        assertSame(a, BackupValidator(clock).validate(captured).root)
+        val recovery = prepareBackupRecoveryPayload(captured) { BackupValidator(clock).validate(it) }
+        assertContentEquals(BackupProbeFixtures.bytes(a), recovery.plain)
+        recovery.plain.fill(0)
         assertEquals(201, transactions(b).count { it.isNull("deletedAt") })
         val originals = b.getJSONArray("originals").values().map { it as JSONObject }
         assertEquals(2 * 1024 * 1024L, originals.sumOf { it.getString("byteLength").toLong() })

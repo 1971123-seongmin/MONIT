@@ -29,7 +29,14 @@ internal object BackupJson {
         return parseText(text)
     }
 
-    suspend fun parseText(text: String): JSONObject {
+    suspend fun parseText(text: String): JSONObject = checkNotNull(readText(text, buildObject = true))
+
+    /** 기존 strict scanner를 그대로 실행하며 이미 소유한 캡처 tree를 다시 만들지 않는다. */
+    suspend fun checkText(text: String) {
+        readText(text, buildObject = false)
+    }
+
+    private suspend fun readText(text: String, buildObject: Boolean): JSONObject? {
         if (utf8ByteCount(text) > BackupEnvelope.MAX_PAYLOAD) fail(BackupProblem.LIMIT)
         val numberMatcher = numberPattern.matcher("")
         var tokens = 0
@@ -76,7 +83,7 @@ internal object BackupJson {
                 if (reader.peek() != JsonToken.END_DOCUMENT) fail(BackupProblem.INVALID_PAYLOAD)
             }
             currentCoroutineContext().ensureActive()
-            return JSONObject(text)
+            return if (buildObject) JSONObject(text) else null
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (_: org.json.JSONException) {

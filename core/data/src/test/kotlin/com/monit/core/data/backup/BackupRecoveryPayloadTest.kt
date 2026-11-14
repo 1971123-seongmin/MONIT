@@ -78,4 +78,44 @@ class BackupRecoveryPayloadTest {
         assertNull(result)
         assertTrue(plain.all { it == 0.toByte() })
     }
+
+    /** 캡처 입력의 검증/추출 실패도 이미 소유한 원문 배열을 소거하고 예외 동일성을 유지한다. */
+    @Test fun capturedValidationAndExtractionFailuresWipeOwnedPlaintext() = runTest {
+        val raw = checkNotNull(javaClass.getResourceAsStream("/backup/backup-v1-minimal.json")).use { it.readBytes() }
+        val validated = BackupValidator(clock).validate(raw)
+        val snapshot = BackupCapturedSnapshot.capture(validated.root)
+        val plain = snapshot.encode()
+        val failure = IllegalStateException("Synthetic captured validation failure")
+        assertSame(failure, assertFailsWith<IllegalStateException> { prepareBackupRecoveryPayload(snapshot) { throw failure } })
+        assertTrue(plain.all { it == 0.toByte() })
+        val extraction = BackupCapturedSnapshot.capture(validated.root)
+        val owned = extraction.encode()
+        assertFailsWith<JSONException> { prepareBackupRecoveryPayload(extraction) { validated.copy(root = JSONObject()) } }
+        assertTrue(owned.all { it == 0.toByte() })
+    }
+
+    /**
+     * 목적: 캡처 경로도 실제 Job 취소 완료 전에 소유 plain을 소거한다.
+     * 조건: legacy 정규화 등으로 배열이 이미 생긴 입력과 완료되지 않은 검증 gate.
+     * 절차: 진입을 기다린 뒤 cancelAndJoin하고 반환 payload와 배열을 확인한다.
+     * 기대: handoff 없음·전부0이며 blocking 암호 provider의 즉시 취소를 주장하지 않는다.
+     */
+    @Test fun capturedCancellationWipesBeforeJobCompletion() = runTest {
+        val raw = checkNotNull(javaClass.getResourceAsStream("/backup/backup-v1-minimal.json")).use { it.readBytes() }
+        val snapshot = BackupCapturedSnapshot.capture(BackupValidator(clock).validate(raw).root)
+        val owned = snapshot.encode()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<ValidatedBackup>()
+        var result: BackupRecoveryPayload? = null
+        val job = launch {
+            result = prepareBackupRecoveryPayload(snapshot) {
+                entered.complete(Unit)
+                release.await()
+            }
+        }
+        entered.await()
+        job.cancelAndJoin()
+        assertNull(result)
+        assertTrue(owned.all { it == 0.toByte() })
+    }
 }

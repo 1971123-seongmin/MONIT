@@ -53,6 +53,9 @@ class BackupProbeValidationTest {
         val result = validate(root, probe)
         assertEquals(BackupProbeSession.semanticDigest(root), BackupProbeSession.semanticDigest(result.root))
         assertTrace(probe, phases)
+        val capturedProbe = BackupWorkProbe().apply { configure() }
+        assertSame(root, BackupValidator(clock, capturedProbe).validate(BackupCapturedSnapshot.capture(root)).root)
+        assertTrace(capturedProbe, phases)
     }
 
     /** 각 단계의 실제 불량 입력은 기존 오류 분류를 유지하고 실패 단계까지의 end만 기록한다. */
@@ -173,6 +176,9 @@ class BackupProbeValidationTest {
         val probe = BackupWorkProbe().apply { configure() }
         assertEquals(problem, assertFailsWith<BackupException> { validate(root, probe) }.problem, expectedPhases.last())
         assertTrace(probe, expectedPhases)
+        val capturedProbe = BackupWorkProbe().apply { configure() }
+        assertEquals(problem, assertFailsWith<BackupException> { BackupValidator(clock, capturedProbe).validate(BackupCapturedSnapshot.capture(root)) }.problem)
+        assertTrace(capturedProbe, expectedPhases)
     }
 
     private fun assertTrace(probe: BackupWorkProbe, expectedPhases: List<String>) {
